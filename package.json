@@ -1,0 +1,52 @@
+{
+  "name": "emailight-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend microservices pour Emailight - Application de reformulation d'emails par IA",
+  "keywords": [
+    "emailight",
+    "microservices",
+    "nodejs",
+    "email",
+    "ai",
+    "reformulation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cheikh-mbacke/emailight-backend.git"
+  },
+  "license": "MIT",
+  "author": "Mbacke Cheikh",
+  "scripts": {
+    "clean": "docker compose -f docker/docker-compose.yml down -v --remove-orphans",
+    "clean:all": "docker compose -f docker/docker-compose.yml down -v --remove-orphans && docker volume prune -f --filter label=emailight && docker network prune -f --filter name=emailight",
+    "clean:containers": "docker compose -f docker/docker-compose.yml down --remove-orphans",
+    "clean:network": "docker network prune -f",
+    "clean:volumes": "docker compose -f docker/docker-compose.yml down -v",
+    "clean:force": "docker compose -f docker/docker-compose.yml --project-name emailight down -v --remove-orphans || true && docker rm -f $(docker ps -aq --filter name=emailight-) 2>/dev/null || true",
+    "create-structure": "node scripts/create-structure.js",
+    "dev": "docker compose -f docker/docker-compose.yml --profile dev up -d",
+    "postdev": "node scripts/post-dev-message.js",
+    "dev:admin": "docker compose -f docker/docker-compose.yml --profile dev up -d",
+    "postdev:admin": "node scripts/post-dev-message.js",
+    "dev:infra": "docker compose -f docker/docker-compose.yml up -d mongodb redis",
+    "format": "echo \"Aucun service développé pour l'instant\"",
+    "lint": "echo \"Aucun service développé pour l'instant\"",
+    "logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "logs:mongo": "docker compose -f docker/docker-compose.yml logs -f mongodb",
+    "logs:redis": "docker compose -f docker/docker-compose.yml logs -f redis",
+    "restart": "docker compose -f docker/docker-compose.yml restart",
+    "setup": "node scripts/setup.js",
+    "status": "docker compose -f docker/docker-compose.yml ps",
+    "stop": "docker compose -f docker/docker-compose.yml down",
+    "test": "echo \"Aucun service développé pour l'instant\""
+  },
+  "devDependencies": {
+    "eslint": "^9.29.0",
+    "prettier": "^3.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
