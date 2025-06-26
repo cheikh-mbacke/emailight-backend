@@ -35,7 +35,98 @@ services:
       - emailight-network
 
   # ================================
-  # ADMIN INTERFACES (DEV ONLY)
+  # GLITCHTIP - ERROR MONITORING
+  # ================================
+
+  postgres:
+    image: postgres:17
+    container_name: emailight-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+      POSTGRES_DB: ${GLITCHTIP_POSTGRES_DB}
+      POSTGRES_USER: ${GLITCHTIP_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${GLITCHTIP_POSTGRES_PORT}:5432"
+    networks:
+      - emailight-network
+
+  glitchtip-redis:
+    image: valkey/valkey
+    container_name: emailight-glitchtip-redis
+    restart: unless-stopped
+    ports:
+      - "${GLITCHTIP_REDIS_PORT}:6379"
+    networks:
+      - emailight-network
+
+  glitchtip-web:
+    image: glitchtip/glitchtip
+    container_name: emailight-glitchtip-web
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - glitchtip-redis
+    ports:
+      - "${GLITCHTIP_WEB_PORT}:8000"
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_AUTOSCALE: "1,3"
+      REDIS_URL: redis://glitchtip-redis:6379/0
+    volumes:
+      - glitchtip_uploads:/code/uploads
+    networks:
+      - emailight-network
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip
+    container_name: emailight-glitchtip-worker
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    depends_on:
+      - postgres
+      - glitchtip-redis
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      CELERY_WORKER_AUTOSCALE: "1,3"
+      REDIS_URL: redis://glitchtip-redis:6379/0
+    volumes:
+      - glitchtip_uploads:/code/uploads
+    networks:
+      - emailight-network
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip
+    container_name: emailight-glitchtip-migrate
+    command: ./bin/run-migrate.sh
+    depends_on:
+      - postgres
+      - glitchtip-redis
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      REDIS_URL: redis://glitchtip-redis:6379/0
+    networks:
+      - emailight-network
+
+  # ================================
+  # ADMIN INTERFACES
   # ================================
 
   mongo-express:
@@ -55,8 +146,6 @@ services:
       - mongodb
     networks:
       - emailight-network
-    profiles:
-      - dev
 
   redis-commander:
     image: rediscommander/redis-commander:latest
@@ -75,8 +164,6 @@ services:
       - redis
     networks:
       - emailight-network
-    profiles:
-      - dev
 
 # ====================
 # VOLUMES PERSISTANTS
@@ -86,6 +173,12 @@ volumes:
     labels:
       - emailight
   redis_data:
+    labels:
+      - emailight
+  postgres_data:
+    labels:
+      - emailight
+  glitchtip_uploads:
     labels:
       - emailight
 

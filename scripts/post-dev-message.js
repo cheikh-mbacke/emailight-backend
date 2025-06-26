@@ -2,12 +2,14 @@
 
 const { exec } = require("child_process");
 
+// Function to check the status of Docker containers
 function checkContainerStatus() {
   return new Promise((resolve) => {
     exec(
       "docker compose -f docker/docker-compose.yml ps --format json",
       (error, stdout) => {
         if (error) {
+          // If there's an error, return an empty list
           return resolve([]);
         }
 
@@ -17,11 +19,12 @@ function checkContainerStatus() {
         for (const line of lines) {
           try {
             const container = JSON.parse(line);
+            // Only keep containers that are running
             if (container.State === "running") {
               containers.push(container);
             }
           } catch (_) {
-            // Ligne non JSON, on ignore
+            // Ignore non-JSON lines (e.g., error or unexpected output)
           }
         }
 
@@ -31,21 +34,23 @@ function checkContainerStatus() {
   });
 }
 
+// Main function to check container status and display info
 async function main() {
-  console.log("\n🔍 Vérification de l'état des containers...");
+  console.log("\n🔍 Checking container status...");
 
+  // Wait 1.5 seconds before checking (simulate loading)
   await new Promise((resolve) => setTimeout(resolve, 1500));
 
   const runningContainers = await checkContainerStatus();
 
   if (runningContainers.length === 0) {
-    console.log("⚠️  Aucun container détecté. Vérifiez avec: npm run status");
+    console.log("⚠️  No containers detected. Check with: npm run status");
     return;
   }
 
-  console.log("✅ Infrastructure démarrée avec succès !\n");
+  console.log("✅ Infrastructure successfully started!\n");
 
-  console.log("📊 Containers actifs :");
+  console.log("📊 Active containers:");
   runningContainers.forEach((container) => {
     const name = container.Name || container.Service;
     const ports = container.Publishers?.length
@@ -56,20 +61,37 @@ async function main() {
     console.log(`   - ${name} (ports: ${ports})`);
   });
 
-  console.log("\n🌐 Interfaces disponibles :");
+  console.log("\n🌐 Available interfaces:");
+
+  // Core admin interfaces
   if (runningContainers.some((c) => c.Name.includes("mongo-express"))) {
     console.log("   - MongoDB Admin: http://localhost:8082 (admin/admin)");
   }
   if (runningContainers.some((c) => c.Name.includes("redis-commander"))) {
-    console.log("   - Redis Admin: http://localhost:8081");
+    console.log("   - Redis Admin: http://localhost:8081 (admin/admin)");
   }
 
-  console.log("\n🔧 Commandes utiles :");
-  console.log("   - npm run status    → État des containers");
-  console.log("   - npm run logs      → Voir tous les logs");
-  console.log("   - npm run stop      → Arrêter l'infrastructure");
+  // GlitchTip interface
+  if (runningContainers.some((c) => c.Name.includes("glitchtip-web"))) {
+    console.log("   - GlitchTip (Error Monitoring): http://localhost:8090");
+  }
 
-  console.log("\n🎯 Infrastructure prête pour le développement !");
+  console.log("\n🔧 Useful commands:");
+  console.log("   - npm run status       → Check container status");
+  console.log("   - npm run logs         → View all logs");
+  console.log("   - npm run logs:glitch  → View GlitchTip logs");
+  console.log("   - npm run stop         → Stop the infrastructure");
+
+  console.log("\n🎯 Infrastructure ready for development!");
+
+  // Additional GlitchTip setup info if it's running
+  if (runningContainers.some((c) => c.Name.includes("glitchtip-web"))) {
+    console.log("\n💡 GlitchTip first-time setup:");
+    console.log("   1. Visit http://localhost:8090");
+    console.log("   2. Create your admin account");
+    console.log("   3. Set up your first organization");
+  }
 }
 
+// Execute the main function and catch any unexpected errors
 main().catch(console.error);
