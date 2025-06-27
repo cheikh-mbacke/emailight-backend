@@ -1,10 +1,14 @@
 const AuthService = require("../services/authService");
-const { logger } = require("../utils/logger");
 
 /**
  * 🔐 Authentication controller
  */
 class AuthController {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * 📝 User registration
    */
@@ -85,7 +89,7 @@ class AuthController {
       // Note: With JWT, logout is mostly client-side
       // A token blacklist can optionally be added here
 
-      logger.auth(
+      this.logger.auth(
         "Déconnexion utilisateur",
         {
           email: request.user.email,
@@ -99,7 +103,7 @@ class AuthController {
 
       return reply.success(null, "Déconnexion réussie");
     } catch (error) {
-      logger.error("Erreur lors de la déconnexion", error, {
+      this.logger.error("Erreur lors de la déconnexion", error, {
         action: "logout_failed",
         userId: request.user?._id?.toString(),
       });
@@ -132,7 +136,7 @@ class AuthController {
         "Profil récupéré avec succès"
       );
     } catch (error) {
-      logger.error("Erreur lors de la récupération du profil", error, {
+      this.logger.error("Erreur lors de la récupération du profil", error, {
         action: "get_profile_failed",
         userId: request.user?._id?.toString(),
       });
@@ -183,7 +187,7 @@ class AuthController {
       const User = require("../models/User");
       const updatedUser = await User.findById(userId);
 
-      logger.user(
+      this.logger.user(
         "Profil mis à jour",
         {
           updatedFields: Object.keys(updates),
@@ -210,7 +214,7 @@ class AuthController {
         });
       }
 
-      logger.error("Erreur lors de la mise à jour du profil", error, {
+      this.logger.error("Erreur lors de la mise à jour du profil", error, {
         action: "profile_update_failed",
         userId: request.user?._id?.toString(),
       });

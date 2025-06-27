@@ -3,12 +3,16 @@
 // ============================================================================
 
 const User = require("../models/User");
-const { logger } = require("../utils/logger");
 
 /**
  * ⚙️ User Preferences Service
  */
 class PreferencesService {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * Return the default preference values
    */
@@ -46,10 +50,14 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de la récupération des préférences", error, {
-        action: "get_preferences_failed",
-        userId: userId?.toString(),
-      });
+      this.logger.error(
+        "Erreur lors de la récupération des préférences",
+        error,
+        {
+          action: "get_preferences_failed",
+          userId: userId?.toString(),
+        }
+      );
 
       const serviceError = new Error(
         "Erreur lors de la récupération des préférences"
@@ -97,7 +105,7 @@ class PreferencesService {
         throw error;
       }
 
-      logger.user(
+      this.logger.user(
         "Préférences mises à jour",
         {
           updatedFields: Object.keys(updates),
@@ -118,10 +126,14 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de la mise à jour des préférences", error, {
-        action: "update_preferences_failed",
-        userId: userId?.toString(),
-      });
+      this.logger.error(
+        "Erreur lors de la mise à jour des préférences",
+        error,
+        {
+          action: "update_preferences_failed",
+          userId: userId?.toString(),
+        }
+      );
 
       const serviceError = new Error(
         "Erreur lors de la mise à jour des préférences"
@@ -154,7 +166,7 @@ class PreferencesService {
         throw error;
       }
 
-      logger.user(
+      this.logger.user(
         "Préférences réinitialisées",
         {
           resetTo: defaultPreferences,
@@ -173,7 +185,7 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error(
+      this.logger.error(
         "Erreur lors de la réinitialisation des préférences",
         error,
         {
@@ -216,7 +228,7 @@ class PreferencesService {
         exportVersion: "1.0",
       };
 
-      logger.user(
+      this.logger.user(
         "Préférences exportées",
         {
           exportSize: JSON.stringify(exportData).length,
@@ -232,7 +244,7 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de l'export des préférences", error, {
+      this.logger.error("Erreur lors de l'export des préférences", error, {
         action: "export_preferences_failed",
         userId: userId?.toString(),
       });
@@ -286,7 +298,7 @@ class PreferencesService {
         throw error;
       }
 
-      logger.user(
+      this.logger.user(
         "Préférences importées",
         {
           importedFields: Object.keys(preferences),
@@ -308,7 +320,7 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de l'import des préférences", error, {
+      this.logger.error("Erreur lors de l'import des préférences", error, {
         action: "import_preferences_failed",
         userId: userId?.toString(),
       });
@@ -453,7 +465,7 @@ class PreferencesService {
         throw error;
       }
 
-      logger.user(
+      this.logger.user(
         `Préférence ${field} mise à jour`,
         {
           field,
@@ -474,7 +486,7 @@ class PreferencesService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error(`Erreur lors de la mise à jour de ${field}`, error, {
+      this.logger.error(`Erreur lors de la mise à jour de ${field}`, error, {
         action: "update_specific_preference_failed",
         userId: userId?.toString(),
         field,

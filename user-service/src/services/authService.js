@@ -1,11 +1,15 @@
 const User = require("../models/User");
-const { logger } = require("../utils/logger");
 const crypto = require("crypto");
 
 /**
  * 🔐 Authentication service
  */
 class AuthService {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * Register a new user
    */
@@ -33,7 +37,7 @@ class AuthService {
 
       await user.save();
 
-      logger.auth(
+      this.logger.auth(
         "Nouvel utilisateur créé",
         {
           email: user.email,
@@ -54,7 +58,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors de la création d'utilisateur", error, {
+      this.logger.error("Erreur lors de la création d'utilisateur", error, {
         action: "user_registration_failed",
         email: email?.toLowerCase(),
       });
@@ -101,7 +105,7 @@ class AuthService {
         // Increment failed attempts
         await user.incLoginAttempts();
 
-        logger.warn(
+        this.logger.warn(
           "Tentative de connexion échouée",
           {
             email: user.email,
@@ -132,7 +136,7 @@ class AuthService {
       // Reset failed login attempts
       await user.resetLoginAttempts();
 
-      logger.auth(
+      this.logger.auth(
         "Connexion réussie",
         {
           email: user.email,
@@ -155,7 +159,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors de l'authentification", error, {
+      this.logger.error("Erreur lors de l'authentification", error, {
         action: "authentication_failed",
         email: email?.toLowerCase(),
       });
@@ -191,7 +195,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors de la mise à jour d'activité", error, {
+      this.logger.error("Erreur lors de la mise à jour d'activité", error, {
         action: "activity_update_failed",
         userId: userId?.toString(),
       });
@@ -234,7 +238,7 @@ class AuthService {
       user.password = newPassword;
       await user.save();
 
-      logger.auth(
+      this.logger.auth(
         "Mot de passe changé",
         {
           email: user.email,
@@ -255,7 +259,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors du changement de mot de passe", error, {
+      this.logger.error("Erreur lors du changement de mot de passe", error, {
         action: "password_change_failed",
         userId: userId?.toString(),
       });
@@ -295,7 +299,7 @@ class AuthService {
 
       await user.save();
 
-      logger.auth(
+      this.logger.auth(
         "Token de réinitialisation généré",
         {
           email: user.email,
@@ -317,7 +321,7 @@ class AuthService {
           "Si cette adresse email existe, un lien de réinitialisation a été envoyé",
       };
     } catch (error) {
-      logger.error(
+      this.logger.error(
         "Erreur lors de la génération du token de réinitialisation",
         error,
         {
@@ -367,7 +371,7 @@ class AuthService {
 
       await user.save();
 
-      logger.auth(
+      this.logger.auth(
         "Mot de passe réinitialisé avec token",
         {
           email: user.email,
@@ -388,7 +392,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors de la réinitialisation par token", error, {
+      this.logger.error("Erreur lors de la réinitialisation par token", error, {
         action: "password_reset_failed",
       });
 
@@ -421,7 +425,7 @@ class AuthService {
 
       await User.findByIdAndDelete(userId);
 
-      logger.auth(
+      this.logger.auth(
         "Compte utilisateur supprimé",
         {
           email: user.email,
@@ -444,7 +448,7 @@ class AuthService {
         throw error;
       }
 
-      logger.error("Erreur lors de la suppression du compte", error, {
+      this.logger.error("Erreur lors de la suppression du compte", error, {
         action: "account_deletion_failed",
         userId: userId?.toString(),
       });

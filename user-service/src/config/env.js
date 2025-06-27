@@ -1,4 +1,8 @@
-require("dotenv").config(); // Load .env file variables into process.env
+// ============================================================================
+// 📁 src/config/env.js - Configuration pour Docker uniquement
+// ============================================================================
+
+// ❌ PAS de require("dotenv").config() - tout vient de docker-compose
 
 // Default logger (fallback to console)
 let logger = {
@@ -16,7 +20,7 @@ const setLogger = (externalLogger) => {
 };
 
 /**
- * Load and validate environment variables
+ * Load and validate environment variables (from Docker environment)
  */
 const config = {
   NODE_ENV: process.env.NODE_ENV || "development",
@@ -25,7 +29,7 @@ const config = {
 
   MONGODB_URI:
     process.env.MONGODB_URI ||
-    "mongodb://emailight_app:your_secure_app_password_here@emailight-mongodb:27017/emailight",
+    "mongodb://emailight_app:your_secure_app_password_here@mongodb:27017/emailight",
 
   JWT_SECRET:
     process.env.JWT_SECRET || "your_super_secret_jwt_key_change_in_production",
@@ -47,7 +51,7 @@ const config = {
   ENABLE_LOGGING: process.env.ENABLE_LOGGING !== "false",
   LOG_LEVEL: process.env.LOG_LEVEL || "info",
 
-  GLITCHTIP_DSN: process.env.GLITCHTIP_DSN || process.env.SENTRY_DSN,
+  GLITCHTIP_DSN: process.env.GLITCHTIP_DSN,
   GLITCHTIP_TRACES_SAMPLE_RATE: parseFloat(
     process.env.GLITCHTIP_TRACES_SAMPLE_RATE || "0.1"
   ),

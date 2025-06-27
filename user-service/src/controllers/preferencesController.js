@@ -4,6 +4,11 @@ const PreferencesService = require("../services/preferencesService");
  * ⚙️ Controller for managing user preferences
  */
 class PreferencesController {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * Retrieve user preferences
    */
@@ -13,8 +18,24 @@ class PreferencesController {
 
       const result = await PreferencesService.getUserPreferences(userId);
 
+      this.logger.user(
+        "Préférences récupérées",
+        {
+          userId: userId.toString(),
+        },
+        {
+          userId: userId.toString(),
+          action: "preferences_retrieved",
+        }
+      );
+
       return reply.success(result, "Préférences récupérées avec succès");
     } catch (error) {
+      this.logger.error("Erreur récupération préférences", error, {
+        action: "get_preferences_failed",
+        userId: request.user?._id?.toString(),
+      });
+
       if (error.statusCode) {
         return reply.code(error.statusCode).send({
           error: error.message,
@@ -283,6 +304,18 @@ class PreferencesController {
       const validationResult =
         PreferencesService.validatePreferences(preferences);
 
+      this.logger.user(
+        "Validation des préférences effectuée",
+        {
+          isValid: validationResult.isValid,
+          errorsCount: validationResult.errors.length,
+        },
+        {
+          userId: request.user._id.toString(),
+          action: "preferences_validated",
+        }
+      );
+
       return reply.success(
         validationResult,
         validationResult.isValid
@@ -290,6 +323,11 @@ class PreferencesController {
           : "Préférences invalides"
       );
     } catch (error) {
+      this.logger.error("Erreur lors de la validation des préférences", error, {
+        action: "validate_preferences_failed",
+        userId: request.user?._id?.toString(),
+      });
+
       return reply
         .code(500)
         .error("Erreur lors de la validation des préférences");

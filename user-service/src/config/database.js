@@ -5,9 +5,6 @@ const config = require("./env");
  * Mongoose Configuration Options
  */
 const mongooseOptions = {
-  // Use new connection string parser
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
 
   // Performance and timeout settings
   maxPoolSize: 10,
@@ -16,7 +13,6 @@ const mongooseOptions = {
   connectTimeoutMS: 10000,
 
   // Optimization settings
-  bufferMaxEntries: 0,
   bufferCommands: false,
 
   // Application name for monitoring purposes

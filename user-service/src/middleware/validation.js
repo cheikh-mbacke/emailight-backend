@@ -1,5 +1,24 @@
 const Joi = require("joi");
 
+// ✅ Logger par défaut avec injection
+let logger = {
+  error: (msg, error, context) =>
+    console.error(`❌ [VALIDATION] ${msg}`, error || "", context || ""),
+  debug: (msg, data, context) =>
+    console.log(`🔍 [VALIDATION] ${msg}`, data || "", context || ""),
+  warn: (msg, data, context) =>
+    console.warn(`⚠️ [VALIDATION] ${msg}`, data || "", context || ""),
+  info: (msg, data, context) =>
+    console.log(`📡 [VALIDATION] ${msg}`, data || "", context || ""),
+};
+
+/**
+ * ✅ Injection du logger
+ */
+const setLogger = (injectedLogger) => {
+  logger = injectedLogger;
+};
+
 /**
  * 📝 Joi validation schemas
  */
@@ -185,6 +204,20 @@ const createValidationMiddleware = (schema, target = "body") => {
           dataToValidate = request.body;
       }
 
+      // Log validation attempt
+      logger.debug(
+        "Validation en cours",
+        {
+          target,
+          endpoint: `${request.method} ${request.url}`,
+          dataKeys: Object.keys(dataToValidate || {}),
+        },
+        {
+          action: "validation_start",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       // Perform Joi validation
       const { error, value } = schema.validate(dataToValidate, {
         abortEarly: false, // Show all errors
@@ -199,12 +232,38 @@ const createValidationMiddleware = (schema, target = "body") => {
           value: detail.context?.value,
         }));
 
+        logger.warn(
+          "Échec de validation",
+          {
+            endpoint: `${request.method} ${request.url}`,
+            errorsCount: errors.length,
+            errors: errors.map((e) => e.field),
+          },
+          {
+            action: "validation_failed",
+            endpoint: `${request.method} ${request.url}`,
+          }
+        );
+
         return reply.code(400).send({
           error: "Données invalides",
           message: "Les données fournies ne respectent pas le format attendu",
           details: errors,
         });
       }
+
+      // Log successful validation
+      logger.debug(
+        "Validation réussie",
+        {
+          endpoint: `${request.method} ${request.url}`,
+          validatedFields: Object.keys(value || {}),
+        },
+        {
+          action: "validation_success",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
 
       // Replace raw data with validated and cleaned values
       if (target === "body") {
@@ -215,7 +274,12 @@ const createValidationMiddleware = (schema, target = "body") => {
         request.params = value;
       }
     } catch (validationError) {
-      request.log.error("Erreur de validation:", validationError);
+      logger.error("Erreur de validation", validationError, {
+        action: "validation_error",
+        endpoint: `${request.method} ${request.url}`,
+        target,
+      });
+
       return reply.code(500).send({
         error: "Erreur de validation",
         message: "Une erreur est survenue lors de la validation des données",
@@ -246,6 +310,7 @@ const validators = {
         .required()
         .messages({
           "string.pattern.base": "ID utilisateur invalide",
+          "any.required": "ID utilisateur requis",
         }),
     }),
     "params"
@@ -263,4 +328,5 @@ module.exports = {
   ...validators,
   validate,
   schemas,
+  setLogger, // ✅ Export de la fonction d'injection
 };

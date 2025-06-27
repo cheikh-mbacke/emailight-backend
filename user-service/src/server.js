@@ -11,6 +11,20 @@ const {
 const config = require("./config/env");
 const { logger } = require("./utils/logger");
 
+// ✅ Import des services pour injection du logger
+const AuthService = require("./services/authService");
+const UserService = require("./services/userService");
+const PreferencesService = require("./services/preferencesService");
+
+// ✅ Import des controllers pour injection du logger
+const AuthController = require("./controllers/authController");
+const UserController = require("./controllers/userController");
+const PreferencesController = require("./controllers/preferencesController");
+
+// ✅ Import des middlewares pour injection du logger
+const { setLogger: setAuthMiddlewareLogger } = require("./middleware/auth");
+const { setLogger: setValidationLogger } = require("./middleware/validation");
+
 /**
  * 🚀 Démarrer le serveur
  */
@@ -18,12 +32,44 @@ const startServer = async () => {
   let app;
 
   try {
-    // ✅ Injecter le logger dans tous les modules de config
+    // ✅ INJECTION DU LOGGER DANS TOUS LES MODULES
+    logger.info("🔄 Injection du logger dans tous les modules...");
+
+    // Configuration modules
     setDbLogger(logger);
     if (config.setLogger) {
       config.setLogger(logger);
       config.revalidateWithLogger(); // Re-valider avec le bon logger
     }
+
+    // Services business logic
+    AuthService.setLogger(logger);
+    UserService.setLogger(logger);
+    PreferencesService.setLogger(logger);
+
+    // Controllers (route handlers)
+    AuthController.setLogger(logger);
+    UserController.setLogger(logger);
+    PreferencesController.setLogger(logger);
+
+    // Middlewares
+    setAuthMiddlewareLogger(logger);
+    setValidationLogger(logger);
+
+    logger.success("✅ Logger injecté dans tous les modules", {
+      modules: [
+        "database",
+        "config",
+        "authService",
+        "userService",
+        "preferencesService",
+        "authController",
+        "userController",
+        "preferencesController",
+        "authMiddleware",
+        "validationMiddleware",
+      ],
+    });
 
     logger.info("Démarrage du service utilisateur...", {
       environment: config.NODE_ENV,
@@ -211,6 +257,7 @@ const main = async () => {
         port: config.PORT,
         memoryUsage: process.memoryUsage(),
         uptime: process.uptime(),
+        loggerInjection: "✅ Terminée",
       },
       {
         action: "service_ready",

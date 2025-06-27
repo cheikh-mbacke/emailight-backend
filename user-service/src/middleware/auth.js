@@ -1,5 +1,24 @@
 const User = require("../models/User");
 
+// ✅ Logger par défaut avec injection
+let logger = {
+  error: (msg, error, context) =>
+    console.error(`❌ [AUTH] ${msg}`, error || "", context || ""),
+  warn: (msg, data, context) =>
+    console.warn(`⚠️ [AUTH] ${msg}`, data || "", context || ""),
+  info: (msg, data, context) =>
+    console.log(`📡 [AUTH] ${msg}`, data || "", context || ""),
+  auth: (msg, data, context) =>
+    console.log(`🔐 [AUTH] ${msg}`, data || "", context || ""),
+};
+
+/**
+ * ✅ Injection du logger
+ */
+const setLogger = (injectedLogger) => {
+  logger = injectedLogger;
+};
+
 /**
  * 🔐 JWT Authentication Middleware for Fastify
  * Uses @fastify/jwt which is pre-configured in the app
@@ -13,6 +32,15 @@ const authenticateToken = async (request, reply) => {
     const userId = request.user.userId;
 
     if (!userId) {
+      logger.warn(
+        "Token JWT invalide - userId manquant",
+        { token: "présent" },
+        {
+          action: "invalid_jwt_token",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "Invalid token",
         message: "User ID is missing from token",
@@ -23,6 +51,15 @@ const authenticateToken = async (request, reply) => {
     const user = await User.findById(userId);
 
     if (!user) {
+      logger.warn(
+        "Utilisateur introuvable pour le token JWT",
+        { userId },
+        {
+          action: "user_not_found_for_token",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "User not found",
         message: "The user associated with this token no longer exists",
@@ -31,6 +68,16 @@ const authenticateToken = async (request, reply) => {
 
     // Check if the account is active
     if (!user.isActive) {
+      logger.warn(
+        "Tentative d'accès avec compte désactivé",
+        { userId, email: user.email },
+        {
+          userId: userId.toString(),
+          action: "inactive_account_access",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "Account disabled",
         message: "Your account has been deactivated",
@@ -39,6 +86,16 @@ const authenticateToken = async (request, reply) => {
 
     // Check if the account is locked
     if (user.isAccountLocked()) {
+      logger.warn(
+        "Tentative d'accès avec compte verrouillé",
+        { userId, email: user.email },
+        {
+          userId: userId.toString(),
+          action: "locked_account_access",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(423).send({
         error: "Account locked",
         message:
@@ -51,9 +108,36 @@ const authenticateToken = async (request, reply) => {
 
     // Update last active time and session info
     await user.updateLastActive(request.ip, request.headers["user-agent"]);
+
+    // Log successful authentication
+    logger.auth(
+      "Authentification réussie",
+      {
+        userId,
+        email: user.email,
+        endpoint: `${request.method} ${request.url}`,
+      },
+      {
+        userId: userId.toString(),
+        action: "authentication_success",
+        endpoint: `${request.method} ${request.url}`,
+      }
+    );
   } catch (error) {
     // Handle specific JWT errors
     if (error.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER") {
+      logger.warn(
+        "Tentative d'accès sans token",
+        {
+          endpoint: `${request.method} ${request.url}`,
+          ip: request.ip,
+        },
+        {
+          action: "missing_authorization_header",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "Missing token",
         message: "Authorization header required with a Bearer token",
@@ -61,6 +145,18 @@ const authenticateToken = async (request, reply) => {
     }
 
     if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED") {
+      logger.info(
+        "Token JWT expiré",
+        {
+          endpoint: `${request.method} ${request.url}`,
+          ip: request.ip,
+        },
+        {
+          action: "token_expired",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "Token expired",
         message: "Your session has expired, please log in again",
@@ -68,6 +164,18 @@ const authenticateToken = async (request, reply) => {
     }
 
     if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_INVALID") {
+      logger.warn(
+        "Token JWT invalide",
+        {
+          endpoint: `${request.method} ${request.url}`,
+          ip: request.ip,
+        },
+        {
+          action: "invalid_token",
+          endpoint: `${request.method} ${request.url}`,
+        }
+      );
+
       return reply.code(401).send({
         error: "Invalid token",
         message: "The authentication token is invalid",
@@ -75,7 +183,12 @@ const authenticateToken = async (request, reply) => {
     }
 
     // General error
-    request.log.error("Authentication error:", error);
+    logger.error("Erreur d'authentification", error, {
+      action: "authentication_failed",
+      endpoint: `${request.method} ${request.url}`,
+      ip: request.ip,
+    });
+
     return reply.code(401).send({
       error: "Authentication failed",
       message: "Unable to verify your identity",
@@ -104,14 +217,40 @@ const optionalAuth = async (request, reply) => {
       if (user && user.isActive && !user.isAccountLocked()) {
         request.user = user;
         await user.updateLastActive(request.ip, request.headers["user-agent"]);
+
+        logger.auth(
+          "Authentification optionnelle réussie",
+          { userId, email: user.email },
+          {
+            userId: userId.toString(),
+            action: "optional_auth_success",
+            endpoint: `${request.method} ${request.url}`,
+          }
+        );
       } else {
         request.user = null;
+        logger.info(
+          "Authentification optionnelle échouée - compte inactif ou verrouillé",
+          { userId },
+          {
+            action: "optional_auth_failed_account_status",
+            endpoint: `${request.method} ${request.url}`,
+          }
+        );
       }
     } else {
       request.user = null;
     }
   } catch (error) {
     request.user = null;
+    logger.info(
+      "Authentification optionnelle échouée",
+      { error: error.message },
+      {
+        action: "optional_auth_failed",
+        endpoint: `${request.method} ${request.url}`,
+      }
+    );
   }
 };
 
@@ -122,6 +261,19 @@ const requireAdmin = async (request, reply) => {
   await authenticateToken(request, reply);
 
   if (!request.user.isAdmin) {
+    logger.warn(
+      "Tentative d'accès admin non autorisée",
+      {
+        userId: request.user._id,
+        email: request.user.email,
+      },
+      {
+        userId: request.user._id.toString(),
+        action: "unauthorized_admin_access",
+        endpoint: `${request.method} ${request.url}`,
+      }
+    );
+
     return reply.code(403).send({
       error: "Access denied",
       message: "Administrator rights are required",
@@ -137,6 +289,19 @@ const requirePremium = async (request, reply) => {
 
   const allowedStatuses = ["premium", "enterprise"];
   if (!allowedStatuses.includes(request.user.subscriptionStatus)) {
+    logger.info(
+      "Accès premium requis",
+      {
+        userId: request.user._id,
+        currentSubscription: request.user.subscriptionStatus,
+      },
+      {
+        userId: request.user._id.toString(),
+        action: "premium_access_required",
+        endpoint: `${request.method} ${request.url}`,
+      }
+    );
+
     return reply.code(402).send({
       error: "Subscription required",
       message: "This feature requires a premium or enterprise subscription",
@@ -161,6 +326,21 @@ const checkEmailLimits = async (request, reply) => {
       premium: 500,
       enterprise: 5000,
     };
+
+    logger.warn(
+      "Limite d'emails atteinte",
+      {
+        userId: request.user._id,
+        emailsSentToday: request.user.security.emailsSentToday,
+        dailyLimit: limits[request.user.subscriptionStatus],
+        subscriptionStatus: request.user.subscriptionStatus,
+      },
+      {
+        userId: request.user._id.toString(),
+        action: "email_limit_reached",
+        endpoint: `${request.method} ${request.url}`,
+      }
+    );
 
     return reply.code(429).send({
       error: "Email limit reached",
@@ -202,4 +382,5 @@ module.exports = {
   optionalJwtPreHandler,
   premiumPreHandler,
   emailLimitsPreHandler,
+  setLogger, // ✅ Export de la fonction d'injection
 };

@@ -1,11 +1,15 @@
 const UserService = require("../services/userService");
 const AuthService = require("../services/authService");
-const { logger } = require("../utils/logger");
 
 /**
  * 👤 User management controller
  */
 class UserController {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * Get detailed user profile
    */
@@ -132,12 +136,30 @@ class UserController {
       // TODO: Implement OAuth token refresh logic
       // Depends on the provider (Gmail, Outlook, etc.)
 
+      this.logger.info(
+        "Tentative de refresh d'un compte email",
+        {
+          accountId,
+          feature: "non_implementé",
+        },
+        {
+          userId: request.user._id.toString(),
+          action: "email_account_refresh_attempted",
+        }
+      );
+
       return reply.code(501).send({
         error: "Non implémenté",
         message:
           "La fonctionnalité de refresh des tokens sera implémentée prochainement",
       });
     } catch (error) {
+      this.logger.error("Erreur lors du refresh du compte", error, {
+        action: "email_account_refresh_failed",
+        userId: request.user?._id?.toString(),
+        accountId,
+      });
+
       return reply.code(500).error("Erreur lors du refresh du compte");
     }
   }
@@ -211,6 +233,11 @@ class UserController {
 
       return reply.success(result, "Nettoyage des comptes terminé");
     } catch (error) {
+      this.logger.error("Erreur lors du nettoyage des comptes", error, {
+        action: "email_accounts_cleanup_failed",
+        userId: request.user?._id?.toString(),
+      });
+
       return reply.code(500).error("Erreur lors du nettoyage des comptes");
     }
   }

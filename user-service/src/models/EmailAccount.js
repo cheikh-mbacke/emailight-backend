@@ -152,14 +152,13 @@ emailAccountSchema.index({ lastUsed: -1 });
  */
 const ENCRYPTION_KEY =
   process.env.TOKEN_ENCRYPTION_KEY || "your-32-character-secret-key-here";
-const ALGORITHM = "aes-256-gcm";
+const ALGORITHM = "aes-256-cbc";
 
 /**
  * 🔒 Method: Encrypt a token
  */
 emailAccountSchema.methods.encryptToken = function (token) {
   if (!token) return null;
-
   try {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipher(ALGORITHM, ENCRYPTION_KEY);

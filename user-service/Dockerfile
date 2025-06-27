@@ -10,6 +10,9 @@ LABEL maintainer="Mbacke Cheikh <mbackecheikh@example.com>"
 LABEL description="Service de gestion des utilisateurs pour Emailight"
 LABEL version="1.0.0"
 
+# Installer dumb-init pour une meilleure gestion des signaux
+RUN apk add --no-cache dumb-init
+
 # Créer un utilisateur non-root pour la sécurité
 RUN addgroup -g 1001 -S emailight && \
     adduser -S emailight -u 1001
@@ -20,12 +23,12 @@ WORKDIR /usr/src/app
 # Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer les dépendances de production
+# Installer les dépendances
 RUN npm ci --only=production && \
     npm cache clean --force
 
-# Copier le code source
-COPY --chown=emailight:emailight src/ ./src/
+# Copier le code source (TOUT le contenu, pas juste src/)
+COPY --chown=emailight:emailight . ./
 
 # Créer les répertoires nécessaires
 RUN mkdir -p /usr/src/app/logs && \
@@ -37,7 +40,7 @@ USER emailight
 # Exposer le port
 EXPOSE 3001
 
-# Variables d'environnement par défaut
+# Variables d'environnement par défaut (seront overridées par docker-compose)
 ENV NODE_ENV=production
 ENV USER_SERVICE_PORT=3001
 ENV HOST=0.0.0.0
@@ -56,6 +59,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
         console.log('Health check error'); \
         process.exit(1); \
     })"
+
+# Utiliser dumb-init comme PID 1
+ENTRYPOINT ["dumb-init", "--"]
 
 # Command par défaut
 CMD ["node", "src/server.js"]

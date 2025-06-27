@@ -4,12 +4,16 @@
 
 const User = require("../models/User");
 const EmailAccount = require("../models/EmailAccount");
-const { logger } = require("../utils/logger");
 
 /**
  * 👤 User service
  */
 class UserService {
+  // ✅ Injection du logger
+  static setLogger(injectedLogger) {
+    this.logger = injectedLogger;
+  }
+
   /**
    * Get full user profile
    */
@@ -50,7 +54,7 @@ class UserService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error(
+      this.logger.error(
         "Erreur lors de la récupération du profil utilisateur",
         error,
         {
@@ -91,7 +95,7 @@ class UserService {
         throw error;
       }
 
-      logger.user(
+      this.logger.user(
         "Nom utilisateur mis à jour",
         {
           oldName: user.name,
@@ -112,7 +116,7 @@ class UserService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de la mise à jour du nom", error, {
+      this.logger.error("Erreur lors de la mise à jour du nom", error, {
         action: "update_name_failed",
         userId: userId?.toString(),
       });
@@ -183,10 +187,14 @@ class UserService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de la récupération des statistiques", error, {
-        action: "get_user_stats_failed",
-        userId: userId?.toString(),
-      });
+      this.logger.error(
+        "Erreur lors de la récupération des statistiques",
+        error,
+        {
+          action: "get_user_stats_failed",
+          userId: userId?.toString(),
+        }
+      );
 
       const serviceError = new Error(
         "Erreur lors de la récupération des statistiques"
@@ -232,10 +240,14 @@ class UserService {
         },
       };
     } catch (error) {
-      logger.error("Erreur lors de la récupération des comptes email", error, {
-        action: "get_email_accounts_failed",
-        userId: userId?.toString(),
-      });
+      this.logger.error(
+        "Erreur lors de la récupération des comptes email",
+        error,
+        {
+          action: "get_email_accounts_failed",
+          userId: userId?.toString(),
+        }
+      );
 
       const serviceError = new Error(
         "Erreur lors de la récupération des comptes email"
@@ -272,7 +284,7 @@ class UserService {
         $pull: { connectedEmailAccounts: accountId },
       });
 
-      logger.user(
+      this.logger.user(
         "Compte email déconnecté",
         {
           email: emailAccount.email,
@@ -294,11 +306,15 @@ class UserService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors de la déconnexion du compte email", error, {
-        action: "disconnect_email_account_failed",
-        userId: userId?.toString(),
-        accountId: accountId?.toString(),
-      });
+      this.logger.error(
+        "Erreur lors de la déconnexion du compte email",
+        error,
+        {
+          action: "disconnect_email_account_failed",
+          userId: userId?.toString(),
+          accountId: accountId?.toString(),
+        }
+      );
 
       const serviceError = new Error("Erreur lors de la déconnexion du compte");
       serviceError.statusCode = 500;
@@ -361,7 +377,7 @@ class UserService {
     } catch (error) {
       if (error.statusCode) throw error;
 
-      logger.error("Erreur lors du test de santé du compte email", error, {
+      this.logger.error("Erreur lors du test de santé du compte email", error, {
         action: "email_account_health_check_failed",
         userId: userId?.toString(),
         accountId: accountId?.toString(),
@@ -395,7 +411,7 @@ class UserService {
       );
 
       if (result.modifiedCount > 0) {
-        logger.user(
+        this.logger.user(
           "Comptes email inactifs nettoyés",
           {
             accountsDeactivated: result.modifiedCount,
@@ -412,7 +428,7 @@ class UserService {
         cleanupDate: new Date(),
       };
     } catch (error) {
-      logger.error("Erreur lors du nettoyage des comptes email", error, {
+      this.logger.error("Erreur lors du nettoyage des comptes email", error, {
         action: "email_accounts_cleanup_failed",
         userId: userId?.toString(),
       });

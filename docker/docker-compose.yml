@@ -15,7 +15,7 @@ services:
       MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
     volumes:
       - mongodb_data:/data/db
-      - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     ports:
       - "${MONGO_PORT}:27017"
     networks:
@@ -28,7 +28,7 @@ services:
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-      - ./docker/redis/redis.conf:/etc/redis/redis.conf:ro
+      - ./redis/redis.conf:/etc/redis/redis.conf:ro
     ports:
       - "${REDIS_PORT}:6379"
     networks:
@@ -165,6 +165,71 @@ services:
     networks:
       - emailight-network
 
+  # ================================
+  # MICROSERVICES
+  # ================================
+
+  user-service:
+    build: ../user-service
+    container_name: emailight-user-service
+    restart: unless-stopped
+    ports:
+      - "${USER_SERVICE_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      USER_SERVICE_PORT: 3001
+      HOST: 0.0.0.0
+      
+      # MongoDB (utilise les vraies variables d'env)
+      MONGODB_URI: mongodb://${MONGO_APP_USERNAME}:${MONGO_APP_PASSWORD}@mongodb:27017/${MONGO_DATABASE}
+      
+      # JWT & Security
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-your-32-character-secret-key-here}
+      
+      # Rate Limiting
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
+      
+      # Redis (utilise le redis du compose)
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      
+      # Logging
+      ENABLE_LOGGING: ${ENABLE_LOGGING:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      VERBOSE_LOGS: ${VERBOSE_LOGS:-true}
+      
+      # GlitchTip (utilise la même instance)
+      GLITCHTIP_DSN: ${USER_SERVICE_GLITCHTIP_DSN:-}
+      GLITCHTIP_TRACES_SAMPLE_RATE: ${GLITCHTIP_TRACES_SAMPLE_RATE:-0.1}
+      
+      # Localisation
+      LOCALE: ${LOCALE:-fr-FR}
+      TIMEZONE: ${TIMEZONE:-Europe/Paris}
+    
+    depends_on:
+      - mongodb
+      - redis
+      - glitchtip-web
+    
+    volumes:
+      # Hot reload en développement
+      - ../user-service/src:/usr/src/app/src:ro
+      # Logs persistants
+      - user_service_logs:/usr/src/app/logs
+    
+    networks:
+      - emailight-network
+    
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 # ====================
 # VOLUMES PERSISTANTS
 # ====================
@@ -179,6 +244,9 @@ volumes:
     labels:
       - emailight
   glitchtip_uploads:
+    labels:
+      - emailight
+  user_service_logs:
     labels:
       - emailight
 
