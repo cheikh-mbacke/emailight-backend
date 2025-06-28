@@ -2,8 +2,14 @@
 // 📁 src/services/userService.js - User management service
 // ============================================================================
 
-const User = require("../models/User");
-const EmailAccount = require("../models/EmailAccount");
+import User from "../models/User.js";
+import EmailAccount from "../models/EmailAccount.js";
+import {
+  NotFoundError,
+  ValidationError,
+  SystemError,
+} from "../utils/customError.js";
+import { USER_ERRORS, EMAIL_ACCOUNT_ERRORS } from "../utils/errorCodes.js";
 
 /**
  * 👤 User service
@@ -25,10 +31,10 @@ class UserService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        error.code = "USER_NOT_FOUND";
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       return {
@@ -52,7 +58,9 @@ class UserService {
         },
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la récupération du profil utilisateur",
@@ -63,11 +71,9 @@ class UserService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la récupération du profil"
-      );
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors de la récupération du profil", error, {
+        userId: userId?.toString(),
+      });
     }
   }
 
@@ -77,10 +83,10 @@ class UserService {
   static async updateUserName(userId, name) {
     try {
       if (!name || name.trim().length === 0) {
-        const error = new Error("Le nom ne peut pas être vide");
-        error.statusCode = 400;
-        error.code = "INVALID_NAME";
-        throw error;
+        throw new ValidationError(
+          "Le nom ne peut pas être vide",
+          USER_ERRORS.INVALID_NAME
+        );
       }
 
       const user = await User.findByIdAndUpdate(
@@ -90,9 +96,10 @@ class UserService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       this.logger.user(
@@ -114,16 +121,18 @@ class UserService {
         updatedAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error("Erreur lors de la mise à jour du nom", error, {
         action: "update_name_failed",
         userId: userId?.toString(),
       });
 
-      const serviceError = new Error("Erreur lors de la mise à jour du nom");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors de la mise à jour du nom", error, {
+        userId: userId?.toString(),
+      });
     }
   }
 
@@ -134,9 +143,10 @@ class UserService {
     try {
       const user = await User.findById(userId);
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       // Stats from connected email accounts
@@ -185,7 +195,9 @@ class UserService {
         },
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la récupération des statistiques",
@@ -196,11 +208,11 @@ class UserService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la récupération des statistiques"
+      throw new SystemError(
+        "Erreur lors de la récupération des statistiques",
+        error,
+        { userId: userId?.toString() }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 
@@ -249,11 +261,11 @@ class UserService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la récupération des comptes email"
+      throw new SystemError(
+        "Erreur lors de la récupération des comptes email",
+        error,
+        { userId: userId?.toString() }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 
@@ -268,12 +280,10 @@ class UserService {
       });
 
       if (!emailAccount) {
-        const error = new Error(
-          "Ce compte email n'existe pas ou ne vous appartient pas"
+        throw new NotFoundError(
+          "Ce compte email n'existe pas ou ne vous appartient pas",
+          EMAIL_ACCOUNT_ERRORS.EMAIL_ACCOUNT_NOT_FOUND
         );
-        error.statusCode = 404;
-        error.code = "EMAIL_ACCOUNT_NOT_FOUND";
-        throw error;
       }
 
       // Delete account
@@ -304,7 +314,9 @@ class UserService {
         disconnectedAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la déconnexion du compte email",
@@ -316,9 +328,10 @@ class UserService {
         }
       );
 
-      const serviceError = new Error("Erreur lors de la déconnexion du compte");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors de la déconnexion du compte", error, {
+        userId: userId?.toString(),
+        accountId: accountId?.toString(),
+      });
     }
   }
 
@@ -333,12 +346,10 @@ class UserService {
       });
 
       if (!emailAccount) {
-        const error = new Error(
-          "Ce compte email n'existe pas ou ne vous appartient pas"
+        throw new NotFoundError(
+          "Ce compte email n'existe pas ou ne vous appartient pas",
+          EMAIL_ACCOUNT_ERRORS.EMAIL_ACCOUNT_NOT_FOUND
         );
-        error.statusCode = 404;
-        error.code = "EMAIL_ACCOUNT_NOT_FOUND";
-        throw error;
       }
 
       // Health diagnostics
@@ -375,7 +386,9 @@ class UserService {
         health,
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error("Erreur lors du test de santé du compte email", error, {
         action: "email_account_health_check_failed",
@@ -383,9 +396,10 @@ class UserService {
         accountId: accountId?.toString(),
       });
 
-      const serviceError = new Error("Erreur lors du test de santé du compte");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors du test de santé du compte", error, {
+        userId: userId?.toString(),
+        accountId: accountId?.toString(),
+      });
     }
   }
 
@@ -433,11 +447,11 @@ class UserService {
         userId: userId?.toString(),
       });
 
-      const serviceError = new Error("Erreur lors du nettoyage des comptes");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors du nettoyage des comptes", error, {
+        userId: userId?.toString(),
+      });
     }
   }
 }
 
-module.exports = UserService;
+export default UserService;

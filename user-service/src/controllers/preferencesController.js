@@ -1,4 +1,4 @@
-const PreferencesService = require("../services/preferencesService");
+import PreferencesService from "../services/preferencesService.js";
 
 /**
  * ⚙️ Controller for managing user preferences
@@ -335,4 +335,4 @@ class PreferencesController {
   }
 }
 
-module.exports = PreferencesController;
+export default PreferencesController;

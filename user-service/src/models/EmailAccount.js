@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const crypto = require("crypto");
+import mongoose from "mongoose";
+import crypto from "crypto";
 
 /**
  * Schema for email accounts connected via OAuth
@@ -344,4 +344,4 @@ emailAccountSchema.pre("save", function (next) {
   next();
 });
 
-module.exports = mongoose.model("EmailAccount", emailAccountSchema);
+export default mongoose.model("EmailAccount", emailAccountSchema);

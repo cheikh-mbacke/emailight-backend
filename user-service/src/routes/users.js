@@ -1,5 +1,5 @@
-const UserController = require("../controllers/userController");
-const { authenticateToken } = require("../middleware/auth");
+import UserController from "../controllers/userController.js";
+import { authenticateToken } from "../middleware/auth.js";
 
 /**
  * 👤 User routes plugin
@@ -464,4 +464,4 @@ async function userRoutes(fastify, options) {
   );
 }
 
-module.exports = userRoutes;
+export default userRoutes;

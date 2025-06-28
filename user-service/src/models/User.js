@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const config = require("../config/env");
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import config from "../config/env.js";
 
 /**
  * User preferences schema
@@ -241,7 +241,6 @@ const userSchema = new mongoose.Schema(
 /**
  * 📍 Indexes for performance
  */
-userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ subscriptionStatus: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ "security.accountLockedUntil": 1 });
@@ -412,4 +411,4 @@ userSchema.virtual("securityStats").get(function () {
   };
 });
 
-module.exports = mongoose.model("User", userSchema);
+export default mongoose.model("User", userSchema);

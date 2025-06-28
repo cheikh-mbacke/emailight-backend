@@ -71,25 +71,41 @@ async function main() {
     console.log("   - Redis Admin: http://localhost:8081 (admin/admin)");
   }
 
-  // GlitchTip interface
-  if (runningContainers.some((c) => c.Name.includes("glitchtip-web"))) {
-    console.log("   - GlitchTip (Error Monitoring): http://localhost:8090");
+  // Exceptionless interface
+  if (runningContainers.some((c) => c.Name.includes("exceptionless"))) {
+    console.log("   - Exceptionless (Error Monitoring): http://localhost:5000");
   }
 
   console.log("\n🔧 Useful commands:");
-  console.log("   - npm run status       → Check container status");
-  console.log("   - npm run logs         → View all logs");
-  console.log("   - npm run logs:glitch  → View GlitchTip logs");
-  console.log("   - npm run stop         → Stop the infrastructure");
+  console.log("   - npm run status              → Check container status");
+  console.log("   - npm run logs                → View all logs");
+  console.log("   - npm run logs:exceptionless  → View Exceptionless logs");
+  console.log("   - npm run stop                → Stop the infrastructure");
 
   console.log("\n🎯 Infrastructure ready for development!");
 
-  // Additional GlitchTip setup info if it's running
-  if (runningContainers.some((c) => c.Name.includes("glitchtip-web"))) {
-    console.log("\n💡 GlitchTip first-time setup:");
-    console.log("   1. Visit http://localhost:8090");
+  // Additional Exceptionless setup info if it's running
+  if (runningContainers.some((c) => c.Name.includes("exceptionless"))) {
+    console.log("\n💡 Exceptionless first-time setup:");
+    console.log("   1. Visit http://localhost:5000");
     console.log("   2. Create your admin account");
-    console.log("   3. Set up your first organization");
+    console.log("   3. Create your first project");
+    console.log(
+      "   4. Copy the API key to USER_SERVICE_EXCEPTIONLESS_API_KEY in .env"
+    );
+    console.log("   5. Restart the user-service: npm run restart:user");
+  }
+
+  // Health check suggestions
+  const unhealthyContainers = runningContainers.filter(
+    (c) => c.Health === "unhealthy"
+  );
+  if (unhealthyContainers.length > 0) {
+    console.log("\n⚠️  Some containers are unhealthy:");
+    unhealthyContainers.forEach((c) => {
+      console.log(`   - ${c.Name}: ${c.Health}`);
+    });
+    console.log("   Run 'npm run logs' to investigate issues");
   }
 }
 

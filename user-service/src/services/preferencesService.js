@@ -2,7 +2,13 @@
 // 📁 src/services/preferencesService.js - User preferences management service
 // ============================================================================
 
-const User = require("../models/User");
+import User from "../models/User.js";
+import {
+  NotFoundError,
+  ValidationError,
+  SystemError,
+} from "../utils/customError.js";
+import { USER_ERRORS, PREFERENCES_ERRORS } from "../utils/errorCodes.js";
 
 /**
  * ⚙️ User Preferences Service
@@ -37,10 +43,10 @@ class PreferencesService {
       const user = await User.findById(userId).select("preferences");
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        error.code = "USER_NOT_FOUND";
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       return {
@@ -48,7 +54,9 @@ class PreferencesService {
         defaultValues: this.getDefaultPreferences(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la récupération des préférences",
@@ -59,11 +67,11 @@ class PreferencesService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la récupération des préférences"
+      throw new SystemError(
+        "Erreur lors de la récupération des préférences",
+        error,
+        { userId: userId?.toString() }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 
@@ -75,11 +83,11 @@ class PreferencesService {
       // Validate preference input
       const validationResult = this.validatePreferences(updates);
       if (!validationResult.isValid) {
-        const error = new Error("Données de préférences invalides");
-        error.statusCode = 400;
-        error.code = "INVALID_PREFERENCES";
-        error.details = validationResult.errors;
-        throw error;
+        throw new ValidationError(
+          "Données de préférences invalides",
+          validationResult.errors,
+          PREFERENCES_ERRORS.INVALID_PREFERENCES
+        );
       }
 
       // Format update query using dot notation
@@ -100,9 +108,10 @@ class PreferencesService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       this.logger.user(
@@ -124,7 +133,9 @@ class PreferencesService {
         updatedAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la mise à jour des préférences",
@@ -135,11 +146,11 @@ class PreferencesService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la mise à jour des préférences"
+      throw new SystemError(
+        "Erreur lors de la mise à jour des préférences",
+        error,
+        { userId: userId?.toString() }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 
@@ -161,9 +172,10 @@ class PreferencesService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       this.logger.user(
@@ -183,7 +195,9 @@ class PreferencesService {
         resetAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(
         "Erreur lors de la réinitialisation des préférences",
@@ -194,11 +208,11 @@ class PreferencesService {
         }
       );
 
-      const serviceError = new Error(
-        "Erreur lors de la réinitialisation des préférences"
+      throw new SystemError(
+        "Erreur lors de la réinitialisation des préférences",
+        error,
+        { userId: userId?.toString() }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 
@@ -212,9 +226,10 @@ class PreferencesService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       const exportData = {
@@ -242,16 +257,18 @@ class PreferencesService {
 
       return exportData;
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error("Erreur lors de l'export des préférences", error, {
         action: "export_preferences_failed",
         userId: userId?.toString(),
       });
 
-      const serviceError = new Error("Erreur lors de l'export des préférences");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors de l'export des préférences", error, {
+        userId: userId?.toString(),
+      });
     }
   }
 
@@ -264,11 +281,11 @@ class PreferencesService {
 
       const validationResult = this.validatePreferences(preferences);
       if (!validationResult.isValid) {
-        const error = new Error("Préférences importées invalides");
-        error.statusCode = 400;
-        error.code = "INVALID_IMPORT_DATA";
-        error.details = validationResult.errors;
-        throw error;
+        throw new ValidationError(
+          "Préférences importées invalides",
+          validationResult.errors,
+          PREFERENCES_ERRORS.INVALID_IMPORT_DATA
+        );
       }
 
       // Merge with current preferences if not overwriting
@@ -293,9 +310,10 @@ class PreferencesService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       this.logger.user(
@@ -318,16 +336,18 @@ class PreferencesService {
         importedAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error("Erreur lors de l'import des préférences", error, {
         action: "import_preferences_failed",
         userId: userId?.toString(),
       });
 
-      const serviceError = new Error("Erreur lors de l'import des préférences");
-      serviceError.statusCode = 500;
-      throw serviceError;
+      throw new SystemError("Erreur lors de l'import des préférences", error, {
+        userId: userId?.toString(),
+      });
     }
   }
 
@@ -442,11 +462,11 @@ class PreferencesService {
       const validationResult = this.validatePreferences(tempPrefs);
 
       if (!validationResult.isValid) {
-        const error = new Error(`Valeur invalide pour ${field}`);
-        error.statusCode = 400;
-        error.code = "INVALID_PREFERENCE_VALUE";
-        error.details = validationResult.errors;
-        throw error;
+        throw new ValidationError(
+          `Valeur invalide pour ${field}`,
+          validationResult.errors,
+          PREFERENCES_ERRORS.INVALID_PREFERENCE_VALUE
+        );
       }
 
       const user = await User.findByIdAndUpdate(
@@ -460,9 +480,10 @@ class PreferencesService {
       );
 
       if (!user) {
-        const error = new Error("Utilisateur introuvable");
-        error.statusCode = 404;
-        throw error;
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
       }
 
       this.logger.user(
@@ -484,7 +505,9 @@ class PreferencesService {
         updatedAt: new Date(),
       };
     } catch (error) {
-      if (error.statusCode) throw error;
+      if (error.isOperational) {
+        throw error;
+      }
 
       this.logger.error(`Erreur lors de la mise à jour de ${field}`, error, {
         action: "update_specific_preference_failed",
@@ -492,13 +515,13 @@ class PreferencesService {
         field,
       });
 
-      const serviceError = new Error(
-        `Erreur lors de la mise à jour de ${field}`
+      throw new SystemError(
+        `Erreur lors de la mise à jour de ${field}`,
+        error,
+        { userId: userId?.toString(), field }
       );
-      serviceError.statusCode = 500;
-      throw serviceError;
     }
   }
 }
 
-module.exports = PreferencesService;
+export default PreferencesService;

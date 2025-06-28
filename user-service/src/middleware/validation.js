@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // ✅ Logger par défaut avec injection
 let logger = {
@@ -15,14 +15,14 @@ let logger = {
 /**
  * ✅ Injection du logger
  */
-const setLogger = (injectedLogger) => {
+export const setLogger = (injectedLogger) => {
   logger = injectedLogger;
 };
 
 /**
  * 📝 Joi validation schemas
  */
-const schemas = {
+export const schemas = {
   // 🔐 User registration
   register: Joi.object({
     name: Joi.string().trim().min(2).max(100).required().messages({
@@ -291,42 +291,41 @@ const createValidationMiddleware = (schema, target = "body") => {
 /**
  * 📋 Pre-configured validation middlewares
  */
-const validators = {
-  validateRegister: createValidationMiddleware(schemas.register),
-  validateLogin: createValidationMiddleware(schemas.login),
-  validateUpdateProfile: createValidationMiddleware(schemas.updateProfile),
-  validateForgotPassword: createValidationMiddleware(schemas.forgotPassword),
-  validateResetPassword: createValidationMiddleware(schemas.resetPassword),
-  validateUpdatePreferences: createValidationMiddleware(
-    schemas.updatePreferences
-  ),
-  validateAddEmailAccount: createValidationMiddleware(schemas.addEmailAccount),
+export const validateRegister = createValidationMiddleware(schemas.register);
+export const validateLogin = createValidationMiddleware(schemas.login);
+export const validateUpdateProfile = createValidationMiddleware(
+  schemas.updateProfile
+);
+export const validateForgotPassword = createValidationMiddleware(
+  schemas.forgotPassword
+);
+export const validateResetPassword = createValidationMiddleware(
+  schemas.resetPassword
+);
+export const validateUpdatePreferences = createValidationMiddleware(
+  schemas.updatePreferences
+);
+export const validateAddEmailAccount = createValidationMiddleware(
+  schemas.addEmailAccount
+);
 
-  // URL param validation
-  validateUserId: createValidationMiddleware(
-    Joi.object({
-      id: Joi.string()
-        .regex(/^[0-9a-fA-F]{24}$/)
-        .required()
-        .messages({
-          "string.pattern.base": "ID utilisateur invalide",
-          "any.required": "ID utilisateur requis",
-        }),
-    }),
-    "params"
-  ),
-};
+// URL param validation
+export const validateUserId = createValidationMiddleware(
+  Joi.object({
+    id: Joi.string()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        "string.pattern.base": "ID utilisateur invalide",
+        "any.required": "ID utilisateur requis",
+      }),
+  }),
+  "params"
+);
 
 /**
  * 🛡️ Generic middleware for custom schema validation
  */
-const validate = (schema, target = "body") => {
+export const validate = (schema, target = "body") => {
   return createValidationMiddleware(schema, target);
-};
-
-module.exports = {
-  ...validators,
-  validate,
-  schemas,
-  setLogger, // ✅ Export de la fonction d'injection
 };

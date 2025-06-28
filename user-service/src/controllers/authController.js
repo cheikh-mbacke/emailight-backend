@@ -1,4 +1,5 @@
-const AuthService = require("../services/authService");
+import AuthService from "../services/authService.js";
+import User from "../models/User.js";
 
 /**
  * 🔐 Authentication controller
@@ -166,7 +167,6 @@ class AuthController {
       if (name) updates.name = name.trim();
       if (email && email !== request.user.email) {
         // Check if the new email is available
-        const User = require("../models/User");
         const existingUser = await User.findOne({ email: email.toLowerCase() });
         if (existingUser) {
           return reply.code(409).send({
@@ -179,12 +179,10 @@ class AuthController {
       }
 
       if (Object.keys(updates).length > 0) {
-        const User = require("../models/User");
         await User.findByIdAndUpdate(userId, updates, { runValidators: true });
       }
 
       // Get the updated user
-      const User = require("../models/User");
       const updatedUser = await User.findById(userId);
 
       this.logger.user(
@@ -313,4 +311,4 @@ class AuthController {
   }
 }
 
-module.exports = AuthController;
+export default AuthController;

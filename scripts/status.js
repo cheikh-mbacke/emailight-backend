@@ -80,28 +80,24 @@ function categorizeContainers(containers) {
     infrastructure: [],
     admin: [],
     monitoring: [],
-    other: [],
+    services: [],
   };
 
   containers.forEach((container) => {
     const formatted = formatContainer(container);
     const name = formatted.name.toLowerCase();
 
-    if (
-      name.includes("mongodb") ||
-      name.includes("redis") ||
-      name.includes("postgres")
-    ) {
+    if (name.includes("mongodb") || name.includes("redis")) {
       categories.infrastructure.push(formatted);
     } else if (
       name.includes("mongo-express") ||
       name.includes("redis-commander")
     ) {
       categories.admin.push(formatted);
-    } else if (name.includes("glitchtip")) {
+    } else if (name.includes("exceptionless")) {
       categories.monitoring.push(formatted);
-    } else {
-      categories.other.push(formatted);
+    } else if (name.includes("service")) {
+      categories.services.push(formatted);
     }
   });
 
@@ -146,16 +142,54 @@ function displayQuickAccess(categories) {
   // Monitoring
   categories.monitoring.forEach((container) => {
     if (
-      container.name.includes("glitchtip-web") &&
+      container.name.includes("exceptionless") &&
       container.status === "running"
     ) {
-      urls.push("🔍 GlitchTip: http://localhost:8090");
+      urls.push("🔍 Exceptionless: http://localhost:5000");
     }
   });
 
   if (urls.length > 0) {
     console.log("\n🌐 Quick Access:");
     urls.forEach((url) => console.log(`   ${url}`));
+  }
+}
+
+// Function to display monitoring status
+function displayMonitoringStatus(categories) {
+  const exceptionless = categories.monitoring.find(
+    (c) => c.name.includes("exceptionless") && c.status === "running"
+  );
+
+  const elasticsearch = categories.infrastructure.find(
+    (c) => c.name.includes("elasticsearch") && c.status === "running"
+  );
+
+  if (exceptionless || elasticsearch) {
+    console.log("\n📊 Monitoring Status:");
+
+    if (elasticsearch) {
+      console.log(
+        `   📦 Elasticsearch: ${elasticsearch.statusEmoji} ${elasticsearch.status}`
+      );
+    }
+
+    if (exceptionless) {
+      console.log(
+        `   🔍 Exceptionless: ${exceptionless.statusEmoji} ${exceptionless.status}`
+      );
+    }
+
+    if (exceptionless && exceptionless.status === "running") {
+      console.log("\n💡 Next steps for monitoring:");
+      console.log(
+        "   1. Visit http://localhost:5000 to configure Exceptionless"
+      );
+      console.log("   2. Create a project and get your API key");
+      console.log(
+        "   3. Add the API key to USER_SERVICE_EXCEPTIONLESS_API_KEY in .env"
+      );
+    }
   }
 }
 
@@ -178,19 +212,32 @@ async function main() {
   displayCategory("Infrastructure", categories.infrastructure, "🏗️");
   displayCategory("Admin Interfaces", categories.admin, "👥");
   displayCategory("Monitoring", categories.monitoring, "📊");
-  displayCategory("Other Services", categories.other, "🔧");
+  displayCategory("Microservices", categories.services, "🔧");
 
   // Display quick access
   displayQuickAccess(categories);
 
+  // Display monitoring-specific status
+  displayMonitoringStatus(categories);
+
   // Summary
   const running = containers.filter((c) => c.State === "running").length;
   const total = containers.length;
+  const healthy = containers.filter((c) => c.Health === "healthy").length;
+  const unhealthy = containers.filter((c) => c.Health === "unhealthy").length;
 
   console.log(`\n📋 Summary: ${running}/${total} containers running`);
 
+  if (healthy > 0 || unhealthy > 0) {
+    console.log(`   Health: ${healthy} healthy, ${unhealthy} unhealthy`);
+  }
+
   if (running < total) {
     console.log('💡 Tip: Use "npm run logs" to check for issues');
+  }
+
+  if (unhealthy > 0) {
+    console.log("⚠️  Some containers are unhealthy. Check logs for details.");
   }
 }
 

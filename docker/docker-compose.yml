@@ -35,95 +35,28 @@ services:
       - emailight-network
 
   # ================================
-  # GLITCHTIP - ERROR MONITORING
+  # EXCEPTIONLESS - ERROR MONITORING
   # ================================
 
-  postgres:
-    image: postgres:17
-    container_name: emailight-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_HOST_AUTH_METHOD: "trust"
-      POSTGRES_DB: ${GLITCHTIP_POSTGRES_DB}
-      POSTGRES_USER: ${GLITCHTIP_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${GLITCHTIP_POSTGRES_PORT}:5432"
-    networks:
-      - emailight-network
-
-  glitchtip-redis:
-    image: valkey/valkey
-    container_name: emailight-glitchtip-redis
+  exceptionless:
+    image: exceptionless/exceptionless:latest
+    container_name: emailight-exceptionless
     restart: unless-stopped
     ports:
-      - "${GLITCHTIP_REDIS_PORT}:6379"
-    networks:
-      - emailight-network
-
-  glitchtip-web:
-    image: glitchtip/glitchtip
-    container_name: emailight-glitchtip-web
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - glitchtip-redis
-    ports:
-      - "${GLITCHTIP_WEB_PORT}:8000"
-    environment:
-      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-      PORT: 8000
-      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
-      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
-      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
-      CELERY_WORKER_AUTOSCALE: "1,3"
-      REDIS_URL: redis://glitchtip-redis:6379/0
+      - "${EXCEPTIONLESS_PORT:-5000}:8080"
+    # ✅ Volume Docker Natif UNIQUEMENT (PAS de chemin local)
     volumes:
-      - glitchtip_uploads:/code/uploads
+      - exceptionless_storage:/app/storage
     networks:
       - emailight-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
-  glitchtip-worker:
-    image: glitchtip/glitchtip
-    container_name: emailight-glitchtip-worker
-    restart: unless-stopped
-    command: ./bin/run-celery-with-beat.sh
-    depends_on:
-      - postgres
-      - glitchtip-redis
-    environment:
-      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-      PORT: 8000
-      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
-      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
-      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
-      CELERY_WORKER_AUTOSCALE: "1,3"
-      REDIS_URL: redis://glitchtip-redis:6379/0
-    volumes:
-      - glitchtip_uploads:/code/uploads
-    networks:
-      - emailight-network
 
-  glitchtip-migrate:
-    image: glitchtip/glitchtip
-    container_name: emailight-glitchtip-migrate
-    command: ./bin/run-migrate.sh
-    depends_on:
-      - postgres
-      - glitchtip-redis
-    environment:
-      DATABASE_URL: postgres://${GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB}
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
-      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
-      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
-      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
-      REDIS_URL: redis://glitchtip-redis:6379/0
-    networks:
-      - emailight-network
 
   # ================================
   # ADMIN INTERFACES
@@ -180,7 +113,7 @@ services:
       USER_SERVICE_PORT: 3001
       HOST: 0.0.0.0
       
-      # MongoDB (utilise les vraies variables d'env)
+      # MongoDB
       MONGODB_URI: mongodb://${MONGO_APP_USERNAME}:${MONGO_APP_PASSWORD}@mongodb:27017/${MONGO_DATABASE}
       
       # JWT & Security
@@ -193,7 +126,7 @@ services:
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
       
-      # Redis (utilise le redis du compose)
+      # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       
       # Logging
@@ -201,9 +134,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       VERBOSE_LOGS: ${VERBOSE_LOGS:-true}
       
-      # GlitchTip (utilise la même instance)
-      GLITCHTIP_DSN: ${USER_SERVICE_GLITCHTIP_DSN:-}
-      GLITCHTIP_TRACES_SAMPLE_RATE: ${GLITCHTIP_TRACES_SAMPLE_RATE:-0.1}
+      # ✅ EXCEPTIONLESS CORRIGÉ - Variables cohérentes avec le code
+      USER_SERVICE_EXCEPTIONLESS_API_KEY: ${USER_SERVICE_EXCEPTIONLESS_API_KEY:-}
+      USER_SERVICE_EXCEPTIONLESS_SERVER_URL: ${USER_SERVICE_EXCEPTIONLESS_SERVER_URL:-http://exceptionless:8080}
       
       # Localisation
       LOCALE: ${LOCALE:-fr-FR}
@@ -212,7 +145,7 @@ services:
     depends_on:
       - mongodb
       - redis
-      - glitchtip-web
+      - exceptionless
     
     volumes:
       # Hot reload en développement
@@ -240,10 +173,10 @@ volumes:
   redis_data:
     labels:
       - emailight
-  postgres_data:
+  exceptionless_data:
     labels:
       - emailight
-  glitchtip_uploads:
+  exceptionless_storage:
     labels:
       - emailight
   user_service_logs:

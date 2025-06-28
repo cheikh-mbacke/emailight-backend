@@ -1,312 +1,262 @@
-const mongoose = require("mongoose");
-const config = require("./env");
+// ============================================================================
+// 📁 src/config/env.js - Configuration pour Docker uniquement
+// ============================================================================
 
-/**
- * Mongoose Configuration Options
- */
-const mongooseOptions = {
+// ❌ PAS d'import dotenv - tout vient de docker-compose
 
-  // Performance and timeout settings
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
-
-  // Optimization settings
-  bufferCommands: false,
-
-  // Application name for monitoring purposes
-  appName: "emailight-user-service",
-};
-
-// Default logger (fallback to console if no external logger is provided)
+// Default logger (fallback to console)
 let logger = {
-  db: (msg, data) => console.log(`🗃️ [BD] ${msg}`, data || ""),
-  success: (msg, data) => console.log(`✅ [BD] ${msg}`, data || ""),
-  error: (msg, error) => console.error(`❌ [BD] ${msg}`, error || ""),
-  warn: (msg, data) => console.warn(`⚠️ [BD] ${msg}`, data || ""),
-  debug: (msg, data) => console.log(`🔍 [BD] ${msg}`, data || ""),
-  info: (msg, data) => console.log(`📡 [BD] ${msg}`, data || ""),
+  info: (msg, data) => console.log(`📡 [CONFIG] ${msg}`, data || ""),
+  warn: (msg, data) => console.warn(`⚠️ [CONFIG] ${msg}`, data || ""),
+  error: (msg, error) => console.error(`❌ [CONFIG] ${msg}`, error || ""),
+  success: (msg, data) => console.log(`✅ [CONFIG] ${msg}`, data || ""),
 };
 
 /**
  * Allows injecting an external logger
  */
-const setLogger = (externalLogger) => {
+export const setLogger = (externalLogger) => {
   logger = externalLogger;
 };
 
 /**
- * Establish a connection to MongoDB
+ * Load and validate environment variables (from Docker environment)
  */
-const connectDB = async () => {
-  try {
-    logger.db("Connexion à MongoDB en cours...", {
-      uri: config.MONGODB_URI.replace(/\/\/.*@/, "//***:***@"),
-      options: {
-        maxPoolSize: mongooseOptions.maxPoolSize,
-        serverSelectionTimeoutMS: mongooseOptions.serverSelectionTimeoutMS,
-      },
-    });
+const config = {
+  NODE_ENV: process.env.NODE_ENV || "development",
+  PORT: parseInt(process.env.USER_SERVICE_PORT) || 3001,
+  HOST: process.env.HOST || "0.0.0.0",
 
-    const conn = await mongoose.connect(config.MONGODB_URI, mongooseOptions);
+  MONGODB_URI:
+    process.env.MONGODB_URI ||
+    "mongodb://emailight_app:your_secure_app_password_here@mongodb:27017/emailight",
 
-    const connectionInfo = {
-      database: conn.connection.db.databaseName,
-      host: conn.connection.host,
-      port: conn.connection.port,
-      readyState: conn.connection.readyState,
-    };
+  JWT_SECRET:
+    process.env.JWT_SECRET || "your_super_secret_jwt_key_change_in_production",
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "24h",
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
 
-    logger.success("Connexion à MongoDB réussie", connectionInfo, {
-      action: "database_connect",
-    });
+  BCRYPT_ROUNDS: parseInt(process.env.BCRYPT_ROUNDS) || 12,
+  TOKEN_ENCRYPTION_KEY:
+    process.env.TOKEN_ENCRYPTION_KEY || "your-32-character-secret-key-here",
 
-    return conn;
-  } catch (error) {
-    const errorContext = {
-      action: "database_connect_failed",
-      mongodb_uri: config.MONGODB_URI.replace(/\/\/.*@/, "//***:***@"),
-      environment: config.NODE_ENV,
-      error_code: error.code,
-      error_name: error.name,
-    };
+  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 60000,
 
-    logger.error("Erreur de connexion à MongoDB", error, errorContext);
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: parseInt(process.env.SMTP_PORT) || 587,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
 
-    if (config.NODE_ENV === "development") {
-      logger.debug("Conseils de débogage MongoDB", {
-        checks: [
-          "Le conteneur 'emailight-mongodb' est-il en cours d’exécution ?",
-          "Les identifiants sont-ils corrects ?",
-          "Le réseau Docker est-il accessible ?",
-          "Test : docker exec emailight-mongodb mongosh --eval \"db.adminCommand('ping')\"",
-        ],
-        error_details: {
-          message: error.message,
-          stack: error.stack?.split("\n").slice(0, 5),
-        },
-      });
-    }
+  ENABLE_LOGGING: process.env.ENABLE_LOGGING !== "false",
+  LOG_LEVEL: process.env.LOG_LEVEL || "info",
 
-    throw new Error("Impossible de se connecter à la base de données");
-  }
+  GLITCHTIP_DSN: process.env.GLITCHTIP_DSN,
+  GLITCHTIP_TRACES_SAMPLE_RATE: parseFloat(
+    process.env.GLITCHTIP_TRACES_SAMPLE_RATE || "0.1"
+  ),
+
+  // ✅ AJOUT DES VARIABLES EXCEPTIONLESS MANQUANTES
+  USER_SERVICE_EXCEPTIONLESS_API_KEY:
+    process.env.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+  USER_SERVICE_EXCEPTIONLESS_SERVER_URL:
+    process.env.USER_SERVICE_EXCEPTIONLESS_SERVER_URL ||
+    "http://exceptionless:8080",
+
+  LOCALE: process.env.LOCALE || "fr-FR",
+  TIMEZONE: process.env.TIMEZONE || "Europe/Paris",
+  VERBOSE_LOGS: process.env.VERBOSE_LOGS === "true",
 };
 
 /**
- * Cleanly disconnect from MongoDB
+ * Validate critical environment variables and emit warnings/errors
  */
-const disconnectDB = async () => {
-  try {
-    const connectionState = getConnectionStatus();
+const validateConfig = () => {
+  const errors = [];
+  const warnings = [];
 
-    if (connectionState.state !== "disconnected") {
-      await mongoose.connection.close();
-      logger.success("Connexion MongoDB fermée proprement", connectionState, {
-        action: "database_disconnect",
-      });
-    } else {
-      logger.debug("MongoDB déjà déconnecté", connectionState);
-    }
-  } catch (error) {
-    logger.error("Erreur lors de la déconnexion de MongoDB", error, {
-      action: "database_disconnect_failed",
-    });
-  }
-};
-
-/**
- * Setup Mongoose event handlers for connection lifecycle
- */
-const setupConnectionEvents = () => {
-  mongoose.connection.on("connected", () => {
-    logger.db(
-      "Mongoose connecté à MongoDB",
-      {
-        host: mongoose.connection.host,
-        port: mongoose.connection.port,
-        database: mongoose.connection.name,
-      },
-      { action: "mongoose_connected" }
-    );
-  });
-
-  mongoose.connection.on("error", (err) => {
-    logger.error("Erreur de connexion Mongoose", err, {
-      action: "mongoose_connection_error",
-      connection_state: getConnectionStatus().state,
-    });
-  });
-
-  mongoose.connection.on("disconnected", () => {
-    logger.warn(
-      "Mongoose déconnecté de MongoDB",
-      {
-        previous_state: "connected",
-        timestamp: new Date().toISOString(),
-      },
-      { action: "mongoose_disconnected" }
-    );
-  });
-
-  mongoose.connection.on("reconnected", () => {
-    logger.success("Mongoose reconnecté à MongoDB", getConnectionStatus(), {
-      action: "mongoose_reconnected",
-    });
-  });
-
-  mongoose.connection.on("reconnectFailed", () => {
-    logger.error(
-      "Échec de la reconnexion MongoDB",
-      {
-        attempts: "all_failed",
-        connection_state: getConnectionStatus().state,
-      },
-      { action: "mongoose_reconnect_failed" }
-    );
-  });
-};
-
-/**
- * Returns current connection status
- */
-const getConnectionStatus = () => {
-  const states = {
-    0: "disconnected",
-    1: "connected",
-    2: "connecting",
-    3: "disconnecting",
+  const criticalVars = ["JWT_SECRET", "TOKEN_ENCRYPTION_KEY"];
+  const defaultValues = {
+    JWT_SECRET: "your_super_secret_jwt_key_change_in_production",
+    TOKEN_ENCRYPTION_KEY: "your-32-character-secret-key-here",
   };
 
-  return {
-    state: states[mongoose.connection.readyState] || "unknown",
-    host: mongoose.connection.host,
-    port: mongoose.connection.port,
-    name: mongoose.connection.name,
-    readyState: mongoose.connection.readyState,
-  };
-};
+  criticalVars.forEach((varName) => {
+    if (!config[varName] || config[varName] === defaultValues[varName]) {
+      if (config.NODE_ENV === "production") {
+        errors.push(`${varName} doit être défini en production`);
+      } else {
+        warnings.push(`${varName} utilise une valeur par défaut`);
+      }
+    }
+  });
 
-/**
- * MongoDB Health Check (ping)
- */
-const healthCheck = async () => {
-  try {
-    const startTime = Date.now();
-    await mongoose.connection.db.admin().ping();
-    const responseTime = Date.now() - startTime;
+  if (config.JWT_SECRET && config.JWT_SECRET.length < 32) {
+    warnings.push(
+      "JWT_SECRET devrait contenir au moins 32 caractères pour plus de sécurité"
+    );
+  }
 
-    const healthData = {
-      status: "healthy",
-      message: "Base de données accessible",
-      responseTime: `${responseTime}ms`,
-      ...getConnectionStatus(),
-    };
+  if (
+    config.TOKEN_ENCRYPTION_KEY &&
+    config.TOKEN_ENCRYPTION_KEY.length !== 32
+  ) {
+    warnings.push(
+      "TOKEN_ENCRYPTION_KEY doit contenir exactement 32 caractères"
+    );
+  }
 
-    if (responseTime > 1000) {
-      logger.warn(
-        "Temps de réponse lent de MongoDB",
-        {
-          responseTime: `${responseTime}ms`,
-          threshold: "1000ms",
-        },
-        { action: "database_slow_response" }
+  if (!config.MONGODB_URI.includes("emailight")) {
+    warnings.push(
+      "MONGODB_URI ne semble pas pointer vers la base de données emailight"
+    );
+  }
+
+  if (config.PORT < 1024 && config.NODE_ENV === "production") {
+    warnings.push(
+      "Les ports < 1024 nécessitent des privilèges root en production"
+    );
+  }
+
+  if (config.RATE_LIMIT_MAX > 1000) {
+    warnings.push(
+      "RATE_LIMIT_MAX est très élevé, envisagez de le réduire pour plus de sécurité"
+    );
+  }
+
+  if (config.BCRYPT_ROUNDS < 10) {
+    warnings.push("BCRYPT_ROUNDS < 10 peut être insuffisamment sécurisé");
+  } else if (config.BCRYPT_ROUNDS > 15) {
+    warnings.push("BCRYPT_ROUNDS > 15 peut nuire aux performances");
+  }
+
+  // ✅ VALIDATION EXCEPTIONLESS
+  if (!config.USER_SERVICE_EXCEPTIONLESS_API_KEY) {
+    if (config.NODE_ENV === "production") {
+      warnings.push(
+        "USER_SERVICE_EXCEPTIONLESS_API_KEY recommandé en production pour le monitoring d'erreurs"
       );
+    } else {
+      logger.info("Exceptionless désactivé - Aucune clé API fournie");
     }
-
-    return healthData;
-  } catch (error) {
-    const healthData = {
-      status: "unhealthy",
-      message: error.message,
-      error: error.name,
-      ...getConnectionStatus(),
-    };
-
-    logger.error("Échec du test de santé MongoDB", error, {
-      action: "database_health_check_failed",
-      connection_state: getConnectionStatus().state,
+  } else {
+    logger.success("Exceptionless configuré", {
+      apiKey: "***configured***",
+      serverUrl: config.USER_SERVICE_EXCEPTIONLESS_SERVER_URL,
     });
-
-    return healthData;
   }
-};
 
-/**
- * Retrieve MongoDB performance metrics
- */
-const getPerformanceMetrics = async () => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      return { available: false, reason: "Base de données non connectée" };
-    }
-
-    const stats = await mongoose.connection.db.stats();
-
-    return {
-      available: true,
-      collections: stats.collections,
-      dataSize: `${Math.round(stats.dataSize / 1024 / 1024)}MB`,
-      storageSize: `${Math.round(stats.storageSize / 1024 / 1024)}MB`,
-      indexes: stats.indexes,
-      objects: stats.objects,
-      avgObjSize: `${Math.round(stats.avgObjSize)}bytes`,
-    };
-  } catch (error) {
+  if (errors.length > 0) {
+    const errorMessage = `Variables d'environnement critiques manquantes : ${errors.join(", ")}`;
     logger.error(
-      "Erreur lors de la récupération des métriques MongoDB",
-      error,
+      errorMessage,
+      { errors, environment: config.NODE_ENV },
       {
-        action: "database_metrics_failed",
+        action: "config_validation_failed",
       }
     );
-
-    return {
-      available: false,
-      reason: error.message,
-    };
+    throw new Error(errorMessage);
   }
+
+  if (warnings.length > 0) {
+    logger.warn(
+      "Avertissements de configuration",
+      {
+        warnings,
+        environment: config.NODE_ENV,
+        recommendations: [
+          "Vérifiez vos variables d'environnement en production",
+          "Utilisez des clés sécurisées de longueur appropriée",
+          "Référez-vous à la documentation pour les bonnes pratiques",
+        ],
+      },
+      {
+        action: "config_validation_warnings",
+      }
+    );
+  }
+
+  logger.success(
+    "Configuration validée avec succès",
+    {
+      environment: config.NODE_ENV,
+      port: config.PORT,
+      database: config.MONGODB_URI.replace(/\/\/.*@/, "//***:***@"),
+      jwt_configured: !!config.JWT_SECRET,
+      encryption_configured: !!config.TOKEN_ENCRYPTION_KEY,
+      glitchtip_enabled: !!config.GLITCHTIP_DSN,
+      exceptionless_configured: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+      warnings_count: warnings.length,
+    },
+    {
+      action: "config_validated",
+    }
+  );
 };
 
 /**
- * Utility: Log slow Mongoose queries (development only)
+ * Returns a safe summary of current configuration
  */
-const logSlowQueries = () => {
-  mongoose.set("debug", (collectionName, method, query, doc) => {
-    const startTime = Date.now();
-
-    if (
-      config.NODE_ENV === "development" ||
-      process.env.VERBOSE_LOGS === "true"
-    ) {
-      logger.debug(
-        "Requête Mongoose",
-        {
-          collection: collectionName,
-          method,
-          query: JSON.stringify(query).substring(0, 200),
-          executionTime: `${Date.now() - startTime}ms`,
-        },
-        { action: "mongoose_query" }
-      );
-    }
-  });
+export const getConfigSummary = () => {
+  return {
+    environment: config.NODE_ENV,
+    service: "user-service",
+    port: config.PORT,
+    host: config.HOST,
+    database: {
+      connected: config.MONGODB_URI.includes("emailight"),
+      uri_masked: config.MONGODB_URI.replace(/\/\/.*@/, "//***:***@"),
+    },
+    security: {
+      jwt_configured:
+        !!config.JWT_SECRET &&
+        config.JWT_SECRET !== "your_super_secret_jwt_key_change_in_production",
+      encryption_configured:
+        !!config.TOKEN_ENCRYPTION_KEY &&
+        config.TOKEN_ENCRYPTION_KEY !== "your-32-character-secret-key-here",
+      bcrypt_rounds: config.BCRYPT_ROUNDS,
+    },
+    features: {
+      logging_enabled: config.ENABLE_LOGGING,
+      verbose_logs: config.VERBOSE_LOGS,
+      glitchtip_enabled: !!config.GLITCHTIP_DSN,
+      exceptionless_enabled: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+      rate_limiting: {
+        max_requests: config.RATE_LIMIT_MAX,
+        window_ms: config.RATE_LIMIT_WINDOW,
+      },
+    },
+    monitoring: {
+      exceptionless: {
+        enabled: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+        serverUrl: config.USER_SERVICE_EXCEPTIONLESS_SERVER_URL,
+        apiKey: config.USER_SERVICE_EXCEPTIONLESS_API_KEY
+          ? "***configured***"
+          : "not_configured",
+      },
+    },
+    locale: {
+      language: config.LOCALE,
+      timezone: config.TIMEZONE,
+    },
+  };
 };
 
-// Automatically configure event listeners on import
-setupConnectionEvents();
+/**
+ * Re-validates the configuration after injecting an external logger
+ */
+export const revalidateWithLogger = () => {
+  logger.info("Revalidation de la configuration avec le logger injecté");
+  validateConfig();
+};
 
-// Enable slow query logging in development
-if (config.NODE_ENV === "development") {
-  logSlowQueries();
-}
+// Initial validation on import (with fallback logger)
+validateConfig();
 
-// Export public functions
-module.exports = {
-  connectDB,
-  disconnectDB,
-  getConnectionStatus,
-  healthCheck,
-  getPerformanceMetrics,
+// Export default avec toutes les propriétés de config
+export default {
+  ...config,
   setLogger,
+  getConfigSummary,
+  revalidateWithLogger,
 };

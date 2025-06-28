@@ -1,5 +1,5 @@
-const UserService = require("../services/userService");
-const AuthService = require("../services/authService");
+import UserService from "../services/userService.js";
+import AuthService from "../services/authService.js";
 
 /**
  * 👤 User management controller
@@ -243,4 +243,4 @@ class UserController {
   }
 }
 
-module.exports = UserController;
+export default UserController;

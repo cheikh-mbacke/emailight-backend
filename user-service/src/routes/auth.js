@@ -1,12 +1,12 @@
-const AuthController = require("../controllers/authController");
-const { authenticateToken } = require("../middleware/auth");
-const {
+import AuthController from "../controllers/authController.js";
+import { authenticateToken } from "../middleware/auth.js";
+import {
   validateRegister,
   validateLogin,
   validateUpdateProfile,
   validateForgotPassword,
   validateResetPassword,
-} = require("../middleware/validation");
+} from "../middleware/validation.js";
 
 /**
  * 🔐 Authentication routes plugin
@@ -178,4 +178,4 @@ async function authRoutes(fastify, options) {
   );
 }
 
-module.exports = authRoutes;
+export default authRoutes;

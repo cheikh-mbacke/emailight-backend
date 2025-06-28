@@ -1,6 +1,6 @@
-const PreferencesController = require("../controllers/preferencesController");
-const { authenticateToken } = require("../middleware/auth");
-const { validateUpdatePreferences } = require("../middleware/validation");
+import PreferencesController from "../controllers/preferencesController.js";
+import { authenticateToken } from "../middleware/auth.js";
+import { validateUpdatePreferences } from "../middleware/validation.js";
 
 /**
  * ⚙️ Fastify route plugin for managing user preferences
@@ -365,4 +365,4 @@ async function preferencesRoutes(fastify, options) {
   );
 }
 
-module.exports = preferencesRoutes;
+export default preferencesRoutes;

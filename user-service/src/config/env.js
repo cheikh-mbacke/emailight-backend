@@ -15,7 +15,7 @@ let logger = {
 /**
  * Allows injecting an external logger
  */
-const setLogger = (externalLogger) => {
+export const setLogger = (externalLogger) => {
   logger = externalLogger;
 };
 
@@ -55,6 +55,13 @@ const config = {
   GLITCHTIP_TRACES_SAMPLE_RATE: parseFloat(
     process.env.GLITCHTIP_TRACES_SAMPLE_RATE || "0.1"
   ),
+
+  // ✅ AJOUT DES VARIABLES EXCEPTIONLESS MANQUANTES
+  USER_SERVICE_EXCEPTIONLESS_API_KEY:
+    process.env.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+  USER_SERVICE_EXCEPTIONLESS_SERVER_URL:
+    process.env.USER_SERVICE_EXCEPTIONLESS_SERVER_URL ||
+    "http://exceptionless:8080",
 
   LOCALE: process.env.LOCALE || "fr-FR",
   TIMEZONE: process.env.TIMEZONE || "Europe/Paris",
@@ -123,6 +130,22 @@ const validateConfig = () => {
     warnings.push("BCRYPT_ROUNDS > 15 peut nuire aux performances");
   }
 
+  // ✅ VALIDATION EXCEPTIONLESS
+  if (!config.USER_SERVICE_EXCEPTIONLESS_API_KEY) {
+    if (config.NODE_ENV === "production") {
+      warnings.push(
+        "USER_SERVICE_EXCEPTIONLESS_API_KEY recommandé en production pour le monitoring d'erreurs"
+      );
+    } else {
+      logger.info("Exceptionless désactivé - Aucune clé API fournie");
+    }
+  } else {
+    logger.success("Exceptionless configuré", {
+      apiKey: "***configured***",
+      serverUrl: config.USER_SERVICE_EXCEPTIONLESS_SERVER_URL,
+    });
+  }
+
   if (errors.length > 0) {
     const errorMessage = `Variables d'environnement critiques manquantes : ${errors.join(", ")}`;
     logger.error(
@@ -162,6 +185,7 @@ const validateConfig = () => {
       jwt_configured: !!config.JWT_SECRET,
       encryption_configured: !!config.TOKEN_ENCRYPTION_KEY,
       glitchtip_enabled: !!config.GLITCHTIP_DSN,
+      exceptionless_configured: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
       warnings_count: warnings.length,
     },
     {
@@ -173,7 +197,7 @@ const validateConfig = () => {
 /**
  * Returns a safe summary of current configuration
  */
-const getConfigSummary = () => {
+export const getConfigSummary = () => {
   return {
     environment: config.NODE_ENV,
     service: "user-service",
@@ -196,9 +220,19 @@ const getConfigSummary = () => {
       logging_enabled: config.ENABLE_LOGGING,
       verbose_logs: config.VERBOSE_LOGS,
       glitchtip_enabled: !!config.GLITCHTIP_DSN,
+      exceptionless_enabled: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
       rate_limiting: {
         max_requests: config.RATE_LIMIT_MAX,
         window_ms: config.RATE_LIMIT_WINDOW,
+      },
+    },
+    monitoring: {
+      exceptionless: {
+        enabled: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
+        serverUrl: config.USER_SERVICE_EXCEPTIONLESS_SERVER_URL,
+        apiKey: config.USER_SERVICE_EXCEPTIONLESS_API_KEY
+          ? "***configured***"
+          : "not_configured",
       },
     },
     locale: {
@@ -211,7 +245,7 @@ const getConfigSummary = () => {
 /**
  * Re-validates the configuration after injecting an external logger
  */
-const revalidateWithLogger = () => {
+export const revalidateWithLogger = () => {
   logger.info("Revalidation de la configuration avec le logger injecté");
   validateConfig();
 };
@@ -219,8 +253,8 @@ const revalidateWithLogger = () => {
 // Initial validation on import (with fallback logger)
 validateConfig();
 
-// Export everything
-module.exports = {
+// ✅ Export ES modules cohérent
+export default {
   ...config,
   setLogger,
   getConfigSummary,

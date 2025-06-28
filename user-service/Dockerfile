@@ -63,5 +63,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Utiliser dumb-init comme PID 1
 ENTRYPOINT ["dumb-init", "--"]
 
-# Command par défaut
-CMD ["node", "src/server.js"]
+# Command par défaut - CORRIGÉ: utiliser index.js au lieu de server.js
+CMD ["node", "src/index.js"]

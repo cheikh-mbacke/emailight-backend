@@ -1,4 +1,4 @@
-const User = require("../models/User");
+import User from "../models/User.js";
 
 // ✅ Logger par défaut avec injection
 let logger = {
@@ -15,7 +15,7 @@ let logger = {
 /**
  * ✅ Injection du logger
  */
-const setLogger = (injectedLogger) => {
+export const setLogger = (injectedLogger) => {
   logger = injectedLogger;
 };
 
@@ -23,7 +23,7 @@ const setLogger = (injectedLogger) => {
  * 🔐 JWT Authentication Middleware for Fastify
  * Uses @fastify/jwt which is pre-configured in the app
  */
-const authenticateToken = async (request, reply) => {
+export const authenticateToken = async (request, reply) => {
   try {
     // Verify and decode JWT (handled by @fastify/jwt)
     await request.jwtVerify();
@@ -200,7 +200,7 @@ const authenticateToken = async (request, reply) => {
  * 🔓 Optional Authentication Middleware
  * Attaches the user if the token is valid; otherwise continues without user
  */
-const optionalAuth = async (request, reply) => {
+export const optionalAuth = async (request, reply) => {
   try {
     const authHeader = request.headers.authorization;
 
@@ -257,7 +257,7 @@ const optionalAuth = async (request, reply) => {
 /**
  * 👑 Middleware: Admin-only access (future use)
  */
-const requireAdmin = async (request, reply) => {
+export const requireAdmin = async (request, reply) => {
   await authenticateToken(request, reply);
 
   if (!request.user.isAdmin) {
@@ -284,7 +284,7 @@ const requireAdmin = async (request, reply) => {
 /**
  * 💳 Middleware: Premium subscription required
  */
-const requirePremium = async (request, reply) => {
+export const requirePremium = async (request, reply) => {
   await authenticateToken(request, reply);
 
   const allowedStatuses = ["premium", "enterprise"];
@@ -313,7 +313,7 @@ const requirePremium = async (request, reply) => {
 /**
  * 📧 Middleware: Email sending rate limit check
  */
-const checkEmailLimits = async (request, reply) => {
+export const checkEmailLimits = async (request, reply) => {
   if (!request.user) {
     return reply.code(401).send({
       error: "Authentication required",
@@ -356,31 +356,18 @@ const checkEmailLimits = async (request, reply) => {
  * 🔒 Fastify Hook: Load user from JWT before route handlers
  * A more "Fastify-native" alternative to classic middleware
  */
-const jwtPreHandler = {
+export const jwtPreHandler = {
   preHandler: authenticateToken,
 };
 
-const optionalJwtPreHandler = {
+export const optionalJwtPreHandler = {
   preHandler: optionalAuth,
 };
 
-const premiumPreHandler = {
+export const premiumPreHandler = {
   preHandler: requirePremium,
 };
 
-const emailLimitsPreHandler = {
+export const emailLimitsPreHandler = {
   preHandler: [authenticateToken, checkEmailLimits],
-};
-
-module.exports = {
-  authenticateToken,
-  optionalAuth,
-  requireAdmin,
-  requirePremium,
-  checkEmailLimits,
-  jwtPreHandler,
-  optionalJwtPreHandler,
-  premiumPreHandler,
-  emailLimitsPreHandler,
-  setLogger, // ✅ Export de la fonction d'injection
 };
