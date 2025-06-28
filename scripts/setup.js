@@ -4,6 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
+// Import permission fixing utilities
+const {
+  fixExceptionlessPermissions,
+  checkDockerRunning,
+} = require("./fix-permissions");
+
 // Function to generate a secure random key
 function generateSecretKey(length = 64) {
   return new Promise((resolve, reject) => {
@@ -49,6 +55,16 @@ async function main() {
   );
 
   copyEnvFile();
+
+  // Fix Exceptionless permissions if Docker is available
+  console.log("🔧 Setting up Docker volumes and permissions...");
+  if (await checkDockerRunning()) {
+    await fixExceptionlessPermissions();
+  } else {
+    console.log(
+      "⚠️  Docker not available - permissions will be fixed on first start"
+    );
+  }
 
   console.log("\n🔐 Security recommendations:");
   console.log("1. Generate secure passwords for:");
@@ -102,6 +118,9 @@ async function main() {
   );
   console.log("   - npm run dev:admin      → Start only admin interfaces");
   console.log("   - npm run logs:exceptionless → View Exceptionless logs");
+  console.log(
+    "   - npm run fix:permissions → Fix Exceptionless volume permissions"
+  );
 
   console.log("\n✨ Setup complete!");
 }
