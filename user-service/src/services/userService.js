@@ -1,9 +1,10 @@
 // ============================================================================
-// 📁 src/services/userService.js - User management service
+// 📁 src/services/userService.js - User management service (MISE À JOUR)
 // ============================================================================
 
 import User from "../models/User.js";
 import EmailAccount from "../models/EmailAccount.js";
+import FileUploadService from "./fileUploadService.js";
 import {
   NotFoundError,
   ValidationError,
@@ -18,6 +19,8 @@ class UserService {
   // ✅ Injection du logger
   static setLogger(injectedLogger) {
     this.logger = injectedLogger;
+    // Injecter le logger dans le service de fichiers aussi
+    FileUploadService.setLogger(injectedLogger);
   }
 
   /**
@@ -133,6 +136,249 @@ class UserService {
       throw new SystemError("Erreur lors de la mise à jour du nom", error, {
         userId: userId?.toString(),
       });
+    }
+  }
+
+  /**
+   * 🖼️ Upload and update user avatar
+   */
+  static async updateUserAvatar(userId, fileData) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      // Sauvegarder l'ancien avatar pour suppression
+      const oldAvatarUrl = user.profilePictureUrl;
+
+      // Upload du nouvel avatar
+      const uploadResult = await FileUploadService.uploadAvatar(
+        userId,
+        fileData
+      );
+
+      // Mettre à jour l'URL de l'avatar en base
+      user.profilePictureUrl = uploadResult.avatarUrl;
+      await user.save();
+
+      // Supprimer l'ancien avatar si il existait et n'était pas une URL externe
+      if (oldAvatarUrl && oldAvatarUrl.startsWith("/uploads/")) {
+        try {
+          await FileUploadService.deleteAvatar(oldAvatarUrl);
+        } catch (deleteError) {
+          // Log mais ne pas faire échouer l'upload
+          this.logger.warn(
+            "Impossible de supprimer l'ancien avatar",
+            deleteError,
+            {
+              userId: userId.toString(),
+              oldAvatarUrl,
+            }
+          );
+        }
+      }
+
+      this.logger.user(
+        "Avatar mis à jour",
+        {
+          fileName: uploadResult.fileName,
+          fileSize: uploadResult.fileSize,
+          oldAvatarUrl: oldAvatarUrl,
+          newAvatarUrl: uploadResult.avatarUrl,
+        },
+        {
+          userId: userId.toString(),
+          email: user.email,
+          action: "avatar_updated",
+        }
+      );
+
+      return {
+        user: user.profile,
+        avatar: {
+          url: uploadResult.avatarUrl,
+          fileName: uploadResult.fileName,
+          fileSize: uploadResult.fileSize,
+          uploadedAt: uploadResult.uploadedAt,
+        },
+        updated: true,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+
+      this.logger.error("Erreur lors de la mise à jour de l'avatar", error, {
+        action: "update_avatar_failed",
+        userId: userId?.toString(),
+      });
+
+      throw new SystemError(
+        "Erreur lors de la mise à jour de l'avatar",
+        error,
+        {
+          userId: userId?.toString(),
+        }
+      );
+    }
+  }
+
+  /**
+   * 🗑️ Delete user avatar
+   */
+  static async deleteUserAvatar(userId) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      if (!user.profilePictureUrl) {
+        return {
+          deleted: false,
+          reason: "Aucun avatar à supprimer",
+        };
+      }
+
+      const avatarUrl = user.profilePictureUrl;
+
+      // Supprimer le fichier si c'est un upload local
+      if (avatarUrl.startsWith("/uploads/")) {
+        await FileUploadService.deleteAvatar(avatarUrl);
+      }
+
+      // Supprimer l'URL de la base de données
+      user.profilePictureUrl = null;
+      await user.save();
+
+      this.logger.user(
+        "Avatar supprimé",
+        { avatarUrl },
+        {
+          userId: userId.toString(),
+          email: user.email,
+          action: "avatar_deleted",
+        }
+      );
+
+      return {
+        deleted: true,
+        deletedAvatar: avatarUrl,
+        deletedAt: new Date(),
+      };
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+
+      this.logger.error("Erreur lors de la suppression de l'avatar", error, {
+        action: "delete_avatar_failed",
+        userId: userId?.toString(),
+      });
+
+      throw new SystemError(
+        "Erreur lors de la suppression de l'avatar",
+        error,
+        {
+          userId: userId?.toString(),
+        }
+      );
+    }
+  }
+
+  /**
+   * 🗑️ Delete user account and all associated data (GDPR)
+   */
+  static async deleteUserAccount(userId) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      const userEmail = user.email;
+      const userAvatarUrl = user.profilePictureUrl;
+
+      // 1. Supprimer tous les comptes email connectés
+      const emailAccountsResult = await EmailAccount.deleteMany({ userId });
+
+      // 2. Supprimer l'avatar si il existe
+      if (userAvatarUrl && userAvatarUrl.startsWith("/uploads/")) {
+        try {
+          await FileUploadService.deleteAvatar(userAvatarUrl);
+        } catch (avatarError) {
+          this.logger.warn(
+            "Impossible de supprimer l'avatar lors de la suppression du compte",
+            avatarError
+          );
+        }
+      }
+
+      // 3. Supprimer l'utilisateur
+      await User.findByIdAndDelete(userId);
+
+      this.logger.user(
+        "Compte utilisateur supprimé définitivement",
+        {
+          email: userEmail,
+          emailAccountsDeleted: emailAccountsResult.deletedCount,
+          avatarDeleted: !!userAvatarUrl,
+          gdprCompliance: true,
+        },
+        {
+          userId: userId.toString(),
+          email: userEmail,
+          action: "account_permanently_deleted",
+        }
+      );
+
+      return {
+        accountDeleted: true,
+        deletedAt: new Date(),
+        email: userEmail,
+        deletedData: {
+          emailAccounts: emailAccountsResult.deletedCount,
+          avatar: !!userAvatarUrl,
+          preferences: true,
+          security: true,
+        },
+        gdprCompliant: true,
+      };
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+
+      this.logger.error(
+        "Erreur lors de la suppression définitive du compte",
+        error,
+        {
+          action: "permanent_account_deletion_failed",
+          userId: userId?.toString(),
+        }
+      );
+
+      throw new SystemError(
+        "Erreur lors de la suppression définitive du compte",
+        error,
+        {
+          userId: userId?.toString(),
+        }
+      );
     }
   }
 

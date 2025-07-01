@@ -6,6 +6,8 @@ import {
   validateUpdateProfile,
   validateForgotPassword,
   validateResetPassword,
+  validateRefreshToken,
+  validateGoogleAuth,
 } from "../middleware/validation.js";
 
 /**
@@ -31,6 +33,24 @@ async function authRoutes(fastify, options) {
             password: { type: "string", minLength: 6 },
           },
         },
+        response: {
+          201: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  user: { type: "object" },
+                  accessToken: { type: "string" },
+                  refreshToken: { type: "string" },
+                  expiresIn: { type: "string" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
       },
     },
     AuthController.register
@@ -54,9 +74,125 @@ async function authRoutes(fastify, options) {
             password: { type: "string" },
           },
         },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  user: { type: "object" },
+                  accessToken: { type: "string" },
+                  refreshToken: { type: "string" },
+                  expiresIn: { type: "string" },
+                  lastLogin: { type: "string", format: "date-time" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
       },
     },
     AuthController.login
+  );
+
+  // ============================================================================
+  // 🔄 REFRESH TOKEN
+  // ============================================================================
+  fastify.post(
+    "/refresh-token",
+    {
+      preHandler: validateRefreshToken,
+      schema: {
+        tags: ["Authentication"],
+        summary: "Refresh access token",
+        description: "Generate a new access token using a valid refresh token",
+        body: {
+          type: "object",
+          required: ["refreshToken"],
+          properties: {
+            refreshToken: {
+              type: "string",
+              description: "Valid refresh token",
+            },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  user: { type: "object" },
+                  accessToken: { type: "string" },
+                  refreshToken: { type: "string" },
+                  expiresIn: { type: "string" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    AuthController.refreshToken
+  );
+
+  // ============================================================================
+  // 🔍 GOOGLE OAUTH AUTHENTICATION
+  // ============================================================================
+  fastify.post(
+    "/google",
+    {
+      preHandler: validateGoogleAuth,
+      schema: {
+        tags: ["Authentication"],
+        summary: "Google OAuth authentication",
+        description: "Authenticate user using Google OAuth2 token",
+        body: {
+          type: "object",
+          required: ["googleToken"],
+          properties: {
+            googleToken: {
+              type: "string",
+              description: "Google ID token from OAuth2 flow",
+            },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  user: { type: "object" },
+                  accessToken: { type: "string" },
+                  refreshToken: { type: "string" },
+                  expiresIn: { type: "string" },
+                  isNew: {
+                    type: "boolean",
+                    description: "True if this is a new account",
+                  },
+                  linkedAccount: {
+                    type: "boolean",
+                    description:
+                      "True if existing email account was linked to Google",
+                  },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    AuthController.googleAuth
   );
 
   // ============================================================================

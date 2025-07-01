@@ -1,5 +1,5 @@
 // ============================================================================
-// 📁 src/app.js - Configuration principale avec gestion d'erreurs centralisée
+// 📁 src/app.js - Configuration principale avec Google OAuth et Multipart
 // ============================================================================
 
 import mongoose from "mongoose";
@@ -13,6 +13,7 @@ import jwt from "@fastify/jwt";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import sensible from "@fastify/sensible";
+import multipart from "@fastify/multipart";
 
 // Import des routes
 import authRoutes from "./routes/auth.js";
@@ -26,8 +27,11 @@ import PreferencesController from "./controllers/preferencesController.js";
 import AuthService from "./services/authService.js";
 import UserService from "./services/userService.js";
 import PreferencesService from "./services/preferencesService.js";
+import GoogleAuthService from "./services/googleAuthService.js";
+import FileUploadService from "./services/fileUploadService.js";
 import { setLogger as setAuthMiddlewareLogger } from "./middleware/auth.js";
 import { setLogger as setValidationMiddlewareLogger } from "./middleware/validation.js";
+import { setLogger as setUploadValidationLogger } from "./middleware/uploadValidation.js";
 
 // ✨ Import du service Exceptionless centralisé
 import exceptionlessService from "./utils/exceptionless.js";
@@ -49,12 +53,38 @@ export async function createApp(fastify, options = {}) {
     AuthService.setLogger(logger);
     UserService.setLogger(logger);
     PreferencesService.setLogger(logger);
+    GoogleAuthService.setLogger(logger);
+    FileUploadService.setLogger(logger); // 🆕 Service de fichiers
     setAuthMiddlewareLogger(logger);
     setValidationMiddlewareLogger(logger);
+    setUploadValidationLogger(logger); // 🆕 Middleware upload
 
     logger.info("Logger injecté dans tous les modules", {
-      modules: ["config", "controllers", "services", "middleware"],
+      modules: [
+        "config",
+        "controllers",
+        "services",
+        "middleware",
+        "googleAuth",
+        "fileUpload", // 🆕
+        "uploadValidation", // 🆕
+      ],
     });
+
+    // ============================================================================
+    // 🔍 INITIALISATION GOOGLE OAUTH SERVICE
+    // ============================================================================
+    const googleAuthInitialized = GoogleAuthService.initialize();
+    if (googleAuthInitialized) {
+      logger.success("Google OAuth Service initialisé", {
+        clientConfigured: !!appConfig.GOOGLE_CLIENT_ID,
+      });
+    } else {
+      logger.warn("Google OAuth Service non disponible", {
+        reason: "GOOGLE_CLIENT_ID manquant",
+        impact: "Authentification Google désactivée",
+      });
+    }
 
     // ============================================================================
     // 🚨 INITIALISATION D'EXCEPTIONLESS (CENTRALISÉ)
@@ -82,10 +112,30 @@ export async function createApp(fastify, options = {}) {
     // Plugin sensible pour des utilitaires pratiques
     await fastify.register(sensible);
 
-    // Configuration CORS
+    // 🆕 Configuration Multipart pour les uploads de fichiers
+    await fastify.register(multipart, {
+      limits: {
+        fieldNameSize: 100, // Limite du nom de champ
+        fieldSize: 100, // Limite de la valeur du champ
+        fields: 10, // Nombre max de champs non-fichiers
+        fileSize: 5 * 1024 * 1024, // 5MB par fichier
+        files: 1, // Nombre max de fichiers
+        headerPairs: 2000, // Nombre max de paires header
+      },
+      attachFieldsToBody: false, // Ne pas attacher automatiquement
+    });
+
+    logger.success("Plugin multipart configuré", {
+      maxFileSize: "5MB",
+      maxFiles: 1,
+      maxFields: 10,
+    });
+
+    // Configuration CORS améliorée
     await fastify.register(cors, {
       origin: (origin, callback) => {
         if (appConfig.NODE_ENV === "development") {
+          // En développement, accepter toutes les origines
           callback(null, true);
           return;
         }
@@ -93,17 +143,23 @@ export async function createApp(fastify, options = {}) {
         const allowedOrigins = [
           "https://app.emailight.com",
           "https://emailight.com",
+          // Ajout des origines locales pour développement
+          "http://localhost:3001",
+          "http://127.0.0.1:3001",
+          "http://0.0.0.0:3001",
         ];
 
+        // Autoriser les requêtes sans origin (Postman, curl, etc.)
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
+          logger.warn("Origine CORS non autorisée", { origin });
           callback(new Error("Non autorisé par CORS"), false);
         }
       },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "Accept"],
     });
 
     // Limitation du débit des requêtes
@@ -150,8 +206,13 @@ export async function createApp(fastify, options = {}) {
           },
           servers: [
             {
-              url: `http://${appConfig.HOST}:${appConfig.PORT}`,
-              description: "Serveur de développement",
+              // 🔥 CORRIGÉ: Utiliser localhost au lieu de HOST pour Swagger
+              url: `http://localhost:${appConfig.PORT}`,
+              description: "Serveur de développement (localhost)",
+            },
+            {
+              url: `http://127.0.0.1:${appConfig.PORT}`,
+              description: "Serveur de développement (127.0.0.1)",
             },
           ],
           components: {
@@ -184,7 +245,7 @@ export async function createApp(fastify, options = {}) {
       });
 
       logger.info("Documentation Swagger UI configurée", {
-        url: `http://${appConfig.HOST}:${appConfig.PORT}/docs`,
+        url: `http://localhost:${appConfig.PORT}/docs`,
       });
     }
 
@@ -227,6 +288,9 @@ export async function createApp(fastify, options = {}) {
         const dbStatus =
           mongoose.connection.readyState === 1 ? "connected" : "disconnected";
 
+        // 🆕 Vérifier le statut Google OAuth
+        const googleOAuthStatus = GoogleAuthService.getStatus();
+
         return reply.success(
           {
             status: "healthy",
@@ -236,6 +300,19 @@ export async function createApp(fastify, options = {}) {
             database: {
               status: dbStatus,
               name: "MongoDB",
+            },
+            oauth: {
+              google: googleOAuthStatus,
+            },
+            uploads: {
+              multipart: true,
+              maxFileSize: "5MB",
+              supportedTypes: [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/gif",
+              ],
             },
             exceptionless: exceptionlessService.getHealthStatus(),
             config: appConfig.getConfigSummary(),
@@ -249,6 +326,61 @@ export async function createApp(fastify, options = {}) {
         throw error;
       }
     });
+
+    // ============================================================================
+    // 🧪 ROUTE DE TEST GOOGLE OAUTH (développement uniquement)
+    // ============================================================================
+    if (appConfig.NODE_ENV === "development") {
+      fastify.get("/test/google-oauth", async (request, reply) => {
+        try {
+          const testResult = await GoogleAuthService.testConfiguration();
+
+          return reply.success(testResult, "Test Google OAuth");
+        } catch (error) {
+          logger.error("Erreur lors du test Google OAuth", error);
+
+          return reply.code(500).send({
+            success: false,
+            error: "Erreur test Google OAuth",
+            details: error.message,
+          });
+        }
+      });
+
+      // 🆕 Route de test pour les uploads (développement)
+      fastify.get("/test/upload-config", async (request, reply) => {
+        try {
+          const uploadConfig = FileUploadService.getUploadConfig();
+
+          return reply.success(uploadConfig, "Configuration upload");
+        } catch (error) {
+          logger.error("Erreur test configuration upload", error);
+
+          return reply.code(500).send({
+            success: false,
+            error: "Erreur test upload",
+            details: error.message,
+          });
+        }
+      });
+    }
+
+    // ============================================================================
+    // 📁 ROUTE STATIQUE POUR LES UPLOADS (en développement)
+    // ============================================================================
+    if (appConfig.NODE_ENV === "development") {
+      // Servir les fichiers uploadés statiquement
+      await fastify.register(import("@fastify/static"), {
+        root: process.cwd(),
+        prefix: "/uploads/",
+        decorateReply: false,
+      });
+
+      logger.info("Service de fichiers statiques configuré", {
+        prefix: "/uploads/",
+        root: process.cwd(),
+      });
+    }
 
     // ============================================================================
     // 📍 ENREGISTREMENT DES ROUTES
@@ -280,13 +412,25 @@ export async function createApp(fastify, options = {}) {
     logger.success("Application Fastify configurée avec succès", {
       routes: [
         "/health",
-        ...(appConfig.NODE_ENV !== "production" ? ["/docs"] : []),
+        ...(appConfig.NODE_ENV === "development"
+          ? ["/docs", "/test/google-oauth", "/test/upload-config"]
+          : ["/docs"]),
         "/api/v1/auth/*",
         "/api/v1/users/*",
         "/api/v1/preferences/*",
       ],
-      plugins: ["cors", "helmet", "rateLimit", "jwt", "swagger", "swaggerUi"],
+      plugins: [
+        "cors",
+        "helmet",
+        "rateLimit",
+        "jwt",
+        "swagger",
+        "swaggerUi",
+        "multipart", // 🆕
+      ],
       environment: appConfig.NODE_ENV,
+      googleOAuth: googleAuthInitialized ? "✅ Activé" : "❌ Désactivé",
+      fileUploads: "✅ Activé", // 🆕
       exceptionless: exceptionlessService.initialized
         ? "✅ Activé"
         : "❌ Désactivé",

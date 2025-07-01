@@ -163,9 +163,32 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters long"],
       select: false, // Do not include in queries by default
+      // 🆕 Password optionnel pour les comptes OAuth
+      required: function () {
+        return this.authProvider === "email";
+      },
+    },
+
+    // 🆕 OAuth provider information
+    authProvider: {
+      type: String,
+      enum: ["email", "google"],
+      default: "email",
+      required: true,
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Index partiel pour les valeurs non nulles uniquement
+      unique: true,
+    },
+    profilePictureUrl: {
+      type: String,
+      match: [
+        /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
+        "Invalid profile picture URL format",
+      ],
     },
 
     // ✅ Account status
@@ -230,6 +253,7 @@ const userSchema = new mongoose.Schema(
         delete ret.password;
         delete ret.passwordResetToken;
         delete ret.emailVerificationToken;
+        delete ret.googleId; // 🆕 Ne pas exposer l'ID Google
         delete ret.__v;
         return ret;
       },
@@ -245,12 +269,16 @@ userSchema.index({ subscriptionStatus: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ "security.accountLockedUntil": 1 });
 userSchema.index({ createdAt: -1 });
+// 🆕 Index pour les recherches OAuth
+userSchema.index({ authProvider: 1 });
+userSchema.index({ googleId: 1 }, { sparse: true });
 
 /**
  * 🔒 Pre-save middleware: hash password if modified
  */
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  // 🆕 Skip password hashing for OAuth users without password
+  if (!this.password || !this.isModified("password")) return next();
 
   try {
     this.password = await bcrypt.hash(this.password, config.BCRYPT_ROUNDS);
@@ -266,6 +294,11 @@ userSchema.pre("save", async function (next) {
  */
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
+    // 🆕 Handle OAuth users without password
+    if (!this.password) {
+      throw new Error("This account uses external authentication");
+    }
+
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
     throw new Error("Error while verifying password");
@@ -384,6 +417,20 @@ userSchema.methods.incrementEmailsSent = async function () {
 };
 
 /**
+ * 🆕 Method: Check if user is OAuth-based
+ */
+userSchema.methods.isOAuthUser = function () {
+  return this.authProvider !== "email";
+};
+
+/**
+ * 🆕 Method: Check if user can change password
+ */
+userSchema.methods.canChangePassword = function () {
+  return this.authProvider === "email" && this.password;
+};
+
+/**
  * 🎯 Virtual: Public profile info
  */
 userSchema.virtual("profile").get(function () {
@@ -391,10 +438,13 @@ userSchema.virtual("profile").get(function () {
     id: this._id,
     name: this.name,
     email: this.email,
+    authProvider: this.authProvider, // 🆕 Exposer le provider
+    profilePictureUrl: this.profilePictureUrl, // 🆕 Photo de profil
     subscriptionStatus: this.subscriptionStatus,
     isEmailVerified: this.isEmailVerified,
     createdAt: this.createdAt,
     lastActiveAt: this.lastActiveAt,
+    canChangePassword: this.canChangePassword(), // 🆕 Capacité à changer le mot de passe
   };
 });
 
@@ -408,7 +458,26 @@ userSchema.virtual("securityStats").get(function () {
     lastLogin: this.security.lastFailedLogin,
     emailsSentToday: this.security.emailsSentToday,
     canSendEmail: this.canSendEmail(),
+    authProvider: this.authProvider, // 🆕 Provider d'auth
+    isOAuthUser: this.isOAuthUser(), // 🆕 Utilisateur OAuth
   };
 });
+
+/**
+ * 🆕 Static method: Find user by Google ID
+ */
+userSchema.statics.findByGoogleId = function (googleId) {
+  return this.findOne({ googleId, isActive: true });
+};
+
+/**
+ * 🆕 Static method: Find user by email for OAuth linking
+ */
+userSchema.statics.findForOAuthLinking = function (email) {
+  return this.findOne({
+    email: email.toLowerCase(),
+    isActive: true,
+  });
+};
 
 export default mongoose.model("User", userSchema);

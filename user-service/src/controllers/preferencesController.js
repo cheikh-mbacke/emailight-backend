@@ -31,21 +31,16 @@ class PreferencesController {
 
       return reply.success(result, "Préférences récupérées avec succès");
     } catch (error) {
-      this.logger.error("Erreur récupération préférences", error, {
-        action: "get_preferences_failed",
-        userId: request.user?._id?.toString(),
-      });
-
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "GET_PREFERENCES_ERROR",
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la récupération des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -64,7 +59,8 @@ class PreferencesController {
 
       return reply.success(result, "Préférences mises à jour avec succès");
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "UPDATE_PREFERENCES_ERROR",
@@ -72,9 +68,8 @@ class PreferencesController {
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la mise à jour des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -89,16 +84,16 @@ class PreferencesController {
 
       return reply.success(result, "Préférences réinitialisées avec succès");
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "RESET_PREFERENCES_ERROR",
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la réinitialisation des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -118,7 +113,8 @@ class PreferencesController {
 
       return reply.success(result, "Thème mis à jour avec succès");
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "UPDATE_THEME_ERROR",
@@ -126,7 +122,8 @@ class PreferencesController {
         });
       }
 
-      return reply.code(500).error("Erreur lors de la mise à jour du thème");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -146,7 +143,8 @@ class PreferencesController {
 
       return reply.success(result, "Langue mise à jour avec succès");
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "UPDATE_LANGUAGE_ERROR",
@@ -154,9 +152,8 @@ class PreferencesController {
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la mise à jour de la langue");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -185,7 +182,8 @@ class PreferencesController {
         "Préférences email mises à jour avec succès"
       );
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "UPDATE_EMAIL_DEFAULTS_ERROR",
@@ -193,9 +191,8 @@ class PreferencesController {
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la mise à jour des préférences email");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -223,7 +220,8 @@ class PreferencesController {
         "Préférences de notifications mises à jour avec succès"
       );
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "UPDATE_NOTIFICATIONS_ERROR",
@@ -231,9 +229,8 @@ class PreferencesController {
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la mise à jour des notifications");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -256,14 +253,16 @@ class PreferencesController {
 
       return exportData;
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "EXPORT_PREFERENCES_ERROR",
         });
       }
 
-      return reply.code(500).error("Erreur lors de l'export des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -282,7 +281,8 @@ class PreferencesController {
 
       return reply.success(result, "Préférences importées avec succès");
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "IMPORT_PREFERENCES_ERROR",
@@ -290,7 +290,8 @@ class PreferencesController {
         });
       }
 
-      return reply.code(500).error("Erreur lors de l'import des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -323,14 +324,16 @@ class PreferencesController {
           : "Préférences invalides"
       );
     } catch (error) {
-      this.logger.error("Erreur lors de la validation des préférences", error, {
-        action: "validate_preferences_failed",
-        userId: request.user?._id?.toString(),
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "VALIDATE_PREFERENCES_ERROR",
+        });
+      }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la validation des préférences");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 }

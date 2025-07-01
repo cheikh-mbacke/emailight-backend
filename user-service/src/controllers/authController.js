@@ -20,26 +20,29 @@ class AuthController {
       // Call the service
       const result = await AuthService.registerUser({ name, email, password });
 
-      // Generate JWT token
-      const token = request.server.jwt.sign(
-        { userId: result.user.id },
-        { expiresIn: "24h" }
-      );
+      // Generate tokens
+      const tokens = AuthService.generateTokens(result.user.id);
 
       return reply.code(201).success(
         {
           user: result.user,
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           expiresIn: "24h",
         },
         "Compte créé avec succès"
       );
     } catch (error) {
-      // The service already handles error logging
-      return reply.code(error.statusCode || 500).send({
-        error: error.message,
-        code: error.code || "REGISTRATION_ERROR",
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "REGISTRATION_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -53,32 +56,156 @@ class AuthController {
       // Call the authentication service
       const result = await AuthService.authenticateUser({ email, password });
 
-      // Update user activity
-      await AuthService.updateUserActivity(result.user.id, {
-        ip: request.ip,
-        userAgent: request.headers["user-agent"],
-      });
+      // 🔥 CORRIGÉ: Récupérer l'instance Mongoose complète pour updateLastActive
+      const userInstance = await User.findById(result.user.id);
+      if (userInstance) {
+        await userInstance.updateLastActive(
+          request.ip,
+          request.headers["user-agent"]
+        );
+      }
 
-      // Generate JWT token
-      const token = request.server.jwt.sign(
-        { userId: result.user.id },
-        { expiresIn: "24h" }
-      );
+      // Generate tokens
+      const tokens = AuthService.generateTokens(result.user.id);
 
       return reply.success(
         {
           user: result.user,
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           expiresIn: "24h",
           lastLogin: result.lastLogin,
         },
         "Connexion réussie"
       );
     } catch (error) {
-      return reply.code(error.statusCode || 500).send({
-        error: error.message,
-        code: error.code || "LOGIN_ERROR",
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "LOGIN_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔄 Refresh access token
+   */
+  static async refreshToken(request, reply) {
+    try {
+      const { refreshToken } = request.body;
+
+      if (!refreshToken) {
+        return reply.code(400).send({
+          error: "Token de rafraîchissement requis",
+          code: "MISSING_REFRESH_TOKEN",
+        });
+      }
+
+      // Call the service to refresh the token
+      const result = await AuthService.refreshAccessToken(refreshToken);
+
+      return reply.success(
+        {
+          user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn,
+        },
+        "Token rafraîchi avec succès"
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "TOKEN_REFRESH_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 Google OAuth authentication
+   */
+  static async googleAuth(request, reply) {
+    try {
+      const { googleToken } = request.body;
+
+      if (!googleToken) {
+        return reply.code(400).send({
+          error: "Token Google requis",
+          code: "MISSING_GOOGLE_TOKEN",
+        });
+      }
+
+      // Verify Google token
+      const googleUserData = await this.verifyGoogleToken(googleToken);
+
+      if (!googleUserData) {
+        return reply.code(401).send({
+          error: "Token Google invalide",
+          code: "INVALID_GOOGLE_TOKEN",
+        });
+      }
+
+      // Authenticate with Google data
+      const result = await AuthService.authenticateWithGoogle(googleUserData);
+
+      // Update user activity
+      const user = await User.findById(result.user.id);
+      await user.updateLastActive(request.ip, request.headers["user-agent"]);
+
+      // Generate tokens
+      const tokens = AuthService.generateTokens(result.user.id);
+
+      this.logger.auth(
+        "Authentification Google réussie",
+        {
+          email: result.user.email,
+          isNew: result.isNew,
+          linkedAccount: result.linkedAccount,
+        },
+        {
+          userId: result.user.id,
+          email: result.user.email,
+          action: "google_auth_success",
+        }
+      );
+
+      return reply.success(
+        {
+          user: result.user,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresIn: "24h",
+          isNew: result.isNew,
+          linkedAccount: result.linkedAccount,
+        },
+        result.isNew
+          ? "Compte créé et connecté avec Google"
+          : result.linkedAccount
+            ? "Compte lié à Google avec succès"
+            : "Connexion Google réussie"
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GOOGLE_AUTH_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -104,12 +231,16 @@ class AuthController {
 
       return reply.success(null, "Déconnexion réussie");
     } catch (error) {
-      this.logger.error("Erreur lors de la déconnexion", error, {
-        action: "logout_failed",
-        userId: request.user?._id?.toString(),
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "LOGOUT_ERROR",
+        });
+      }
 
-      return reply.code(500).error("Erreur lors de la déconnexion");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -137,12 +268,16 @@ class AuthController {
         "Profil récupéré avec succès"
       );
     } catch (error) {
-      this.logger.error("Erreur lors de la récupération du profil", error, {
-        action: "get_profile_failed",
-        userId: request.user?._id?.toString(),
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GET_PROFILE_ERROR",
+        });
+      }
 
-      return reply.code(500).error("Erreur lors de la récupération du profil");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -205,19 +340,16 @@ class AuthController {
         "Profil mis à jour avec succès"
       );
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "PROFILE_UPDATE_ERROR",
         });
       }
 
-      this.logger.error("Erreur lors de la mise à jour du profil", error, {
-        action: "profile_update_failed",
-        userId: request.user?._id?.toString(),
-      });
-
-      return reply.code(500).error("Erreur lors de la mise à jour du profil");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -238,14 +370,16 @@ class AuthController {
         "Compte supprimé définitivement"
       );
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "ACCOUNT_DELETION_ERROR",
         });
       }
 
-      return reply.code(500).error("Erreur lors de la suppression du compte");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -270,10 +404,16 @@ class AuthController {
         result.message
       );
     } catch (error) {
-      return reply.code(error.statusCode || 500).send({
-        error: error.message,
-        code: error.code || "PASSWORD_RESET_ERROR",
-      });
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "PASSWORD_RESET_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 
@@ -297,16 +437,47 @@ class AuthController {
         "Mot de passe réinitialisé avec succès"
       );
     } catch (error) {
-      if (error.statusCode) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
           error: error.message,
           code: error.code || "PASSWORD_RESET_ERROR",
         });
       }
 
-      return reply
-        .code(500)
-        .error("Erreur lors de la réinitialisation du mot de passe");
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 Helper: Verify Google token (implemented with google-auth-library)
+   */
+  static async verifyGoogleToken(googleToken) {
+    try {
+      // Import Google Auth Service
+      const GoogleAuthService = (
+        await import("../services/googleAuthService.js")
+      ).default;
+
+      // Verify token with Google
+      const userData = await GoogleAuthService.verifyGoogleToken(googleToken);
+
+      return userData;
+    } catch (error) {
+      // 🎯 Les erreurs de vérification Google sont souvent métier (token invalide)
+      // Mais on laisse le service gérer et remonter si c'est système
+      this.logger.error("Erreur verification token Google", error, {
+        action: "google_token_verification_failed",
+      });
+
+      // Si c'est une erreur système, elle remontera
+      // Si c'est métier, on retourne null (comportement attendu)
+      if (error.isOperational && error.statusCode < 500) {
+        return null;
+      }
+
+      throw error;
     }
   }
 }

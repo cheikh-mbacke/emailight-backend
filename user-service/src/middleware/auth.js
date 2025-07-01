@@ -124,7 +124,7 @@ export const authenticateToken = async (request, reply) => {
       }
     );
   } catch (error) {
-    // Handle specific JWT errors
+    // 🎯 Handle specific JWT errors (4xx - métier)
     if (error.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER") {
       logger.warn(
         "Tentative d'accès sans token",
@@ -182,11 +182,30 @@ export const authenticateToken = async (request, reply) => {
       });
     }
 
-    // General error
-    logger.error("Erreur d'authentification", error, {
+    // 🎯 Erreurs de base de données ou système (5xx)
+    if (
+      error.name === "MongoNetworkError" ||
+      error.name === "MongoServerError" ||
+      error.name === "CastError" ||
+      !error.code
+    ) {
+      logger.error("Erreur système d'authentification", error, {
+        action: "authentication_system_error",
+        endpoint: `${request.method} ${request.url}`,
+        ip: request.ip,
+        errorType: error.name || "unknown",
+      });
+
+      // 🚨 Laisser remonter les erreurs système au gestionnaire centralisé
+      throw error;
+    }
+
+    // 🎯 Autres erreurs JWT (probablement métier)
+    logger.error("Erreur d'authentification non catégorisée", error, {
       action: "authentication_failed",
       endpoint: `${request.method} ${request.url}`,
       ip: request.ip,
+      errorCode: error.code,
     });
 
     return reply.code(401).send({
@@ -242,7 +261,31 @@ export const optionalAuth = async (request, reply) => {
       request.user = null;
     }
   } catch (error) {
+    // 🎯 Pour optional auth, on log seulement et on continue
     request.user = null;
+
+    // 🚨 Si c'est une erreur système, on la laisse remonter
+    if (
+      error.name === "MongoNetworkError" ||
+      error.name === "MongoServerError" ||
+      (!error.code &&
+        error.name !== "JsonWebTokenError" &&
+        error.name !== "TokenExpiredError")
+    ) {
+      logger.error(
+        "Erreur système lors de l'authentification optionnelle",
+        error,
+        {
+          action: "optional_auth_system_error",
+          endpoint: `${request.method} ${request.url}`,
+          ip: request.ip,
+        }
+      );
+
+      throw error;
+    }
+
+    // 🎯 Erreurs métier - on log et on continue
     logger.info(
       "Authentification optionnelle échouée",
       { error: error.message },

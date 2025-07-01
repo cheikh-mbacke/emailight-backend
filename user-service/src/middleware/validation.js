@@ -57,6 +57,22 @@ export const schemas = {
     }),
   }),
 
+  // 🔄 Refresh token
+  refreshToken: Joi.object({
+    refreshToken: Joi.string().trim().required().messages({
+      "string.empty": "Le token de rafraîchissement est requis",
+      "any.required": "Le token de rafraîchissement est obligatoire",
+    }),
+  }),
+
+  // 🔍 Google OAuth
+  googleAuth: Joi.object({
+    googleToken: Joi.string().trim().required().messages({
+      "string.empty": "Le token Google est requis",
+      "any.required": "Le token Google est obligatoire",
+    }),
+  }),
+
   // 👤 Profile update
   updateProfile: Joi.object({
     name: Joi.string().trim().min(2).max(100).optional().messages({
@@ -245,6 +261,7 @@ const createValidationMiddleware = (schema, target = "body") => {
           }
         );
 
+        // 🎯 Erreur de validation = 400 (métier) - gestion locale
         return reply.code(400).send({
           error: "Données invalides",
           message: "Les données fournies ne respectent pas le format attendu",
@@ -274,16 +291,16 @@ const createValidationMiddleware = (schema, target = "body") => {
         request.params = value;
       }
     } catch (validationError) {
-      logger.error("Erreur de validation", validationError, {
-        action: "validation_error",
+      // 🚨 Erreur système lors de la validation (problème Joi, etc.)
+      logger.error("Erreur système de validation", validationError, {
+        action: "validation_system_error",
         endpoint: `${request.method} ${request.url}`,
         target,
+        errorType: validationError.name || "unknown",
       });
 
-      return reply.code(500).send({
-        error: "Erreur de validation",
-        message: "Une erreur est survenue lors de la validation des données",
-      });
+      // 🚨 Laisser remonter les erreurs système au gestionnaire centralisé
+      throw validationError;
     }
   };
 };
@@ -293,6 +310,12 @@ const createValidationMiddleware = (schema, target = "body") => {
  */
 export const validateRegister = createValidationMiddleware(schemas.register);
 export const validateLogin = createValidationMiddleware(schemas.login);
+export const validateRefreshToken = createValidationMiddleware(
+  schemas.refreshToken
+);
+export const validateGoogleAuth = createValidationMiddleware(
+  schemas.googleAuth
+);
 export const validateUpdateProfile = createValidationMiddleware(
   schemas.updateProfile
 );

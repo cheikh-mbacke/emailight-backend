@@ -1,14 +1,17 @@
 // ============================================================================
-// 📁 authService.js - Version standardisée avec classes d'erreur
+// 📁 authService.js - Ajout des méthodes refresh token et OAuth Google
 // ============================================================================
 
 import User from "../models/User.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import config from "../config/env.js";
 import {
   ConflictError,
   AuthError,
   NotFoundError,
   SystemError,
+  ValidationError,
 } from "../utils/customError.js";
 import { AUTH_ERRORS, USER_ERRORS } from "../utils/errorCodes.js";
 
@@ -41,6 +44,7 @@ class AuthService {
         name: name.trim(),
         email: email.toLowerCase().trim(),
         password,
+        authProvider: "email",
       });
 
       await user.save();
@@ -53,12 +57,10 @@ class AuthService {
 
       return { user: user.profile, isNew: true };
     } catch (error) {
-      // Si c'est déjà une erreur opérationnelle, on la relance
       if (error.isOperational) {
         throw error;
       }
 
-      // Sinon, on la transforme en erreur système
       this.logger.error("Erreur lors de la création d'utilisateur", error, {
         action: "user_registration_failed",
         email: email?.toLowerCase(),
@@ -162,6 +164,234 @@ class AuthService {
   }
 
   /**
+   * 🔄 Generate access and refresh tokens
+   */
+  static generateTokens(userId) {
+    try {
+      const accessToken = jwt.sign(
+        { userId, type: "access" },
+        config.JWT_SECRET,
+        { expiresIn: config.JWT_EXPIRES_IN }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId, type: "refresh" },
+        config.JWT_SECRET,
+        { expiresIn: config.JWT_REFRESH_EXPIRES_IN }
+      );
+
+      return { accessToken, refreshToken };
+    } catch (error) {
+      this.logger.error("Erreur lors de la génération des tokens", error, {
+        action: "token_generation_failed",
+        userId: userId?.toString(),
+      });
+
+      throw new SystemError("Erreur lors de la génération des tokens", error, {
+        userId: userId?.toString(),
+      });
+    }
+  }
+
+  /**
+   * 🔄 Refresh access token using refresh token
+   */
+  static async refreshAccessToken(refreshToken) {
+    try {
+      // Verify refresh token
+      const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+
+      if (decoded.type !== "refresh") {
+        throw new AuthError(
+          "Token de rafraîchissement invalide",
+          AUTH_ERRORS.INVALID_TOKEN
+        );
+      }
+
+      // Find user
+      const user = await User.findById(decoded.userId);
+
+      if (!user) {
+        throw new NotFoundError(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      if (!user.isActive) {
+        throw new AuthError("Compte désactivé", AUTH_ERRORS.ACCOUNT_DISABLED);
+      }
+
+      if (user.isAccountLocked()) {
+        throw new AuthError("Compte verrouillé", AUTH_ERRORS.ACCOUNT_LOCKED);
+      }
+
+      // Generate new tokens
+      const tokens = this.generateTokens(user._id);
+
+      this.logger.auth(
+        "Token rafraîchi avec succès",
+        { userId: user._id, email: user.email },
+        {
+          userId: user._id.toString(),
+          email: user.email,
+          action: "token_refreshed",
+        }
+      );
+
+      return {
+        user: user.profile,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: config.JWT_EXPIRES_IN,
+      };
+    } catch (error) {
+      if (error.name === "JsonWebTokenError") {
+        throw new AuthError(
+          "Token de rafraîchissement invalide",
+          AUTH_ERRORS.INVALID_TOKEN
+        );
+      }
+
+      if (error.name === "TokenExpiredError") {
+        throw new AuthError(
+          "Token de rafraîchissement expiré",
+          AUTH_ERRORS.TOKEN_EXPIRED
+        );
+      }
+
+      if (error.isOperational) {
+        throw error;
+      }
+
+      this.logger.error("Erreur lors du rafraîchissement du token", error, {
+        action: "token_refresh_failed",
+      });
+
+      throw new SystemError("Erreur lors du rafraîchissement du token", error);
+    }
+  }
+
+  /**
+   * 🔍 Authenticate with Google OAuth2
+   */
+  static async authenticateWithGoogle(googleUserData) {
+    const { googleId, email, name, picture } = googleUserData;
+
+    try {
+      // Validation des données Google
+      if (!googleId || !email) {
+        throw new ValidationError(
+          "Données Google insuffisantes",
+          "INVALID_GOOGLE_DATA"
+        );
+      }
+
+      // Rechercher un utilisateur existant par email
+      let user = await User.findOne({ email: email.toLowerCase() });
+
+      if (user) {
+        // Utilisateur existant - mise à jour des informations Google
+        if (!user.googleId) {
+          user.googleId = googleId;
+          user.authProvider = "google";
+
+          if (picture && !user.profilePictureUrl) {
+            user.profilePictureUrl = picture;
+          }
+
+          await user.save();
+
+          this.logger.auth(
+            "Compte existant lié à Google",
+            { email: user.email, googleId },
+            {
+              userId: user._id.toString(),
+              email: user.email,
+              action: "google_account_linked",
+            }
+          );
+        }
+
+        // Vérifications de sécurité
+        if (!user.isActive) {
+          throw new AuthError(
+            "Votre compte a été désactivé",
+            AUTH_ERRORS.ACCOUNT_DISABLED
+          );
+        }
+
+        if (user.isAccountLocked()) {
+          throw new AuthError(
+            "Compte temporairement verrouillé",
+            AUTH_ERRORS.ACCOUNT_LOCKED
+          );
+        }
+
+        this.logger.auth(
+          "Connexion Google réussie",
+          { email: user.email, googleId },
+          {
+            userId: user._id.toString(),
+            email: user.email,
+            action: "google_login_success",
+          }
+        );
+
+        return {
+          user: user.profile,
+          isNew: false,
+          linkedAccount: !user.googleId,
+        };
+      } else {
+        // Nouvel utilisateur - création de compte
+        user = new User({
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          googleId,
+          authProvider: "google",
+          profilePictureUrl: picture,
+          isEmailVerified: true, // Google emails are verified
+          // Pas de mot de passe pour les comptes Google
+        });
+
+        await user.save();
+
+        this.logger.auth(
+          "Nouveau compte créé via Google",
+          { email: user.email, googleId },
+          {
+            userId: user._id.toString(),
+            email: user.email,
+            action: "google_account_created",
+          }
+        );
+
+        return {
+          user: user.profile,
+          isNew: true,
+          linkedAccount: false,
+        };
+      }
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+
+      this.logger.error("Erreur lors de l'authentification Google", error, {
+        action: "google_auth_failed",
+        email: email?.toLowerCase(),
+        googleId,
+      });
+
+      throw new SystemError("Erreur lors de l'authentification Google", error, {
+        email: email?.toLowerCase(),
+        googleId,
+      });
+    }
+  }
+
+  /**
    * Change password
    */
   static async changePassword(userId, passwordData) {
@@ -175,6 +405,14 @@ class AuthService {
         throw new NotFoundError(
           "Utilisateur introuvable",
           USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      // Check if user has a password (OAuth users might not)
+      if (!user.password) {
+        throw new AuthError(
+          "Ce compte utilise une authentification externe",
+          "EXTERNAL_AUTH_ACCOUNT"
         );
       }
 

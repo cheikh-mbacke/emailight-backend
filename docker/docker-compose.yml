@@ -111,6 +111,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       USER_SERVICE_PORT: 3001
+      # 🔥 CORRIGÉ: 0.0.0.0 pour écouter sur toutes les interfaces
       HOST: 0.0.0.0
       
       # MongoDB
@@ -119,8 +120,14 @@ services:
       # JWT & Security
       JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-your-32-character-secret-key-here}
+      
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
       
       # Rate Limiting
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
@@ -134,13 +141,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       VERBOSE_LOGS: ${VERBOSE_LOGS:-true}
       
-      # ✅ EXCEPTIONLESS CORRIGÉ - Variables cohérentes avec le code
+      # Exceptionless
       USER_SERVICE_EXCEPTIONLESS_API_KEY: ${USER_SERVICE_EXCEPTIONLESS_API_KEY:-}
       USER_SERVICE_EXCEPTIONLESS_SERVER_URL: ${USER_SERVICE_EXCEPTIONLESS_SERVER_URL:-http://exceptionless:8080}
       
       # Localisation
       LOCALE: ${LOCALE:-fr-FR}
       TIMEZONE: ${TIMEZONE:-Europe/Paris}
+      
+      # 🆕 CORS Configuration (pour résoudre le problème CORS)
+      ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001"
     
     depends_on:
       - mongodb

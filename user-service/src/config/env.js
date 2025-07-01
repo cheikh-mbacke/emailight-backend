@@ -1,5 +1,5 @@
 // ============================================================================
-// 📁 src/config/env.js - Configuration pour Docker uniquement
+// 📁 src/config/env.js - Configuration avec Google OAuth
 // ============================================================================
 
 // ❌ PAS de require("dotenv").config() - tout vient de docker-compose
@@ -40,6 +40,13 @@ const config = {
   TOKEN_ENCRYPTION_KEY:
     process.env.TOKEN_ENCRYPTION_KEY || "your-32-character-secret-key-here",
 
+  // 🆕 Google OAuth Configuration
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI:
+    process.env.GOOGLE_REDIRECT_URI ||
+    "http://localhost:3000/auth/google/callback",
+
   RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX) || 100,
   RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 60000,
 
@@ -56,7 +63,6 @@ const config = {
     process.env.GLITCHTIP_TRACES_SAMPLE_RATE || "0.1"
   ),
 
-  // ✅ AJOUT DES VARIABLES EXCEPTIONLESS MANQUANTES
   USER_SERVICE_EXCEPTIONLESS_API_KEY:
     process.env.USER_SERVICE_EXCEPTIONLESS_API_KEY,
   USER_SERVICE_EXCEPTIONLESS_SERVER_URL:
@@ -130,7 +136,23 @@ const validateConfig = () => {
     warnings.push("BCRYPT_ROUNDS > 15 peut nuire aux performances");
   }
 
-  // ✅ VALIDATION EXCEPTIONLESS
+  // 🆕 VALIDATION GOOGLE OAUTH
+  if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
+    if (config.NODE_ENV === "production") {
+      warnings.push(
+        "GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET recommandés en production pour OAuth Google"
+      );
+    } else {
+      logger.info("Google OAuth désactivé - Clés non configurées");
+    }
+  } else {
+    logger.success("Google OAuth configuré", {
+      clientId: config.GOOGLE_CLIENT_ID ? "***configured***" : "not_configured",
+      redirectUri: config.GOOGLE_REDIRECT_URI,
+    });
+  }
+
+  // VALIDATION EXCEPTIONLESS
   if (!config.USER_SERVICE_EXCEPTIONLESS_API_KEY) {
     if (config.NODE_ENV === "production") {
       warnings.push(
@@ -167,6 +189,7 @@ const validateConfig = () => {
         recommendations: [
           "Vérifiez vos variables d'environnement en production",
           "Utilisez des clés sécurisées de longueur appropriée",
+          "Configurez Google OAuth pour l'authentification sociale",
           "Référez-vous à la documentation pour les bonnes pratiques",
         ],
       },
@@ -184,6 +207,9 @@ const validateConfig = () => {
       database: config.MONGODB_URI.replace(/\/\/.*@/, "//***:***@"),
       jwt_configured: !!config.JWT_SECRET,
       encryption_configured: !!config.TOKEN_ENCRYPTION_KEY,
+      google_oauth_enabled: !!(
+        config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
+      ),
       glitchtip_enabled: !!config.GLITCHTIP_DSN,
       exceptionless_configured: !!config.USER_SERVICE_EXCEPTIONLESS_API_KEY,
       warnings_count: warnings.length,
@@ -215,6 +241,15 @@ export const getConfigSummary = () => {
         !!config.TOKEN_ENCRYPTION_KEY &&
         config.TOKEN_ENCRYPTION_KEY !== "your-32-character-secret-key-here",
       bcrypt_rounds: config.BCRYPT_ROUNDS,
+    },
+    oauth: {
+      google: {
+        enabled: !!(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET),
+        client_id: config.GOOGLE_CLIENT_ID
+          ? "***configured***"
+          : "not_configured",
+        redirect_uri: config.GOOGLE_REDIRECT_URI,
+      },
     },
     features: {
       logging_enabled: config.ENABLE_LOGGING,

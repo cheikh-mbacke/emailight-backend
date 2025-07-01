@@ -2,7 +2,7 @@ import UserController from "../controllers/userController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
 /**
- * 👤 User routes plugin
+ * 👤 User routes plugin (MISE À JOUR)
  */
 async function userRoutes(fastify, options) {
   // ============================================================================
@@ -97,6 +97,149 @@ async function userRoutes(fastify, options) {
       },
     },
     UserController.updateProfile
+  );
+
+  // ============================================================================
+  // 🖼️ UPLOAD USER AVATAR
+  // ============================================================================
+  fastify.post(
+    "/me/avatar",
+    {
+      preHandler: authenticateToken,
+      schema: {
+        tags: ["Users"],
+        summary: "Upload user avatar",
+        description: "Upload and update user profile picture",
+        security: [{ bearerAuth: [] }],
+        consumes: ["multipart/form-data"],
+        body: {
+          type: "object",
+          properties: {
+            avatar: {
+              type: "string",
+              format: "binary",
+              description: "Image file (JPEG, PNG, WebP, GIF - max 5MB)",
+            },
+          },
+          required: ["avatar"],
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  user: { type: "object" },
+                  avatar: {
+                    type: "object",
+                    properties: {
+                      url: { type: "string" },
+                      fileName: { type: "string" },
+                      fileSize: { type: "number" },
+                      uploadedAt: { type: "string", format: "date-time" },
+                    },
+                  },
+                  updated: { type: "boolean" },
+                  updatedAt: { type: "string", format: "date-time" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+          400: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+              message: { type: "string" },
+              details: { type: "object" },
+            },
+          },
+        },
+      },
+    },
+    UserController.uploadAvatar
+  );
+
+  // ============================================================================
+  // 🗑️ DELETE USER AVATAR
+  // ============================================================================
+  fastify.delete(
+    "/me/avatar",
+    {
+      preHandler: authenticateToken,
+      schema: {
+        tags: ["Users"],
+        summary: "Delete user avatar",
+        description: "Remove the current user avatar",
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  deleted: { type: "boolean" },
+                  deletedAvatar: { type: "string" },
+                  deletedAt: { type: "string", format: "date-time" },
+                  reason: { type: "string" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    UserController.deleteAvatar
+  );
+
+  // ============================================================================
+  // 🗑️ DELETE USER ACCOUNT (GDPR)
+  // ============================================================================
+  fastify.delete(
+    "/me",
+    {
+      preHandler: authenticateToken,
+      schema: {
+        tags: ["Users"],
+        summary: "Delete user account permanently",
+        description:
+          "Permanently delete the user account and all associated data (GDPR compliant)",
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  accountDeleted: { type: "boolean" },
+                  deletedAt: { type: "string", format: "date-time" },
+                  email: { type: "string" },
+                  deletedData: {
+                    type: "object",
+                    properties: {
+                      emailAccounts: { type: "number" },
+                      avatar: { type: "boolean" },
+                      preferences: { type: "boolean" },
+                      security: { type: "boolean" },
+                    },
+                  },
+                  gdprCompliant: { type: "boolean" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    UserController.deleteAccount
   );
 
   // ============================================================================
