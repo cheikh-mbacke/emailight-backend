@@ -100,7 +100,7 @@ async function userRoutes(fastify, options) {
   );
 
   // ============================================================================
-  // 🖼️ UPLOAD USER AVATAR
+  // 🖼️ UPLOAD USER AVATAR - SOLUTION DÉFINITIVE
   // ============================================================================
   fastify.post(
     "/me/avatar",
@@ -109,20 +109,21 @@ async function userRoutes(fastify, options) {
       schema: {
         tags: ["Users"],
         summary: "Upload user avatar",
-        description: "Upload and update user profile picture",
+        description: "Upload and update user profile picture (max 5MB)",
         security: [{ bearerAuth: [] }],
-        consumes: ["multipart/form-data"],
+        // 🔥 SOLUTION: Utiliser le format OpenAPI 3.0 requestBody
         body: {
           type: "object",
           properties: {
             avatar: {
               type: "string",
               format: "binary",
-              description: "Image file (JPEG, PNG, WebP, GIF - max 5MB)",
             },
           },
           required: ["avatar"],
         },
+        // 🔥 FORCER Swagger à comprendre que c'est multipart
+        consumes: ["multipart/form-data"],
         response: {
           200: {
             type: "object",
@@ -148,18 +149,22 @@ async function userRoutes(fastify, options) {
               message: { type: "string" },
             },
           },
-          400: {
-            type: "object",
-            properties: {
-              error: { type: "string" },
-              message: { type: "string" },
-              details: { type: "object" },
-            },
-          },
         },
       },
+      // 🔥 BYPASS la validation automatique du body pour multipart
+      attachValidation: true,
     },
-    UserController.uploadAvatar
+    async (request, reply) => {
+      // 🔥 IGNORER les erreurs de validation pour multipart
+      if (request.validationError && request.isMultipart()) {
+        // Continuer le traitement normal
+      } else if (request.validationError) {
+        return reply.code(400).send(request.validationError);
+      }
+
+      // Appeler le controller normal
+      return UserController.uploadAvatar(request, reply);
+    }
   );
 
   // ============================================================================

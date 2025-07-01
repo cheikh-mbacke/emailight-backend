@@ -18,19 +18,38 @@ class PreferencesController {
 
       const result = await PreferencesService.getUserPreferences(userId);
 
-      this.logger.user(
-        "Préférences récupérées",
-        {
-          userId: userId.toString(),
-        },
-        {
-          userId: userId.toString(),
-          action: "preferences_retrieved",
-        }
-      );
+      // 🔍 DEBUG: Vérifier le logger avant de l'utiliser
+      console.log("=== LOGGER DEBUG ===");
+      console.log("this.logger exists:", !!this.logger);
+      console.log("this.logger type:", typeof this.logger);
+      if (this.logger) {
+        console.log("this.logger keys:", Object.keys(this.logger));
+      }
+      console.log("=== END LOGGER DEBUG ===");
+
+      // 🔧 FIX: Utiliser le logger seulement s'il existe
+      if (this.logger && this.logger.user) {
+        this.logger.user(
+          "Préférences récupérées",
+          {
+            userId: userId.toString(),
+          },
+          {
+            userId: userId.toString(),
+            action: "preferences_retrieved",
+          }
+        );
+      } else {
+        console.log("⚠️ Logger non disponible, skipping log");
+      }
 
       return reply.success(result, "Préférences récupérées avec succès");
     } catch (error) {
+      console.log("=== ERROR CAUGHT IN CONTROLLER ===");
+      console.log("Error message:", error.message);
+      console.log("Error isOperational:", error.isOperational);
+      console.log("Error statusCode:", error.statusCode);
+
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({

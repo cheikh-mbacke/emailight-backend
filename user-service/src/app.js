@@ -4,6 +4,7 @@
 
 import mongoose from "mongoose";
 import config from "./config/env.js";
+import path from "path";
 
 // Import des plugins et middlewares
 import cors from "@fastify/cors";
@@ -371,14 +372,23 @@ export async function createApp(fastify, options = {}) {
     if (appConfig.NODE_ENV === "development") {
       // Servir les fichiers uploadés statiquement
       await fastify.register(import("@fastify/static"), {
-        root: process.cwd(),
+        root: path.join(process.cwd(), "uploads"),
         prefix: "/uploads/",
         decorateReply: false,
+        serve: true,
+        // 🔥 SUPPRIMER complètement setHeaders qui cause l'erreur
       });
 
       logger.info("Service de fichiers statiques configuré", {
         prefix: "/uploads/",
-        root: process.cwd(),
+        root: path.join(process.cwd(), "uploads"),
+        environment: appConfig.NODE_ENV,
+      });
+
+      logger.info("Service de fichiers statiques configuré", {
+        prefix: "/uploads/",
+        root: path.join(process.cwd(), "uploads"),
+        environment: appConfig.NODE_ENV,
       });
     }
 
@@ -389,6 +399,38 @@ export async function createApp(fastify, options = {}) {
     await fastify.register(userRoutes, { prefix: "/api/v1/users" });
     await fastify.register(preferencesRoutes, {
       prefix: "/api/v1/preferences",
+    });
+
+    // 🧪 Test 1: TypeError simple
+    fastify.get("/test/error-type", async (request, reply) => {
+      const obj = undefined;
+      return obj.property; // TypeError: Cannot read properties of undefined
+    });
+
+    // 🧪 Test 2: ReferenceError
+    fastify.get("/test/error-reference", async (request, reply) => {
+      return nonExistentVariable; // ReferenceError
+    });
+
+    // 🧪 Test 3: Erreur custom avec throw
+    fastify.get("/test/error-custom", async (request, reply) => {
+      throw new Error("Erreur de test intentionnelle");
+    });
+
+    // 🧪 Test 4: Erreur async
+    fastify.get("/test/error-async", async (request, reply) => {
+      await new Promise((resolve, reject) => {
+        setTimeout(() => {
+          reject(new Error("Erreur async de test"));
+        }, 100);
+      });
+    });
+
+    // 🧪 Test 5: Erreur dans un service (similaire à votre cas)
+    fastify.get("/test/error-service", async (request, reply) => {
+      // Simuler l'erreur que vous avez (request.user undefined)
+      const userId = request.user._id; // Devrait causer la même erreur
+      return reply.send({ userId });
     });
 
     // ============================================================================

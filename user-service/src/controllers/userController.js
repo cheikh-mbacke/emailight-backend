@@ -67,22 +67,67 @@ class UserController {
     try {
       const userId = request.user._id;
 
-      // Récupérer le fichier depuis multipart
+      // 🔥 VÉRIFICATION: S'assurer que c'est du multipart
+      if (!request.isMultipart()) {
+        return reply.code(400).send({
+          error: "Format invalide",
+          message: "L'upload nécessite le format multipart/form-data",
+          code: "INVALID_CONTENT_TYPE",
+        });
+      }
+
+      // 🔥 RÉCUPÉRATION DU FICHIER via multipart
       const data = await request.file();
 
       if (!data) {
         return reply.code(400).send({
           error: "Aucun fichier fourni",
           message: "Veuillez sélectionner un fichier image pour votre avatar",
+          code: "NO_FILE_PROVIDED",
         });
       }
 
-      // Convertir le stream en buffer
+      // 🔥 VALIDATION DU NOM DE CHAMP
+      if (data.fieldname !== "avatar") {
+        return reply.code(400).send({
+          error: "Nom de champ invalide",
+          message: "Le fichier doit être envoyé dans le champ 'avatar'",
+          code: "INVALID_FIELD_NAME",
+        });
+      }
+
+      // 🔥 CONVERSION STREAM → BUFFER
       const chunks = [];
       for await (const chunk of data.file) {
         chunks.push(chunk);
       }
       const fileBuffer = Buffer.concat(chunks);
+
+      // 🔥 VALIDATION TAILLE
+      if (fileBuffer.length > 5 * 1024 * 1024) {
+        // 5MB
+        return reply.code(400).send({
+          error: "Fichier trop volumineux",
+          message: "La taille maximale autorisée est de 5MB",
+          code: "FILE_TOO_LARGE",
+        });
+      }
+
+      // 🔥 VALIDATION TYPE MIME
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+      ];
+      if (!allowedTypes.includes(data.mimetype)) {
+        return reply.code(400).send({
+          error: "Type de fichier non autorisé",
+          message: `Types autorisés: ${allowedTypes.join(", ")}`,
+          code: "INVALID_FILE_TYPE",
+        });
+      }
 
       // Préparer les données du fichier
       const fileData = {
@@ -92,8 +137,12 @@ class UserController {
         encoding: data.encoding,
       };
 
-      // Upload et mise à jour de l'avatar
-      const result = await UserService.updateUserAvatar(userId, fileData);
+      // 🔥 PASSER LA REQUEST pour construire l'URL complète
+      const result = await UserService.updateUserAvatar(
+        userId,
+        fileData,
+        request
+      );
 
       return reply.success(result, "Avatar mis à jour avec succès");
     } catch (error) {

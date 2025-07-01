@@ -185,10 +185,20 @@ const userSchema = new mongoose.Schema(
     },
     profilePictureUrl: {
       type: String,
-      match: [
-        /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
-        "Invalid profile picture URL format",
-      ],
+      validate: {
+        validator: function (url) {
+          if (!url) return true; // null/undefined autorisé
+
+          // URL complète http/https
+          const httpRegex = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+
+          // URL relative locale /uploads/
+          const localRegex = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp)$/i;
+
+          return httpRegex.test(url) || localRegex.test(url);
+        },
+        message: "Invalid profile picture URL format",
+      },
     },
 
     // ✅ Account status

@@ -142,7 +142,7 @@ class UserService {
   /**
    * 🖼️ Upload and update user avatar
    */
-  static async updateUserAvatar(userId, fileData) {
+  static async updateUserAvatar(userId, fileData, request = null) {
     try {
       const user = await User.findById(userId);
 
@@ -156,10 +156,20 @@ class UserService {
       // Sauvegarder l'ancien avatar pour suppression
       const oldAvatarUrl = user.profilePictureUrl;
 
-      // Upload du nouvel avatar
+      // 🔥 CONSTRUIRE L'URL DE BASE depuis la requête
+      let baseUrl = "http://localhost:3001"; // fallback
+
+      if (request) {
+        const protocol = request.headers["x-forwarded-proto"] || "http";
+        const host = request.headers.host || "localhost:3001";
+        baseUrl = `${protocol}://${host}`;
+      }
+
+      // Upload du nouvel avatar avec baseUrl
       const uploadResult = await FileUploadService.uploadAvatar(
         userId,
-        fileData
+        fileData,
+        baseUrl
       );
 
       // Mettre à jour l'URL de l'avatar en base
@@ -167,7 +177,7 @@ class UserService {
       await user.save();
 
       // Supprimer l'ancien avatar si il existait et n'était pas une URL externe
-      if (oldAvatarUrl && oldAvatarUrl.startsWith("/uploads/")) {
+      if (oldAvatarUrl && oldAvatarUrl.includes("/uploads/")) {
         try {
           await FileUploadService.deleteAvatar(oldAvatarUrl);
         } catch (deleteError) {
@@ -228,7 +238,6 @@ class UserService {
       );
     }
   }
-
   /**
    * 🗑️ Delete user avatar
    */

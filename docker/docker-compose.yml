@@ -162,6 +162,7 @@ services:
       - ../user-service/src:/usr/src/app/src:ro
       # Logs persistants
       - user_service_logs:/usr/src/app/logs
+      - ../user-service/uploads:/usr/src/app/uploads
     
     networks:
       - emailight-network

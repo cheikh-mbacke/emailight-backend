@@ -41,7 +41,7 @@ class FileUploadService {
   /**
    * 📤 Upload and process avatar image
    */
-  static async uploadAvatar(userId, fileData) {
+  static async uploadAvatar(userId, fileData, baseUrl = null) {
     try {
       // Validation du fichier
       this.validateAvatarFile(fileData);
@@ -61,11 +61,10 @@ class FileUploadService {
       // Sauvegarde du fichier
       await fs.writeFile(filePath, fileData.data);
 
-      // TODO: Redimensionner l'image si nécessaire (optionnel)
-      // await this.resizeImage(filePath, this.config.avatar.maxWidth, this.config.avatar.maxHeight);
-
-      // URL publique de l'avatar
-      const avatarUrl = `/uploads/avatars/${fileName}`;
+      // 🔥 URL COMPLÈTE au lieu d'URL relative
+      const avatarUrl = baseUrl
+        ? `${baseUrl}/uploads/avatars/${fileName}`
+        : `http://localhost:3001/uploads/avatars/${fileName}`;
 
       this.logger.user(
         "Avatar uploadé avec succès",
