@@ -180,7 +180,10 @@ class I18nService {
       }
       return this.interpolate(translation, params);
     } catch (error) {
-      console.error("I18n error:", error);
+      // Fallback to key if logger not available
+      if (this.logger) {
+        this.logger.error("I18n error:", error);
+      }
       return key;
     }
   }

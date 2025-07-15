@@ -14,6 +14,10 @@ import {
   ValidationError,
 } from "../utils/customError.js";
 import { AUTH_ERRORS, USER_ERRORS } from "../utils/errorCodes.js";
+import TokenBlacklistService from "./tokenBlacklistService.js";
+import EmailAccount from "../models/EmailAccount.js";
+import fs from "fs/promises";
+import path from "path";
 
 /**
  * 🔐 Authentication service
@@ -25,44 +29,22 @@ class AuthService {
 
   /**
    * Register a new user
-   * ✅ CORRIGÉ: Defensive programming + gestion atomique
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async registerUser(userData) {
-    // ✅ FIX 1: Defensive programming - validation stricte des entrées
-    if (!userData || typeof userData !== "object") {
-      throw new ValidationError(
-        "Données utilisateur manquantes ou invalides",
-        "INVALID_USER_DATA"
-      );
-    }
-
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // Les données sont déjà validées, nettoyées et typées
     const { name, email, password } = userData;
 
-    // Validation des champs requis
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      throw new ValidationError("Le nom est requis", "MISSING_NAME");
-    }
-
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      throw new ValidationError("Email invalide", "INVALID_EMAIL");
-    }
-
-    if (!password || typeof password !== "string" || password.length < 6) {
-      throw new ValidationError(
-        "Mot de passe requis (minimum 6 caractères)",
-        "INVALID_PASSWORD"
-      );
-    }
-
     try {
-      // ✅ FIX 3: Race condition résolue - utilisation de l'index unique MongoDB
+      // ✅ FIX: Race condition résolue - utilisation de l'index unique MongoDB
       // MongoDB garantit l'atomicité avec l'index unique sur email
       // Si deux requêtes simultanées tentent de créer le même email,
       // MongoDB rejettera automatiquement la seconde avec une erreur de duplicata
 
       const user = new User({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
+        name,
+        email,
         password,
         authProvider: "email",
       });
@@ -103,25 +85,12 @@ class AuthService {
 
   /**
    * Authenticate a user
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async authenticateUser(credentials) {
-    // ✅ FIX 1: Defensive programming pour credentials
-    if (!credentials || typeof credentials !== "object") {
-      throw new ValidationError(
-        "Identifiants manquants",
-        "MISSING_CREDENTIALS"
-      );
-    }
-
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // Les données sont déjà validées, nettoyées et typées
     const { email, password } = credentials;
-
-    if (!email || typeof email !== "string") {
-      throw new ValidationError("Email requis", "MISSING_EMAIL");
-    }
-
-    if (!password || typeof password !== "string") {
-      throw new ValidationError("Mot de passe requis", "MISSING_PASSWORD");
-    }
 
     try {
       // Find user with password
@@ -212,10 +181,8 @@ class AuthService {
    * 🔄 Generate access and refresh tokens
    */
   static generateTokens(userId) {
-    // ✅ FIX 1: Defensive programming pour userId
-    if (!userId) {
-      throw new ValidationError("ID utilisateur requis", "MISSING_USER_ID");
-    }
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // userId est déjà validé par le middleware d'authentification
 
     try {
       const accessToken = jwt.sign(
@@ -354,28 +321,14 @@ class AuthService {
 
   /**
    * 🔍 Authenticate with Google OAuth2
-   * ✅ CORRIGÉ: Logique linkedAccount corrigée
+   * ✅ CORRIGÉ: Validation déléguée au service Google
    */
   static async authenticateWithGoogle(googleUserData) {
-    // ✅ FIX 1: Defensive programming
-    if (!googleUserData || typeof googleUserData !== "object") {
-      throw new ValidationError(
-        "Données Google manquantes",
-        "MISSING_GOOGLE_DATA"
-      );
-    }
-
+    // ✅ FIX: Validation déjà effectuée par googleAuthService
+    // Les données Google sont déjà validées et vérifiées
     const { googleId, email, name, picture } = googleUserData;
 
     try {
-      // Validation des données Google
-      if (!googleId || !email) {
-        throw new ValidationError(
-          "Données Google insuffisantes",
-          "INVALID_GOOGLE_DATA"
-        );
-      }
-
       // Rechercher un utilisateur existant par email
       let user = await User.findOne({ email: email.toLowerCase() });
 
@@ -488,37 +441,10 @@ class AuthService {
    * ✅ Amélioré avec defensive programming
    */
   static async changePassword(userId, passwordData) {
-    // ✅ FIX 1: Defensive programming
-    if (!userId) {
-      throw new ValidationError("ID utilisateur requis", "MISSING_USER_ID");
-    }
-
-    if (!passwordData || typeof passwordData !== "object") {
-      throw new ValidationError(
-        "Données de mot de passe manquantes",
-        "MISSING_PASSWORD_DATA"
-      );
-    }
-
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // userId est validé par le middleware d'authentification
+    // passwordData est validé par le schéma updateProfile
     const { currentPassword, newPassword } = passwordData;
-
-    if (!currentPassword || typeof currentPassword !== "string") {
-      throw new ValidationError(
-        "Mot de passe actuel requis",
-        "MISSING_CURRENT_PASSWORD"
-      );
-    }
-
-    if (
-      !newPassword ||
-      typeof newPassword !== "string" ||
-      newPassword.length < 6
-    ) {
-      throw new ValidationError(
-        "Nouveau mot de passe invalide (minimum 6 caractères)",
-        "INVALID_NEW_PASSWORD"
-      );
-    }
 
     try {
       // Get user with password
@@ -587,12 +513,11 @@ class AuthService {
 
   /**
    * Generate password reset token - AVEC protection timing attack
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async generatePasswordResetToken(email) {
-    // ✅ FIX 1: Defensive programming
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      throw new ValidationError("Email invalide", "INVALID_EMAIL");
-    }
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // email est déjà validé et nettoyé
 
     try {
       // ✅ CORRECTION: Toujours faire le même traitement pour éviter timing attack
@@ -671,28 +596,12 @@ class AuthService {
 
   /**
    * Reset password using token
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async resetPasswordWithToken(tokenData) {
-    // ✅ FIX 1: Defensive programming
-    if (!tokenData || typeof tokenData !== "object") {
-      throw new ValidationError(
-        "Données de réinitialisation manquantes",
-        "MISSING_RESET_DATA"
-      );
-    }
-
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // tokenData est déjà validé par le schéma resetPassword
     const { token, password } = tokenData;
-
-    if (!token || typeof token !== "string") {
-      throw new ValidationError("Token invalide", "INVALID_TOKEN");
-    }
-
-    if (!password || typeof password !== "string" || password.length < 6) {
-      throw new ValidationError(
-        "Nouveau mot de passe invalide (minimum 6 caractères)",
-        "INVALID_PASSWORD"
-      );
-    }
 
     try {
       // Hash the token for comparison
@@ -753,12 +662,11 @@ class AuthService {
 
   /**
    * Delete user account (GDPR)
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async deleteUserAccount(userId) {
-    // ✅ FIX 1: Defensive programming
-    if (!userId) {
-      throw new ValidationError("ID utilisateur requis", "MISSING_USER_ID");
-    }
+    // ✅ FIX: Validation déjà effectuée par le middleware Joi
+    // userId est validé par le middleware d'authentification
 
     try {
       const user = await User.findById(userId);
@@ -770,8 +678,8 @@ class AuthService {
         );
       }
 
-      // TODO: Remove all related user data
-      await User.findByIdAndDelete(userId);
+      // Supprimer l'utilisateur et ses données associées
+      await this.deleteAllUserData(userId);
 
       this.logger.auth(
         "Compte utilisateur supprimé",
@@ -801,6 +709,108 @@ class AuthService {
       throw new SystemError("Erreur lors de la suppression du compte", error, {
         userId: userId?.toString(),
       });
+    }
+  }
+
+  /**
+   * 🗑️ Supprimer toutes les données associées à un utilisateur
+   */
+  static async deleteAllUserData(userId) {
+    try {
+      this.logger.info(
+        "Début de la suppression complète des données utilisateur",
+        {
+          userId: userId.toString(),
+        }
+      );
+
+      // 1. Supprimer les comptes email
+      const emailAccounts = await EmailAccount.find({ userId });
+      if (emailAccounts.length > 0) {
+        await EmailAccount.deleteMany({ userId });
+        this.logger.info("Comptes email supprimés", {
+          userId: userId.toString(),
+          count: emailAccounts.length,
+        });
+      }
+
+      // 2. Supprimer les tokens blacklistés
+      try {
+        await TokenBlacklistService.clearUserTokens(userId.toString());
+        this.logger.info("Tokens blacklistés supprimés", {
+          userId: userId.toString(),
+        });
+      } catch (error) {
+        this.logger.warn(
+          "Erreur lors de la suppression des tokens blacklistés",
+          {
+            userId: userId.toString(),
+            error: error.message,
+          }
+        );
+      }
+
+      // 3. Supprimer les fichiers uploadés (avatars)
+      let avatarFilesDeleted = 0;
+      try {
+        const avatarsDir = path.join(process.cwd(), "uploads", "avatars");
+        const files = await fs.readdir(avatarsDir);
+
+        const userAvatarFiles = files.filter((file) =>
+          file.startsWith(`avatar_${userId.toString()}_`)
+        );
+
+        for (const file of userAvatarFiles) {
+          const filePath = path.join(avatarsDir, file);
+          await fs.unlink(filePath);
+          this.logger.info("Fichier avatar supprimé", {
+            userId: userId.toString(),
+            file,
+          });
+        }
+
+        avatarFilesDeleted = userAvatarFiles.length;
+        if (userAvatarFiles.length > 0) {
+          this.logger.info("Fichiers avatar supprimés", {
+            userId: userId.toString(),
+            count: userAvatarFiles.length,
+          });
+        }
+      } catch (error) {
+        this.logger.warn("Erreur lors de la suppression des fichiers avatar", {
+          userId: userId.toString(),
+          error: error.message,
+        });
+      }
+
+      // 4. Supprimer l'utilisateur (supprime automatiquement les préférences et métriques de sécurité)
+      await User.findByIdAndDelete(userId);
+
+      this.logger.success(
+        "Suppression complète des données utilisateur terminée",
+        {
+          userId: userId.toString(),
+          emailAccountsDeleted: emailAccounts.length,
+          avatarFilesDeleted: avatarFilesDeleted,
+        }
+      );
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de la suppression des données utilisateur",
+        error,
+        {
+          action: "delete_all_user_data_failed",
+          userId: userId?.toString(),
+        }
+      );
+
+      throw new SystemError(
+        "Erreur lors de la suppression des données utilisateur",
+        error,
+        {
+          userId: userId?.toString(),
+        }
+      );
     }
   }
 }

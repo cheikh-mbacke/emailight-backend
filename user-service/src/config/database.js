@@ -6,10 +6,26 @@
 
 // Default logger (fallback to console)
 let logger = {
-  info: (msg, data) => console.log(`📡 [CONFIG] ${msg}`, data || ""),
-  warn: (msg, data) => console.warn(`⚠️ [CONFIG] ${msg}`, data || ""),
-  error: (msg, error) => console.error(`❌ [CONFIG] ${msg}`, error || ""),
-  success: (msg, data) => console.log(`✅ [CONFIG] ${msg}`, data || ""),
+  info: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.log(`📡 [CONFIG] ${msg}`, data || "");
+    }
+  },
+  warn: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.warn(`⚠️ [CONFIG] ${msg}`, data || "");
+    }
+  },
+  error: (msg, error) => {
+    if (typeof console !== 'undefined') {
+      console.error(`❌ [CONFIG] ${msg}`, error || "");
+    }
+  },
+  success: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.log(`✅ [CONFIG] ${msg}`, data || "");
+    }
+  },
 };
 
 /**

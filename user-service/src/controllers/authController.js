@@ -1,5 +1,6 @@
 import AuthService from "../services/authService.js";
 import User from "../models/User.js";
+import TokenBlacklistService from "../services/tokenBlacklistService.js";
 
 /**
  * 🔐 Authentication controller
@@ -216,13 +217,21 @@ class AuthController {
    */
   static async logout(request, reply) {
     try {
-      // Note: With JWT, logout is mostly client-side
-      // A token blacklist can optionally be added here
+      // 🆕 Ajouter le token à la blacklist
+      const token = request.headers.authorization?.replace("Bearer ", "");
+      if (token) {
+        await TokenBlacklistService.blacklistToken(
+          token,
+          request.user._id,
+          "logout"
+        );
+      }
 
       this.logger.auth(
         "Déconnexion utilisateur",
         {
           email: request.user.email,
+          tokenBlacklisted: !!token,
         },
         {
           userId: request.user._id.toString(),

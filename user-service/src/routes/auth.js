@@ -9,6 +9,10 @@ import {
   validateRefreshToken,
   validateGoogleAuth,
 } from "../middleware/validation.js";
+import {
+  loginRateLimit,
+  createRateLimitMiddleware,
+} from "../middleware/rateLimiting.js";
 
 /**
  * 🔐 Authentication routes plugin
@@ -20,7 +24,15 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/register",
     {
-      preHandler: validateRegister,
+      preHandler: [
+        createRateLimitMiddleware({
+          max: 3,
+          window: 60 * 60 * 1000, // 1 heure
+          keyGenerator: (request) => `register:${request.ip}`,
+          message: "Trop de tentatives d'inscription. Réessayez dans 1 heure.",
+        }),
+        validateRegister,
+      ],
       schema: {
         tags: ["Authentication"],
         summary: "Register a new user",
@@ -62,7 +74,7 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/login",
     {
-      preHandler: validateLogin,
+      preHandler: [loginRateLimit, validateLogin],
       schema: {
         tags: ["Authentication"],
         summary: "User login",
@@ -274,7 +286,15 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/forgot-password",
     {
-      preHandler: validateForgotPassword,
+      preHandler: [
+        createRateLimitMiddleware({
+          max: 3,
+          window: 60 * 60 * 1000, // 1 heure
+          keyGenerator: (request) => `forgot-password:${request.ip}`,
+          message:
+            "Trop de demandes de réinitialisation. Réessayez dans 1 heure.",
+        }),
+      ],
       schema: {
         tags: ["Authentication"],
         summary: "Request password reset",
@@ -296,7 +316,15 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/reset-password",
     {
-      preHandler: validateResetPassword,
+      preHandler: [
+        createRateLimitMiddleware({
+          max: 5,
+          window: 15 * 60 * 1000, // 15 minutes
+          keyGenerator: (request) => `reset-password:${request.ip}`,
+          message:
+            "Trop de tentatives de réinitialisation. Réessayez dans 15 minutes.",
+        }),
+      ],
       schema: {
         tags: ["Authentication"],
         summary: "Reset password using a token",

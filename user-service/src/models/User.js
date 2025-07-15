@@ -5,6 +5,7 @@ import preferencesSchema from "./schemas/preferencesSchema.js";
 import securityMetricsSchema from "./schemas/securityMetricsSchema.js";
 import I18nService from "../services/i18nService.js";
 import { getValidationMessage } from "../constants/validationMessages.js";
+import { VALIDATION_RULES } from "../constants/validationRules.js";
 import {
   getEnumValues,
   SUPPORTED_LANGUAGES,
@@ -22,8 +23,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, getValidationMessage("name", "required")],
       trim: true,
-      maxlength: [100, getValidationMessage("name", "maxLength")],
-      minlength: [2, getValidationMessage("name", "minLength")],
+      maxlength: [
+        VALIDATION_RULES.NAME.MAX_LENGTH,
+        getValidationMessage("name", "maxLength"),
+      ],
+      minlength: [
+        VALIDATION_RULES.NAME.MIN_LENGTH,
+        getValidationMessage("name", "minLength"),
+      ],
     },
     email: {
       type: String,
@@ -32,13 +39,16 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
       match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+        VALIDATION_RULES.EMAIL.PATTERN,
         getValidationMessage("email", "invalid"),
       ],
     },
     password: {
       type: String,
-      minlength: [6, getValidationMessage("password", "minLength")],
+      minlength: [
+        VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+        getValidationMessage("password", "minLength"),
+      ],
       select: false, // Do not include in queries by default
       // Password optional for OAuth accounts
       required: function () {
@@ -67,6 +77,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       sparse: true, // Partial index for non-null values only
       unique: true,
+      index: true, // Explicit index to avoid duplicate index warning
     },
     profilePictureUrl: {
       type: String,
@@ -74,13 +85,11 @@ const userSchema = new mongoose.Schema(
         validator: function (url) {
           if (!url) return true; // null/undefined allowed
 
-          // Full HTTP/HTTPS URL
-          const httpRegex = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
-
-          // Local relative URL /uploads/
-          const localRegex = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp)$/i;
-
-          return httpRegex.test(url) || localRegex.test(url);
+          // Use centralized validation rules
+          return (
+            VALIDATION_RULES.PROFILE_PICTURE.URL_PATTERN.test(url) ||
+            VALIDATION_RULES.PROFILE_PICTURE.LOCAL_PATTERN.test(url)
+          );
         },
         message: getValidationMessage("profilePicture", "invalid"),
       },
@@ -185,7 +194,7 @@ const userSchema = new mongoose.Schema(
  * Indexes for performance
  */
 // Basic indexes
-userSchema.index({ email: 1 }); // Already unique, but needed for faster lookups
+// Note: email index is automatically created by unique: true constraint
 userSchema.index({ subscriptionStatus: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ createdAt: -1 });
@@ -202,7 +211,7 @@ userSchema.index({ "security.lastEmailSentDate": 1 }); // Email quota reset
 
 // OAuth indexes
 userSchema.index({ authProvider: 1 });
-userSchema.index({ googleId: 1 }, { sparse: true });
+// Note: googleId index is automatically created by unique: true constraint
 userSchema.index({ authProvider: 1, isActive: 1 }); // OAuth user queries
 
 // Admin and analytics indexes
@@ -271,7 +280,7 @@ userSchema.pre("validate", function (next) {
     // Ensure OAuth users don't have password requirements
     if (this.authProvider !== AUTH_PROVIDERS.EMAIL && this.password) {
       // Allow but warn - OAuth users might have passwords from before conversion
-      console.warn(`OAuth user ${this.email} has password - consider cleanup`);
+      // Note: Logger not available in model context, consider moving to service
     }
 
     // Ensure email verification makes sense
@@ -323,7 +332,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     }
 
     // Log bcrypt errors for debugging but throw user-friendly message
-    console.error("bcrypt.compare error:", error);
+    // Note: Logger not available in model context, consider moving to service
 
     const language = I18nService.getUserLanguage(this);
     const userError = new Error(

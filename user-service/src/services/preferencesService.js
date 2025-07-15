@@ -3,13 +3,10 @@
 // ============================================================================
 
 import User from "../models/User.js";
-import {
-  NotFoundError,
-  ValidationError,
-  SystemError,
-} from "../utils/customError.js";
+import { NotFoundError, SystemError } from "../utils/customError.js";
 import { USER_ERRORS, PREFERENCES_ERRORS } from "../utils/errorCodes.js";
 import { getEnumValues } from "../constants/enums.js";
+import { VALIDATION_RULES } from "../constants/validationRules.js";
 
 /**
  * ⚙️ User Preferences Service
@@ -78,18 +75,12 @@ class PreferencesService {
 
   /**
    * Update user preferences with validation
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async updateUserPreferences(userId, updates) {
     try {
-      // Validate preference input
-      const validationResult = this.validatePreferences(updates);
-      if (!validationResult.isValid) {
-        throw new ValidationError(
-          "Données de préférences invalides",
-          validationResult.errors,
-          PREFERENCES_ERRORS.INVALID_PREFERENCES
-        );
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // Les préférences sont déjà validées par le schéma updatePreferences
 
       // Format update query using dot notation
       const updateQuery = {};
@@ -275,19 +266,14 @@ class PreferencesService {
 
   /**
    * Import user preferences with optional overwrite
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async importUserPreferences(userId, importData) {
     try {
       const { preferences, overwrite = false } = importData;
 
-      const validationResult = this.validatePreferences(preferences);
-      if (!validationResult.isValid) {
-        throw new ValidationError(
-          "Préférences importées invalides",
-          validationResult.errors,
-          PREFERENCES_ERRORS.INVALID_IMPORT_DATA
-        );
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // Les préférences sont déjà validées par le schéma updatePreferences
 
       // Merge with current preferences if not overwriting
       let finalPreferences = preferences;
@@ -352,97 +338,16 @@ class PreferencesService {
     }
   }
 
-  /**
-   * Validate user preferences values - AVEC constantes externalisées
-   */
-  static validatePreferences(preferences) {
-    const errors = [];
-    const warnings = [];
 
-    // ✅ CORRECTION: Utiliser les constantes depuis enums.js
-    const validThemes = getEnumValues.themes();
-    const validLanguages = getEnumValues.languages();
-
-    // Pour les tons, utiliser la langue de l'utilisateur ou français par défaut
-    const userLanguage = preferences.language || "FR";
-    const validTones = getEnumValues.emailTones(userLanguage);
-    const validLengths = getEnumValues.emailLengths(userLanguage);
-
-    // Valider les champs individuels
-    if (preferences.theme && !validThemes.includes(preferences.theme)) {
-      errors.push(
-        `Thème invalide. Valeurs acceptées: ${validThemes.join(", ")}`
-      );
-    }
-
-    if (
-      preferences.language &&
-      !validLanguages.includes(preferences.language)
-    ) {
-      errors.push(
-        `Langue invalide. Valeurs acceptées: ${validLanguages.join(", ")}`
-      );
-    }
-
-    if (
-      preferences.defaultTone &&
-      !validTones.includes(preferences.defaultTone)
-    ) {
-      errors.push("Ton par défaut invalide pour la langue sélectionnée");
-    }
-
-    if (
-      preferences.defaultLength &&
-      !validLengths.includes(preferences.defaultLength)
-    ) {
-      errors.push(
-        `Longueur par défaut invalide. Valeurs acceptées: ${validLengths.join(", ")}`
-      );
-    }
-
-    // Vérification des types booléens
-    const booleanFields = [
-      "defaultEmoji",
-      "emailNotifications",
-      "marketingEmails",
-      "autoSaveDrafts",
-    ];
-
-    booleanFields.forEach((field) => {
-      if (
-        preferences[field] !== undefined &&
-        typeof preferences[field] !== "boolean"
-      ) {
-        errors.push(`${field} doit être un booléen`);
-      }
-    });
-
-    // ✅ CORRECTION: Supprimer les avertissements business du service technique
-    // Ces vérifications doivent être dans le controller ou un service métier dédié
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings, // Vide maintenant
-      validatedPreferences: errors.length === 0 ? preferences : null,
-    };
-  }
 
   /**
    * Update a specific user preference (single field)
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async updateSpecificPreference(userId, field, value) {
     try {
-      const tempPrefs = { [field]: value };
-      const validationResult = this.validatePreferences(tempPrefs);
-
-      if (!validationResult.isValid) {
-        throw new ValidationError(
-          `Valeur invalide pour ${field}`,
-          validationResult.errors,
-          PREFERENCES_ERRORS.INVALID_PREFERENCE_VALUE
-        );
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // La valeur est déjà validée par le schéma updatePreferences
 
       const user = await User.findByIdAndUpdate(
         userId,

@@ -18,7 +18,6 @@ const emailAccountSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
 
     email: {
@@ -26,7 +25,6 @@ const emailAccountSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
 
     displayName: {
@@ -42,14 +40,12 @@ const emailAccountSchema = new mongoose.Schema(
     provider: {
       type: String,
       required: true,
-      enum: ["gmail", "outlook", "yahoo", "smtp", "other"],
-      index: true,
+      enum: ["gmail", "emailight", "yahoo", "smtp", "other"],
     },
 
     providerId: {
       type: String,
       required: false, // Peut être null pour SMTP
-      index: true,
     },
 
     // ============================================================================
@@ -58,7 +54,6 @@ const emailAccountSchema = new mongoose.Schema(
     isDefault: {
       type: Boolean,
       default: false,
-      index: true,
     },
 
     // ============================================================================
@@ -77,7 +72,6 @@ const emailAccountSchema = new mongoose.Schema(
     tokenExpiry: {
       type: Date,
       required: false,
-      index: true,
     },
 
     scopes: [
@@ -133,7 +127,6 @@ const emailAccountSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
 
     isVerified: {

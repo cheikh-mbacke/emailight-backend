@@ -6,14 +6,30 @@ import Joi from "joi";
 
 // ✅ Logger par défaut avec injection
 let logger = {
-  error: (msg, error, context) =>
-    console.error(`❌ [SMTP_VALIDATION] ${msg}`, error || "", context || ""),
-  debug: (msg, data, context) =>
-    console.log(`🔍 [SMTP_VALIDATION] ${msg}`, data || "", context || ""),
-  warn: (msg, data, context) =>
-    console.warn(`⚠️ [SMTP_VALIDATION] ${msg}`, data || "", context || ""),
-  info: (msg, data, context) =>
-    console.log(`📡 [SMTP_VALIDATION] ${msg}`, data || "", context || ""),
+  error: (msg, error, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== "undefined") {
+      console.error(`❌ [SMTP_VALIDATION] ${msg}`, error || "", context || "");
+    }
+  },
+  debug: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== "undefined") {
+      console.log(`🔍 [SMTP_VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
+  warn: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== "undefined") {
+      console.warn(`⚠️ [SMTP_VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
+  info: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== "undefined") {
+      console.log(`📡 [SMTP_VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
 };
 
 /**
@@ -418,22 +434,6 @@ const validateSmtpSpecificRules = (smtpConfig) => {
         severity: "warning",
       });
     }
-
-    // Outlook avec authentification moderne
-    if (
-      (emailDomain?.includes("outlook.") ||
-        emailDomain?.includes("hotmail.")) &&
-      smtpConfig.password?.length < 10
-    ) {
-      warnings.push({
-        field: "password",
-        message:
-          "Outlook recommande l'utilisation de mots de passe d'application",
-        recommendation:
-          "Générez un mot de passe d'application pour plus de sécurité",
-        severity: "info",
-      });
-    }
   }
 
   return {
@@ -524,18 +524,6 @@ export const validateSmtpSecurity = async (request, reply) => {
         field: "general",
         message:
           "Gmail: Activez l'authentification à deux facteurs et utilisez un mot de passe d'application",
-        severity: "info",
-      });
-    }
-
-    if (
-      emailDomain?.includes("outlook.") ||
-      emailDomain?.includes("hotmail.")
-    ) {
-      recommendations.push({
-        field: "general",
-        message:
-          "Outlook: Activez l'authentification à deux facteurs dans les paramètres de sécurité",
         severity: "info",
       });
     }
@@ -813,17 +801,7 @@ export const getSmtpValidationRules = () => {
         },
         imap: { host: "imap.gmail.com", port: 993, secure: true },
       },
-      outlook: {
-        username: "Utilisez l'adresse email complète",
-        password: "Mot de passe habituel ou mot de passe d'application",
-        smtp: {
-          host: "smtp-mail.outlook.com",
-          port: 587,
-          secure: false,
-          requireTLS: true,
-        },
-        imap: { host: "outlook.office365.com", port: 993, secure: true },
-      },
+
       yahoo: {
         username: "Utilisez l'adresse email complète",
         password: "Mot de passe d'application obligatoire (16 caractères)",

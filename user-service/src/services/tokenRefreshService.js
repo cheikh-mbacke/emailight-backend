@@ -4,8 +4,8 @@
 
 import EmailAccount from "../models/EmailAccount.js";
 import GmailOAuthService from "./gmailOAuthService.js";
-import OutlookOAuthService from "./outlookOAuthService.js";
-import { SystemError } from "../utils/customError.js";
+import { SystemError, ErrorFactory } from "../utils/customError.js";
+import { EMAIL_ACCOUNT_ERRORS } from "../utils/errorCodes.js";
 
 /**
  * 🔄 Token Refresh Service - Gestion automatique du refresh des tokens OAuth
@@ -21,7 +21,6 @@ class TokenRefreshService {
     this.logger = injectedLogger;
     // Injecter aussi dans les services OAuth
     GmailOAuthService.setLogger(injectedLogger);
-    OutlookOAuthService.setLogger(injectedLogger);
   }
 
   /**
@@ -166,12 +165,11 @@ class TokenRefreshService {
           result = await GmailOAuthService.refreshAccessToken(emailAccount);
           break;
 
-        case "outlook":
-          result = await OutlookOAuthService.refreshAccessToken(emailAccount);
-          break;
-
         default:
-          throw new Error(`Provider non supporté: ${emailAccount.provider}`);
+          throw ErrorFactory.badRequest(
+            `Provider non supporté: ${emailAccount.provider}`,
+            EMAIL_ACCOUNT_ERRORS.INVALID_EMAIL_PROVIDER
+          );
       }
 
       this.logger?.user(
@@ -218,15 +216,24 @@ class TokenRefreshService {
       const emailAccount = await EmailAccount.findOne(query);
 
       if (!emailAccount) {
-        throw new Error("Compte email introuvable");
+        throw ErrorFactory.notFound(
+          "Compte email introuvable",
+          EMAIL_ACCOUNT_ERRORS.EMAIL_ACCOUNT_NOT_FOUND
+        );
       }
 
       if (!emailAccount.isActive) {
-        throw new Error("Compte email désactivé");
+        throw ErrorFactory.badRequest(
+          "Compte email désactivé",
+          EMAIL_ACCOUNT_ERRORS.EMAIL_ACCOUNT_NOT_FOUND
+        );
       }
 
       if (!emailAccount.refreshToken) {
-        throw new Error("Token de rafraîchissement manquant");
+        throw ErrorFactory.badRequest(
+          "Token de rafraîchissement manquant",
+          EMAIL_ACCOUNT_ERRORS.TOKEN_REFRESH_FAILED
+        );
       }
 
       const result = await this.refreshAccountToken(emailAccount);
@@ -299,7 +306,7 @@ class TokenRefreshService {
       };
 
       // Stats par provider
-      const providers = ["gmail", "outlook", "yahoo", "other"];
+      const providers = ["gmail", "yahoo", "other"];
       for (const provider of providers) {
         stats.byProvider[provider] = {
           total: await EmailAccount.countDocuments({
@@ -402,7 +409,7 @@ class TokenRefreshService {
     return {
       schedulerRunning: this.isSchedulerRunning(),
       gmailOAuth: GmailOAuthService.getStatus(),
-      outlookOAuth: OutlookOAuthService.getStatus(),
+
       refreshThresholdMinutes: 30,
       maxErrorsBeforeDeactivation: 10,
     };

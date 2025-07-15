@@ -4,14 +4,30 @@
 
 // ✅ Logger par défaut avec injection
 let logger = {
-  error: (msg, error, context) =>
-    console.error(`❌ [UPLOAD] ${msg}`, error || "", context || ""),
-  debug: (msg, data, context) =>
-    console.log(`🔍 [UPLOAD] ${msg}`, data || "", context || ""),
-  warn: (msg, data, context) =>
-    console.warn(`⚠️ [UPLOAD] ${msg}`, data || "", context || ""),
-  info: (msg, data, context) =>
-    console.log(`📡 [UPLOAD] ${msg}`, data || "", context || ""),
+  error: (msg, error, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.error(`❌ [UPLOAD] ${msg}`, error || "", context || "");
+    }
+  },
+  debug: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.log(`🔍 [UPLOAD] ${msg}`, data || "", context || "");
+    }
+  },
+  warn: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.warn(`⚠️ [UPLOAD] ${msg}`, data || "", context || "");
+    }
+  },
+  info: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.log(`📡 [UPLOAD] ${msg}`, data || "", context || "");
+    }
+  },
 };
 
 /**

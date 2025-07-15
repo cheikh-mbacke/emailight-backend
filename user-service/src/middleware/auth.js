@@ -1,22 +1,14 @@
+// ============================================================================
+// 📁 src/middleware/auth.js - Middlewares d'authentification et autorisation
+// ============================================================================
+
 import User from "../models/User.js";
+import TokenBlacklistService from "../services/tokenBlacklistService.js";
 
-// ✅ Logger par défaut avec injection
-let logger = {
-  error: (msg, error, context) =>
-    console.error(`❌ [AUTH] ${msg}`, error || "", context || ""),
-  warn: (msg, data, context) =>
-    console.warn(`⚠️ [AUTH] ${msg}`, data || "", context || ""),
-  info: (msg, data, context) =>
-    console.log(`📡 [AUTH] ${msg}`, data || "", context || ""),
-  auth: (msg, data, context) =>
-    console.log(`🔐 [AUTH] ${msg}`, data || "", context || ""),
-};
+let logger = null;
 
-/**
- * ✅ Injection du logger
- */
-export const setLogger = (injectedLogger) => {
-  logger = injectedLogger;
+export const setLogger = (log) => {
+  logger = log;
 };
 
 /**
@@ -45,6 +37,29 @@ export const authenticateToken = async (request, reply) => {
         error: "Invalid token",
         message: "User ID is missing from token",
       });
+    }
+
+    // 🆕 Vérifier si le token est dans la blacklist
+    const token = request.headers.authorization?.replace("Bearer ", "");
+    if (token) {
+      const isBlacklisted =
+        await TokenBlacklistService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        logger.warn(
+          "Tentative d'utilisation d'un token blacklisté",
+          { userId },
+          {
+            userId: userId.toString(),
+            action: "blacklisted_token_used",
+            endpoint: `${request.method} ${request.url}`,
+          }
+        );
+
+        return reply.code(401).send({
+          error: "Token revoked",
+          message: "This token has been revoked and is no longer valid",
+        });
+      }
     }
 
     // Fetch the user from the database

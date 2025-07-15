@@ -1,15 +1,33 @@
 import Joi from "joi";
+import { VALIDATION_RULES } from "../constants/validationRules.js";
+import { getValidationMessage } from "../constants/validationMessages.js";
 
 // ✅ Logger par défaut avec injection
 let logger = {
-  error: (msg, error, context) =>
-    console.error(`❌ [VALIDATION] ${msg}`, error || "", context || ""),
-  debug: (msg, data, context) =>
-    console.log(`🔍 [VALIDATION] ${msg}`, data || "", context || ""),
-  warn: (msg, data, context) =>
-    console.warn(`⚠️ [VALIDATION] ${msg}`, data || "", context || ""),
-  info: (msg, data, context) =>
-    console.log(`📡 [VALIDATION] ${msg}`, data || "", context || ""),
+  error: (msg, error, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.error(`❌ [VALIDATION] ${msg}`, error || "", context || "");
+    }
+  },
+  debug: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.log(`🔍 [VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
+  warn: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.warn(`⚠️ [VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
+  info: (msg, data, context) => {
+    // Fallback to console if no logger injected
+    if (typeof console !== 'undefined') {
+      console.log(`📡 [VALIDATION] ${msg}`, data || "", context || "");
+    }
+  },
 };
 
 /**
@@ -20,68 +38,143 @@ export const setLogger = (injectedLogger) => {
 };
 
 /**
- * 📝 Joi validation schemas
+ * 📝 Joi validation schemas using centralized constants
  */
 export const schemas = {
   // 🔐 User registration
   register: Joi.object({
-    name: Joi.string().trim().min(2).max(100).required().messages({
-      "string.empty": "Le nom est requis",
-      "string.min": "Le nom doit contenir au moins 2 caractères",
-      "string.max": "Le nom ne peut pas dépasser 100 caractères",
-      "any.required": "Le nom est obligatoire",
-    }),
-    email: Joi.string().email().lowercase().trim().required().messages({
-      "string.email": "Format d'email invalide",
-      "string.empty": "L'email est requis",
-      "any.required": "L'email est obligatoire",
-    }),
-    password: Joi.string().min(6).max(128).required().messages({
-      "string.min": "Le mot de passe doit contenir au moins 6 caractères",
-      "string.max": "Le mot de passe ne peut pas dépasser 128 caractères",
-      "string.empty": "Le mot de passe est requis",
-      "any.required": "Le mot de passe est obligatoire",
-    }),
+    name: Joi.string()
+      .trim()
+      .min(VALIDATION_RULES.NAME.MIN_LENGTH)
+      .max(VALIDATION_RULES.NAME.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.NAME.PATTERN)
+      .required()
+      .messages({
+        "string.empty": getValidationMessage("name", "required"),
+        "string.min": getValidationMessage("name", "minLength", "FR", {
+          min: VALIDATION_RULES.NAME.MIN_LENGTH,
+        }),
+        "string.max": getValidationMessage("name", "maxLength", "FR", {
+          max: VALIDATION_RULES.NAME.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("name", "pattern"),
+        "any.required": getValidationMessage("name", "required"),
+      }),
+    email: Joi.string()
+      .email()
+      .lowercase()
+      .trim()
+      .max(VALIDATION_RULES.EMAIL.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.EMAIL.PATTERN)
+      .required()
+      .messages({
+        "string.email": getValidationMessage("email", "invalid"),
+        "string.empty": getValidationMessage("email", "required"),
+        "string.max": getValidationMessage("email", "maxLength", "FR", {
+          max: VALIDATION_RULES.EMAIL.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("email", "invalid"),
+        "any.required": getValidationMessage("email", "required"),
+      }),
+    password: Joi.string()
+      .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
+      .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
+      .required()
+      .messages({
+        "string.min": getValidationMessage("password", "minLength", "FR", {
+          min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+        }),
+        "string.max": getValidationMessage("password", "maxLength", "FR", {
+          max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("password", "pattern"),
+        "string.empty": getValidationMessage("password", "required"),
+        "any.required": getValidationMessage("password", "required"),
+      }),
   }),
 
   // 🔑 User login
   login: Joi.object({
-    email: Joi.string().email().lowercase().trim().required().messages({
-      "string.email": "Format d'email invalide",
-      "string.empty": "L'email est requis",
-      "any.required": "L'email est obligatoire",
-    }),
-    password: Joi.string().required().messages({
-      "string.empty": "Le mot de passe est requis",
-      "any.required": "Le mot de passe est obligatoire",
-    }),
+    email: Joi.string()
+      .email()
+      .lowercase()
+      .trim()
+      .required()
+      .messages({
+        "string.email": getValidationMessage("email", "invalid"),
+        "string.empty": getValidationMessage("email", "required"),
+        "any.required": getValidationMessage("email", "required"),
+      }),
+    password: Joi.string()
+      .required()
+      .messages({
+        "string.empty": getValidationMessage("password", "required"),
+        "any.required": getValidationMessage("password", "required"),
+      }),
   }),
 
   // 🔄 Refresh token
   refreshToken: Joi.object({
-    refreshToken: Joi.string().trim().required().messages({
-      "string.empty": "Le token de rafraîchissement est requis",
-      "any.required": "Le token de rafraîchissement est obligatoire",
-    }),
+    refreshToken: Joi.string()
+      .trim()
+      .min(VALIDATION_RULES.REFRESH_TOKEN.MIN_LENGTH)
+      .max(VALIDATION_RULES.REFRESH_TOKEN.MAX_LENGTH)
+      .required()
+      .messages({
+        "string.empty": getValidationMessage("refreshToken", "required"),
+        "string.min": getValidationMessage("refreshToken", "invalid"),
+        "string.max": getValidationMessage("refreshToken", "invalid"),
+        "any.required": getValidationMessage("refreshToken", "required"),
+      }),
   }),
 
   // 🔍 Google OAuth
   googleAuth: Joi.object({
-    googleToken: Joi.string().trim().required().messages({
-      "string.empty": "Le token Google est requis",
-      "any.required": "Le token Google est obligatoire",
-    }),
+    googleToken: Joi.string()
+      .trim()
+      .min(VALIDATION_RULES.GOOGLE_TOKEN.MIN_LENGTH)
+      .max(VALIDATION_RULES.GOOGLE_TOKEN.MAX_LENGTH)
+      .required()
+      .messages({
+        "string.empty": getValidationMessage("googleToken", "required"),
+        "string.min": getValidationMessage("googleToken", "invalid"),
+        "string.max": getValidationMessage("googleToken", "invalid"),
+        "any.required": getValidationMessage("googleToken", "required"),
+      }),
   }),
 
   // 👤 Profile update
   updateProfile: Joi.object({
-    name: Joi.string().trim().min(2).max(100).optional().messages({
-      "string.min": "Le nom doit contenir au moins 2 caractères",
-      "string.max": "Le nom ne peut pas dépasser 100 caractères",
-    }),
-    email: Joi.string().email().lowercase().trim().optional().messages({
-      "string.email": "Format d'email invalide",
-    }),
+    name: Joi.string()
+      .trim()
+      .min(VALIDATION_RULES.NAME.MIN_LENGTH)
+      .max(VALIDATION_RULES.NAME.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.NAME.PATTERN)
+      .optional()
+      .messages({
+        "string.min": getValidationMessage("name", "minLength", "FR", {
+          min: VALIDATION_RULES.NAME.MIN_LENGTH,
+        }),
+        "string.max": getValidationMessage("name", "maxLength", "FR", {
+          max: VALIDATION_RULES.NAME.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("name", "pattern"),
+      }),
+    email: Joi.string()
+      .email()
+      .lowercase()
+      .trim()
+      .max(VALIDATION_RULES.EMAIL.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.EMAIL.PATTERN)
+      .optional()
+      .messages({
+        "string.email": getValidationMessage("email", "invalid"),
+        "string.max": getValidationMessage("email", "maxLength", "FR", {
+          max: VALIDATION_RULES.EMAIL.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("email", "invalid"),
+      }),
     currentPassword: Joi.string()
       .when("newPassword", {
         is: Joi.exist(),
@@ -89,15 +182,22 @@ export const schemas = {
         otherwise: Joi.optional(),
       })
       .messages({
-        "any.required":
-          "Le mot de passe actuel est requis pour changer de mot de passe",
+        "any.required": getValidationMessage("currentPassword", "required"),
       }),
-    newPassword: Joi.string().min(6).max(128).optional().messages({
-      "string.min":
-        "Le nouveau mot de passe doit contenir au moins 6 caractères",
-      "string.max":
-        "Le nouveau mot de passe ne peut pas dépasser 128 caractères",
-    }),
+    newPassword: Joi.string()
+      .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
+      .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
+      .optional()
+      .messages({
+        "string.min": getValidationMessage("newPassword", "minLength", "FR", {
+          min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+        }),
+        "string.max": getValidationMessage("newPassword", "maxLength", "FR", {
+          max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("newPassword", "pattern"),
+      }),
   })
     .min(1)
     .messages({
@@ -106,67 +206,74 @@ export const schemas = {
 
   // 🔄 Forgot password
   forgotPassword: Joi.object({
-    email: Joi.string().email().lowercase().trim().required().messages({
-      "string.email": "Format d'email invalide",
-      "string.empty": "L'email est requis",
-      "any.required": "L'email est obligatoire",
-    }),
+    email: Joi.string()
+      .email()
+      .lowercase()
+      .trim()
+      .required()
+      .messages({
+        "string.email": getValidationMessage("email", "invalid"),
+        "string.empty": getValidationMessage("email", "required"),
+        "any.required": getValidationMessage("email", "required"),
+      }),
   }),
 
   // 🔒 Reset password
   resetPassword: Joi.object({
-    token: Joi.string().trim().required().messages({
-      "string.empty": "Le token de réinitialisation est requis",
-      "any.required": "Le token de réinitialisation est obligatoire",
-    }),
-    password: Joi.string().min(6).max(128).required().messages({
-      "string.min": "Le mot de passe doit contenir au moins 6 caractères",
-      "string.max": "Le mot de passe ne peut pas dépasser 128 caractères",
-      "string.empty": "Le nouveau mot de passe est requis",
-      "any.required": "Le nouveau mot de passe est obligatoire",
-    }),
+    token: Joi.string()
+      .trim()
+      .min(VALIDATION_RULES.PASSWORD_RESET_TOKEN.MIN_LENGTH)
+      .max(VALIDATION_RULES.PASSWORD_RESET_TOKEN.MAX_LENGTH)
+      .required()
+      .messages({
+        "string.empty": getValidationMessage("token", "required"),
+        "string.min": getValidationMessage("token", "invalid"),
+        "string.max": getValidationMessage("token", "invalid"),
+        "any.required": getValidationMessage("token", "required"),
+      }),
+    password: Joi.string()
+      .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
+      .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
+      .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
+      .required()
+      .messages({
+        "string.min": getValidationMessage("newPassword", "minLength", "FR", {
+          min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+        }),
+        "string.max": getValidationMessage("newPassword", "maxLength", "FR", {
+          max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
+        }),
+        "string.pattern.base": getValidationMessage("newPassword", "pattern"),
+        "string.empty": getValidationMessage("newPassword", "required"),
+        "any.required": getValidationMessage("newPassword", "required"),
+      }),
   }),
 
   // ⚙️ User preferences
   updatePreferences: Joi.object({
-    theme: Joi.string().valid("light", "dark", "auto").optional().messages({
-      "any.only": "Le thème doit être light, dark ou auto",
-    }),
-    language: Joi.string()
-      .valid("FR", "EN", "ES", "DE", "IT", "PT", "NL", "RU", "ZH", "JA")
+    theme: Joi.string()
+      .valid(...VALIDATION_RULES.PREFERENCES.THEME.ALLOWED_VALUES)
       .optional()
       .messages({
-        "any.only": "Langue non supportée",
+        "any.only": getValidationMessage("theme", "invalid"),
+      }),
+    language: Joi.string()
+      .valid(...VALIDATION_RULES.PREFERENCES.LANGUAGE.ALLOWED_VALUES)
+      .optional()
+      .messages({
+        "any.only": getValidationMessage("language", "invalid"),
       }),
     defaultTone: Joi.string()
-      .valid(
-        "Professionnel",
-        "Formelle",
-        "Amical",
-        "Familier",
-        "Expert",
-        "Confiant",
-        "Aimant",
-        "Prudent",
-        "Affligeant",
-        "Excitant",
-        "Inspirant",
-        "Informatif",
-        "Direct",
-        "Attentionné",
-        "Surprise",
-        "Persuasif",
-        "Joyeux"
-      )
+      .valid(...VALIDATION_RULES.PREFERENCES.DEFAULT_TONE.ALLOWED_VALUES)
       .optional()
       .messages({
-        "any.only": "Ton invalide",
+        "any.only": getValidationMessage("defaultTone", "invalid"),
       }),
     defaultLength: Joi.string()
-      .valid("Court", "Moyen", "Long")
+      .valid(...VALIDATION_RULES.PREFERENCES.DEFAULT_LENGTH.ALLOWED_VALUES)
       .optional()
       .messages({
-        "any.only": "La longueur doit être Court, Moyen ou Long",
+        "any.only": getValidationMessage("defaultLength", "invalid"),
       }),
     defaultEmoji: Joi.boolean().optional(),
     emailNotifications: Joi.boolean().optional(),
@@ -178,22 +285,33 @@ export const schemas = {
       "object.min": "Au moins une préférence doit être fournie",
     }),
 
-  // 📧 Add email account (future use)
+  // 📧 Add email account
   addEmailAccount: Joi.object({
-    email: Joi.string().email().lowercase().trim().required().messages({
-      "string.email": "Format d'email invalide",
-      "string.empty": "L'email est requis",
-      "any.required": "L'email est obligatoire",
-    }),
+    email: Joi.string()
+      .email()
+      .lowercase()
+      .trim()
+      .required()
+      .messages({
+        "string.email": getValidationMessage("email", "invalid"),
+        "string.empty": getValidationMessage("email", "required"),
+        "any.required": getValidationMessage("email", "required"),
+      }),
     provider: Joi.string()
-      .valid("gmail", "outlook", "yahoo", "other")
+      .valid(...VALIDATION_RULES.EMAIL_ACCOUNT.PROVIDER.ALLOWED_VALUES)
       .default("gmail")
       .messages({
-        "any.only": "Provider non supporté",
+        "any.only": getValidationMessage("provider", "invalid"),
       }),
-    displayName: Joi.string().trim().max(100).optional().messages({
-      "string.max": "Le nom d'affichage ne peut pas dépasser 100 caractères",
-    }),
+    displayName: Joi.string()
+      .trim()
+      .max(VALIDATION_RULES.EMAIL_ACCOUNT.DISPLAY_NAME.MAX_LENGTH)
+      .optional()
+      .messages({
+        "string.max": getValidationMessage("displayName", "maxLength", "FR", {
+          max: VALIDATION_RULES.EMAIL_ACCOUNT.DISPLAY_NAME.MAX_LENGTH,
+        }),
+      }),
   }),
 };
 
@@ -336,11 +454,11 @@ export const validateAddEmailAccount = createValidationMiddleware(
 export const validateUserId = createValidationMiddleware(
   Joi.object({
     id: Joi.string()
-      .regex(/^[0-9a-fA-F]{24}$/)
+      .pattern(VALIDATION_RULES.OBJECT_ID.PATTERN)
       .required()
       .messages({
-        "string.pattern.base": "ID utilisateur invalide",
-        "any.required": "ID utilisateur requis",
+        "string.pattern.base": getValidationMessage("userId", "invalid"),
+        "any.required": getValidationMessage("userId", "required"),
       }),
   }),
   "params"

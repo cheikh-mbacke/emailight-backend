@@ -111,12 +111,7 @@
     "stop:notification": "docker compose -f docker/docker-compose.yml stop notification-service",
     "stop:services": "docker compose -f docker/docker-compose.yml stop user-service ai-service email-service subscription-service notification-service",
     "stop:infra": "docker compose -f docker/docker-compose.yml stop mongodb redis mongo-express redis-commander exceptionless",
-    "test": "npm run test:user",
-    "test:user": "cd user-service && npm run test",
-    "test:ai": "cd ai-service && npm run test",
-    "test:email": "cd email-service && npm run test",
-    "test:subscription": "cd subscription-service && npm run test",
-    "test:notification": "cd notification-service && npm run test",
+
     "build": "npm run build:user",
     "build:user": "docker compose -f docker/docker-compose.yml build user-service",
     "build:ai": "docker compose -f docker/docker-compose.yml build ai-service",
@@ -124,10 +119,6 @@
     "build:subscription": "docker compose -f docker/docker-compose.yml build subscription-service",
     "build:notification": "docker compose -f docker/docker-compose.yml build notification-service",
     "build:all": "docker compose -f docker/docker-compose.yml build"
-  },
-  "devDependencies": {
-    "eslint": "^9.29.0",
-    "prettier": "^3.6.1"
   },
   "engines": {
     "node": ">=18.0.0",

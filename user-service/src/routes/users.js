@@ -1,3 +1,4 @@
+import ProfileController from "../controllers/profileController.js";
 import UserController from "../controllers/userController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -49,7 +50,7 @@ async function userRoutes(fastify, options) {
         },
       },
     },
-    UserController.getProfile
+    ProfileController.getProfile
   );
 
   // ============================================================================
@@ -96,7 +97,7 @@ async function userRoutes(fastify, options) {
         },
       },
     },
-    UserController.updateProfile
+    ProfileController.updateProfile
   );
 
   // ============================================================================
@@ -163,7 +164,7 @@ async function userRoutes(fastify, options) {
       }
 
       // Appeler le controller normal
-      return UserController.uploadAvatar(request, reply);
+      return ProfileController.uploadAvatar(request, reply);
     }
   );
 
@@ -199,52 +200,7 @@ async function userRoutes(fastify, options) {
         },
       },
     },
-    UserController.deleteAvatar
-  );
-
-  // ============================================================================
-  // 🗑️ DELETE USER ACCOUNT (GDPR)
-  // ============================================================================
-  fastify.delete(
-    "/me",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Users"],
-        summary: "Delete user account permanently",
-        description:
-          "Permanently delete the user account and all associated data (GDPR compliant)",
-        security: [{ bearerAuth: [] }],
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  accountDeleted: { type: "boolean" },
-                  deletedAt: { type: "string", format: "date-time" },
-                  email: { type: "string" },
-                  deletedData: {
-                    type: "object",
-                    properties: {
-                      emailAccounts: { type: "number" },
-                      avatar: { type: "boolean" },
-                      preferences: { type: "boolean" },
-                      security: { type: "boolean" },
-                    },
-                  },
-                  gdprCompliant: { type: "boolean" },
-                },
-              },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    UserController.deleteAccount
+    ProfileController.deleteAvatar
   );
 
   // ============================================================================
@@ -303,7 +259,52 @@ async function userRoutes(fastify, options) {
         },
       },
     },
-    UserController.getStats
+    ProfileController.getStats
+  );
+
+  // ============================================================================
+  // 🗑️ DELETE USER ACCOUNT (GDPR)
+  // ============================================================================
+  fastify.delete(
+    "/me",
+    {
+      preHandler: authenticateToken,
+      schema: {
+        tags: ["Users"],
+        summary: "Delete user account permanently",
+        description:
+          "Permanently delete the user account and all associated data (GDPR compliant)",
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              data: {
+                type: "object",
+                properties: {
+                  accountDeleted: { type: "boolean" },
+                  deletedAt: { type: "string", format: "date-time" },
+                  email: { type: "string" },
+                  deletedData: {
+                    type: "object",
+                    properties: {
+                      emailAccounts: { type: "number" },
+                      avatar: { type: "boolean" },
+                      preferences: { type: "boolean" },
+                      security: { type: "boolean" },
+                    },
+                  },
+                  gdprCompliant: { type: "boolean" },
+                },
+              },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    UserController.deleteAccount
   );
 
   // ============================================================================
@@ -356,8 +357,6 @@ async function userRoutes(fastify, options) {
     },
     UserController.changePassword
   );
-
-
 }
 
 export default userRoutes;

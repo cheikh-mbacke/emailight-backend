@@ -82,30 +82,4 @@ export async function createServer(options = {}) {
   }
 }
 
-/**
- * 🧪 Fonction utilitaire pour créer un serveur de test
- */
-export async function createTestServer(overrides = {}) {
-  const testConfig = {
-    ...config,
-    NODE_ENV: "test",
-    ENABLE_LOGGING: false,
-    LOG_LEVEL: "error",
-    ...overrides,
-  };
 
-  const testLogger = {
-    info: () => {},
-    warn: () => {},
-    error: console.error,
-    success: () => {},
-    auth: () => {},
-    user: () => {},
-    debug: () => {},
-  };
-
-  return createServer({
-    logger: testLogger,
-    config: testConfig,
-  });
-}

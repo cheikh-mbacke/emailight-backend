@@ -75,20 +75,14 @@ class SmtpController {
 
   /**
    * 🧪 Tester une configuration SMTP
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async testSmtpConnection(request, reply) {
     try {
       const smtpConfig = request.body;
 
-      // Validation
-      const validation = SmtpConnectionService.validateSmtpConfig(smtpConfig);
-      if (!validation.isValid) {
-        return reply.code(400).send({
-          error: "Configuration SMTP invalide",
-          details: validation.errors,
-          code: "INVALID_SMTP_CONFIG",
-        });
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // smtpConfig est déjà validé par le schéma smtpConfig
 
       // Tests de connexion
       const smtpTest =
@@ -214,7 +208,7 @@ class SmtpController {
       const emailAccount = await EmailAccount.findOne({
         _id: accountId,
         userId: userId,
-        provider: { $in: ["smtp", "gmail", "outlook", "yahoo", "other"] },
+        provider: { $in: ["smtp", "gmail", "yahoo", "other"] },
       });
 
       if (!emailAccount) {
@@ -258,15 +252,8 @@ class SmtpController {
           : currentCredentials.imap,
       };
 
-      // Valider la nouvelle configuration
-      const validation = SmtpConnectionService.validateSmtpConfig(newConfig);
-      if (!validation.isValid) {
-        return reply.code(400).send({
-          error: "Configuration SMTP mise à jour invalide",
-          details: validation.errors,
-          code: "INVALID_SMTP_UPDATE",
-        });
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // newConfig est déjà validé par le schéma smtpUpdate
 
       // Tester la nouvelle configuration
       const smtpTest =
@@ -423,8 +410,8 @@ class SmtpController {
     const descriptions = {
       gmail:
         "Gmail - Service email de Google avec authentification OAuth2 recommandée",
-      outlook:
-        "Outlook - Service email de Microsoft avec support OAuth2 et SMTP",
+      emailight:
+        "Emailight - Serveur email personnalisé avec configuration SMTP/IMAP",
       yahoo:
         "Yahoo Mail - Service email avec support SMTP et mots de passe d'application",
       other:
@@ -444,11 +431,11 @@ class SmtpController {
         "3. Utilisez votre adresse Gmail complète comme nom d'utilisateur",
         "4. Utilisez le mot de passe d'application généré",
       ],
-      outlook: [
-        "1. Activez l'authentification à deux facteurs sur votre compte Microsoft",
-        "2. Activez l'accès SMTP dans les paramètres Outlook",
-        "3. Utilisez votre adresse email complète comme nom d'utilisateur",
-        "4. Utilisez votre mot de passe habituel ou un mot de passe d'application",
+      emailight: [
+        "1. Utilisez votre adresse email @emailight.com (ex: support@emailight.com)",
+        "2. Utilisez votre mot de passe de compte Emailight",
+        "3. Serveur SMTP: mail.emailight.com (port 465 SSL)",
+        "4. Serveur IMAP: mail.emailight.com (port 993 SSL)",
       ],
       yahoo: [
         "1. Activez l'authentification à deux facteurs",
@@ -476,10 +463,10 @@ class SmtpController {
         "✅ Utilisez toujours un mot de passe d'application",
         "🔒 Port 587 avec STARTTLS recommandé",
       ],
-      outlook: [
-        "⚠️ Activez l'authentification moderne si disponible",
-        "✅ Utilisez l'authentification à deux facteurs",
-        "🔒 Port 587 avec STARTTLS recommandé",
+      emailight: [
+        "⚠️ Utilisez votre mot de passe de compte Emailight",
+        "✅ Vérifiez que votre compte est activé",
+        "🔒 Port 465 SSL configuré (plus sécurisé)",
       ],
       yahoo: [
         "⚠️ Les mots de passe d'application sont obligatoires",

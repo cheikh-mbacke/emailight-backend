@@ -7,10 +7,26 @@ import config from "./config/env.js";
 
 // Logger de base avant l'injection du logger externe
 const baseLogger = {
-  info: (msg, data) => console.log(`📡 [INDEX] ${msg}`, data || ""),
-  error: (msg, error) => console.error(`❌ [INDEX] ${msg}`, error || ""),
-  warn: (msg, data) => console.warn(`⚠️ [INDEX] ${msg}`, data || ""),
-  success: (msg, data) => console.log(`✅ [INDEX] ${msg}`, data || ""),
+  info: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.log(`📡 [INDEX] ${msg}`, data || "");
+    }
+  },
+  error: (msg, error) => {
+    if (typeof console !== 'undefined') {
+      console.error(`❌ [INDEX] ${msg}`, error || "");
+    }
+  },
+  warn: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.warn(`⚠️ [INDEX] ${msg}`, data || "");
+    }
+  },
+  success: (msg, data) => {
+    if (typeof console !== 'undefined') {
+      console.log(`✅ [INDEX] ${msg}`, data || "");
+    }
+  },
 };
 
 /**
@@ -45,11 +61,11 @@ async function startServer() {
     // Afficher les routes disponibles en développement
     if (config.NODE_ENV === "development") {
       baseLogger.info("Routes disponibles", {
-        swagger: `http://${config.HOST}:${config.PORT}/docs`,
-        healthcheck: `http://${config.HOST}:${config.PORT}/health`,
-        auth: `http://${config.HOST}:${config.PORT}/api/v1/auth`,
-        users: `http://${config.HOST}:${config.PORT}/api/v1/users`,
-        preferences: `http://${config.HOST}:${config.PORT}/api/v1/preferences`,
+        swagger: `http://localhost:${config.PORT}/docs`,
+        healthcheck: `http://localhost:${config.PORT}/health`,
+        auth: `http://localhost:${config.PORT}/api/v1/auth`,
+        users: `http://localhost:${config.PORT}/api/v1/users`,
+        preferences: `http://localhost:${config.PORT}/api/v1/preferences`,
       });
     }
 

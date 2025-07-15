@@ -21,6 +21,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import preferencesRoutes from "./routes/preferences.js";
 import emailAccountsRoutes from "./routes/emailAccounts.js"; // 🆕 Routes email OAuth + SMTP
+import adminRoutes from "./routes/admin.js"; // 🆕 Routes d'administration
 
 // Import des services et middlewares
 import AuthController from "./controllers/authController.js";
@@ -35,9 +36,10 @@ import FileUploadService from "./services/fileUploadService.js";
 
 // 🆕 Import des services OAuth Email et SMTP
 import GmailOAuthService from "./services/gmailOAuthService.js";
-import OutlookOAuthService from "./services/outlookOAuthService.js";
+
 import TokenRefreshService from "./services/tokenRefreshService.js";
 import SmtpConnectionService from "./services/smtpConnectionService.js"; // 🆕 SMTP Service
+import TokenBlacklistService from "./services/tokenBlacklistService.js";
 
 import { setLogger as setAuthMiddlewareLogger } from "./middleware/auth.js";
 import { setLogger as setValidationMiddlewareLogger } from "./middleware/validation.js";
@@ -70,9 +72,12 @@ export async function createApp(fastify, options = {}) {
 
     // 🆕 Injection du logger dans les services OAuth Email et SMTP
     GmailOAuthService.setLogger(logger);
-    OutlookOAuthService.setLogger(logger);
+
     TokenRefreshService.setLogger(logger);
     SmtpConnectionService.setLogger(logger); // 🆕 SMTP Service
+
+    // 🆕 Initialisation du service de blacklist des tokens
+    TokenBlacklistService.initialize(logger);
 
     setAuthMiddlewareLogger(logger);
     setValidationMiddlewareLogger(logger);
@@ -89,7 +94,7 @@ export async function createApp(fastify, options = {}) {
         "fileUpload",
         "uploadValidation",
         "gmailOAuth", // 🆕
-        "outlookOAuth", // 🆕
+
         "tokenRefresh", // 🆕
         "smtpController", // 🆕
         "smtpService", // 🆕
@@ -132,27 +137,11 @@ export async function createApp(fastify, options = {}) {
       });
     }
 
-    // Initialisation Outlook OAuth
-    const outlookOAuthInitialized = OutlookOAuthService.initialize();
-    if (outlookOAuthInitialized) {
-      logger.success("Outlook OAuth Service initialisé", {
-        clientConfigured: !!(
-          appConfig.OUTLOOK_CLIENT_ID && appConfig.OUTLOOK_CLIENT_SECRET
-        ),
-        redirectUri: appConfig.OUTLOOK_REDIRECT_URI,
-      });
-    } else {
-      logger.warn("Outlook OAuth Service non disponible", {
-        reason: "OUTLOOK_CLIENT_ID ou OUTLOOK_CLIENT_SECRET manquant",
-        impact: "Connexion Outlook désactivée",
-      });
-    }
-
     // ============================================================================
     // 🆕 INITIALISATION DU SERVICE SMTP
     // ============================================================================
     logger.success("Service SMTP Connection initialisé", {
-      supportedProviders: ["gmail", "outlook", "yahoo", "other"],
+      supportedProviders: ["gmail", "emailight", "yahoo", "other"],
       encryptionEnabled: !!appConfig.ENCRYPTION_KEY,
       testingEnabled: true,
       timeout: appConfig.SMTP_TIMEOUT,
@@ -164,7 +153,7 @@ export async function createApp(fastify, options = {}) {
     // ============================================================================
 
     // Démarrer le scheduler de refresh des tokens si au moins un service OAuth est disponible
-    if (gmailOAuthInitialized || outlookOAuthInitialized) {
+    if (gmailOAuthInitialized) {
       const refreshStarted = TokenRefreshService.startRefreshScheduler(
         appConfig.TOKEN_REFRESH_INTERVAL_MINUTES || 60
       );
@@ -174,7 +163,6 @@ export async function createApp(fastify, options = {}) {
           intervalMinutes: appConfig.TOKEN_REFRESH_INTERVAL_MINUTES || 60,
           thresholdMinutes: appConfig.TOKEN_REFRESH_THRESHOLD_MINUTES || 30,
           gmailEnabled: gmailOAuthInitialized,
-          outlookEnabled: outlookOAuthInitialized,
         });
       } else {
         logger.warn("Impossible de démarrer le service de refresh des tokens");
@@ -393,7 +381,7 @@ export async function createApp(fastify, options = {}) {
 
         // 🆕 Vérifier le statut des services OAuth Email et SMTP
         const gmailOAuthStatus = GmailOAuthService.getStatus();
-        const outlookOAuthStatus = OutlookOAuthService.getStatus();
+
         const tokenRefreshConfig = TokenRefreshService.getConfiguration();
         const smtpProviders = SmtpConnectionService.getProviderConfigurations(); // 🆕
 
@@ -410,7 +398,6 @@ export async function createApp(fastify, options = {}) {
             oauth: {
               google: GoogleAuthService.getStatus(),
               gmail: gmailOAuthStatus, // 🆕
-              outlook: outlookOAuthStatus, // 🆕
             },
             smtp: {
               // 🆕 Informations SMTP
@@ -452,111 +439,6 @@ export async function createApp(fastify, options = {}) {
     });
 
     // ============================================================================
-    // 🧪 ROUTES DE TEST (développement uniquement)
-    // ============================================================================
-    if (appConfig.NODE_ENV === "development") {
-      fastify.get("/test/google-oauth", async (request, reply) => {
-        try {
-          const testResult = await GoogleAuthService.testConfiguration();
-
-          return reply.success(testResult, "Test Google OAuth");
-        } catch (error) {
-          logger.error("Erreur lors du test Google OAuth", error);
-
-          return reply.code(500).send({
-            success: false,
-            error: "Erreur test Google OAuth",
-            details: error.message,
-          });
-        }
-      });
-
-      // 🆕 Route de test pour les uploads (développement)
-      fastify.get("/test/upload-config", async (request, reply) => {
-        try {
-          const uploadConfig = FileUploadService.getUploadConfig();
-
-          return reply.success(uploadConfig, "Configuration upload");
-        } catch (error) {
-          logger.error("Erreur test configuration upload", error);
-
-          return reply.code(500).send({
-            success: false,
-            error: "Erreur test upload",
-            details: error.message,
-          });
-        }
-      });
-
-      // 🆕 Route de test pour les services OAuth Email (développement)
-      fastify.get("/test/email-oauth-status", async (request, reply) => {
-        try {
-          const gmailStatus = await GmailOAuthService.testConfiguration();
-          const outlookStatus = await OutlookOAuthService.testConfiguration();
-          const refreshStats = await TokenRefreshService.getRefreshStats();
-
-          return reply.success(
-            {
-              gmail: gmailStatus,
-              outlook: outlookStatus,
-              tokenRefresh: refreshStats,
-              timestamp: new Date(),
-            },
-            "Statut des services OAuth Email"
-          );
-        } catch (error) {
-          logger.error("Erreur test services OAuth Email", error);
-
-          return reply.code(500).send({
-            success: false,
-            error: "Erreur test services OAuth Email",
-            details: error.message,
-          });
-        }
-      });
-
-      // 🆕 Route de test pour les configurations SMTP (développement)
-      fastify.get("/test/smtp-providers", async (request, reply) => {
-        try {
-          const providers = SmtpConnectionService.getProviderConfigurations();
-          const detectionTest =
-            SmtpConnectionService.detectProviderFromEmail("test@gmail.com");
-
-          return reply.success(
-            {
-              providers,
-              detectionTest,
-              encryptionAvailable: !!appConfig.ENCRYPTION_KEY,
-              encryptionKeyLength: appConfig.ENCRYPTION_KEY?.length || 0,
-              expectedKeyLength: 64,
-              smtpConfig: appConfig.getDefaultSmtpConfig(),
-              timestamp: new Date(),
-            },
-            "Configuration SMTP de test"
-          );
-        } catch (error) {
-          logger.error("Erreur test configuration SMTP", error);
-
-          return reply.code(500).send({
-            success: false,
-            error: "Erreur test SMTP",
-            details: error.message,
-          });
-        }
-      });
-
-      logger.info("Routes de test configurées", {
-        routes: [
-          "/test/google-oauth",
-          "/test/upload-config",
-          "/test/email-oauth-status",
-          "/test/smtp-providers", // 🆕
-        ],
-        environment: appConfig.NODE_ENV,
-      });
-    }
-
-    // ============================================================================
     // 📁 ROUTE STATIQUE POUR LES UPLOADS (en développement)
     // ============================================================================
     if (appConfig.NODE_ENV === "development") {
@@ -589,6 +471,11 @@ export async function createApp(fastify, options = {}) {
       prefix: "/api/v1/users/me/email-accounts",
     });
 
+    // 🆕 Routes d'administration avec pagination
+    await fastify.register(adminRoutes, {
+      prefix: "/api/v1/admin",
+    });
+
     // ============================================================================
     // 🚨 GESTION D'ERREURS CENTRALISÉE AVEC EXCEPTIONLESS
     // ============================================================================
@@ -610,15 +497,7 @@ export async function createApp(fastify, options = {}) {
     logger.success("Application Fastify configurée avec succès", {
       routes: [
         "/health",
-        ...(appConfig.NODE_ENV === "development"
-          ? [
-              "/docs",
-              "/test/google-oauth",
-              "/test/upload-config",
-              "/test/email-oauth-status",
-              "/test/smtp-providers", // 🆕
-            ]
-          : ["/docs"]),
+        "/docs",
         "/api/v1/auth/*",
         "/api/v1/users/*",
         "/api/v1/preferences/*",
@@ -636,7 +515,7 @@ export async function createApp(fastify, options = {}) {
       environment: appConfig.NODE_ENV,
       googleOAuth: googleAuthInitialized ? "✅ Activé" : "❌ Désactivé",
       gmailOAuth: gmailOAuthInitialized ? "✅ Activé" : "❌ Désactivé", // 🆕
-      outlookOAuth: outlookOAuthInitialized ? "✅ Activé" : "❌ Désactivé", // 🆕
+
       smtpSupport: "✅ Activé", // 🆕
       tokenRefresh: TokenRefreshService.isSchedulerRunning()
         ? "✅ Actif"

@@ -1,15 +1,31 @@
 // ============================================================================
-// 📁 src/config/env.js - Configuration avec OAuth Gmail/Outlook et SMTP
+// 📁 src/config/env.js - Configuration avec OAuth Gmail et SMTP
 // ============================================================================
 
 // ❌ PAS de require("dotenv").config() - tout vient de docker-compose
 
 // Default logger (fallback to console)
 let logger = {
-  info: (msg, data) => console.log(`📡 [CONFIG] ${msg}`, data || ""),
-  warn: (msg, data) => console.warn(`⚠️ [CONFIG] ${msg}`, data || ""),
-  error: (msg, error) => console.error(`❌ [CONFIG] ${msg}`, error || ""),
-  success: (msg, data) => console.log(`✅ [CONFIG] ${msg}`, data || ""),
+  info: (msg, data) => {
+    if (typeof console !== "undefined") {
+      console.log(`📡 [CONFIG] ${msg}`, data || "");
+    }
+  },
+  warn: (msg, data) => {
+    if (typeof console !== "undefined") {
+      console.warn(`⚠️ [CONFIG] ${msg}`, data || "");
+    }
+  },
+  error: (msg, error) => {
+    if (typeof console !== "undefined") {
+      console.error(`❌ [CONFIG] ${msg}`, error || "");
+    }
+  },
+  success: (msg, data) => {
+    if (typeof console !== "undefined") {
+      console.log(`✅ [CONFIG] ${msg}`, data || "");
+    }
+  },
 };
 
 /**
@@ -74,15 +90,6 @@ const config = {
   GMAIL_REDIRECT_URI:
     process.env.GMAIL_REDIRECT_URI ||
     "http://localhost:3000/auth/gmail/callback",
-
-  // ============================================================================
-  // 🆕 OUTLOOK OAUTH (connexions email)
-  // ============================================================================
-  OUTLOOK_CLIENT_ID: process.env.OUTLOOK_CLIENT_ID,
-  OUTLOOK_CLIENT_SECRET: process.env.OUTLOOK_CLIENT_SECRET,
-  OUTLOOK_REDIRECT_URI:
-    process.env.OUTLOOK_REDIRECT_URI ||
-    "http://localhost:3000/auth/outlook/callback",
 
   // ============================================================================
   // 🆕 TOKEN REFRESH SERVICE
@@ -330,26 +337,6 @@ const validateConfig = () => {
   }
 
   // ============================================================================
-  // 🆕 VALIDATION OUTLOOK OAUTH (connexions email)
-  // ============================================================================
-  if (!config.OUTLOOK_CLIENT_ID || !config.OUTLOOK_CLIENT_SECRET) {
-    if (config.NODE_ENV === "production") {
-      warnings.push(
-        "OUTLOOK_CLIENT_ID et OUTLOOK_CLIENT_SECRET recommandés en production pour OAuth Outlook"
-      );
-    } else {
-      logger.info("Outlook OAuth désactivé - Clés non configurées");
-    }
-  } else {
-    logger.success("Outlook OAuth configuré", {
-      clientId: config.OUTLOOK_CLIENT_ID
-        ? "***configured***"
-        : "not_configured",
-      redirectUri: config.OUTLOOK_REDIRECT_URI,
-    });
-  }
-
-  // ============================================================================
   // 🆕 VALIDATION TOKEN REFRESH
   // ============================================================================
   if (config.TOKEN_REFRESH_INTERVAL_MINUTES < 30) {
@@ -411,7 +398,9 @@ const validateConfig = () => {
   // 🔥 GESTION DES ERREURS CRITIQUES
   // ============================================================================
   if (errors.length > 0) {
-    const errorMessage = `Variables d'environnement critiques manquantes ou invalides : ${errors.join(", ")}`;
+    const errorMessage = `Variables d'environnement critiques manquantes ou invalides : ${errors.join(
+      ", "
+    )}`;
     logger.error(
       errorMessage,
       { errors, environment: config.NODE_ENV },
@@ -438,7 +427,7 @@ const validateConfig = () => {
           "Vérifiez vos variables d'environnement en production",
           "Utilisez des clés sécurisées de longueur appropriée",
           "Configurez Google OAuth pour l'authentification sociale",
-          "Configurez Gmail et Outlook OAuth pour les connexions email",
+          "Configurez Gmail OAuth pour les connexions email",
           "Générez une ENCRYPTION_KEY avec: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
           "Référez-vous à la documentation pour les bonnes pratiques",
         ],
@@ -469,9 +458,6 @@ const validateConfig = () => {
           config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
         ),
         gmail_enabled: !!(config.GMAIL_CLIENT_ID && config.GMAIL_CLIENT_SECRET),
-        outlook_enabled: !!(
-          config.OUTLOOK_CLIENT_ID && config.OUTLOOK_CLIENT_SECRET
-        ),
       },
       smtp: {
         timeout: config.SMTP_TIMEOUT,
@@ -540,13 +526,6 @@ export const getConfigSummary = () => {
           : "not_configured",
         redirect_uri: config.GMAIL_REDIRECT_URI,
       },
-      outlook: {
-        enabled: !!(config.OUTLOOK_CLIENT_ID && config.OUTLOOK_CLIENT_SECRET),
-        client_id: config.OUTLOOK_CLIENT_ID
-          ? "***configured***"
-          : "not_configured",
-        redirect_uri: config.OUTLOOK_REDIRECT_URI,
-      },
     },
     smtp: {
       timeout: config.SMTP_TIMEOUT,
@@ -613,7 +592,7 @@ export const getConfigMetrics = () => {
     optionalMissing: [
       !config.GOOGLE_CLIENT_ID && "GOOGLE_CLIENT_ID",
       !config.GMAIL_CLIENT_ID && "GMAIL_CLIENT_ID",
-      !config.OUTLOOK_CLIENT_ID && "OUTLOOK_CLIENT_ID",
+
       !config.USER_SERVICE_EXCEPTIONLESS_API_KEY && "EXCEPTIONLESS_API_KEY",
     ].filter(Boolean),
     environment: config.NODE_ENV,

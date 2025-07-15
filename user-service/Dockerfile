@@ -2,8 +2,8 @@
 # 🐳 Dockerfile - user-service
 # ============================================================================
 
-# Utiliser Node.js 18 Alpine pour une image légère
-FROM node:18-alpine
+# Utiliser Node.js 20 Alpine pour une image légère
+FROM node:20-alpine
 
 # Maintainer
 LABEL maintainer="Mbacke Cheikh <mbackecheikh@example.com>"

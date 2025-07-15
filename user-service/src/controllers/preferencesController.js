@@ -297,19 +297,20 @@ class PreferencesController {
 
   /**
    * Validate preferences without saving them
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async validatePreferences(request, reply) {
     try {
       const { preferences } = request.body;
 
-      const validationResult =
-        PreferencesService.validatePreferences(preferences);
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // Les préférences sont déjà validées par le schéma updatePreferences
 
       this.logger?.user(
         "Validation des préférences effectuée",
         {
-          isValid: validationResult.isValid,
-          errorsCount: validationResult.errors.length,
+          isValid: true,
+          errorsCount: 0,
         },
         {
           userId: request.user._id.toString(),
@@ -318,10 +319,8 @@ class PreferencesController {
       );
 
       return reply.success(
-        validationResult,
-        validationResult.isValid
-          ? "Préférences valides"
-          : "Préférences invalides"
+        { isValid: true, errors: [], warnings: [] },
+        "Préférences valides"
       );
     } catch (error) {
       // 🎯 Erreurs métier (4xx) : gestion locale

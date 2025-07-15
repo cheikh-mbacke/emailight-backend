@@ -147,7 +147,7 @@ export const SUBSCRIPTION_STATUS = {
  */
 export const EMAIL_PROVIDERS = {
   GMAIL: "gmail",
-  OUTLOOK: "outlook",
+  EMAILIGHT: "emailight",
   SMTP: "smtp",
 };
 

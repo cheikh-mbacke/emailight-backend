@@ -6,13 +6,9 @@ import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import EmailAccount from "../models/EmailAccount.js";
 import User from "../models/User.js";
-import {
-  AuthError,
-  ValidationError,
-  SystemError,
-  ConflictError,
-} from "../utils/customError.js";
+import { AuthError, SystemError, ConflictError } from "../utils/customError.js";
 import { EMAIL_ACCOUNT_ERRORS } from "../utils/errorCodes.js";
+import { VALIDATION_HELPERS } from "../constants/validationRules.js";
 
 /**
  * 📧 SMTP/IMAP Connection Service
@@ -47,21 +43,7 @@ class SmtpConnectionService {
         authType: "oauth", // Gmail préfère OAuth
         displayName: "Gmail",
       },
-      outlook: {
-        smtp: {
-          host: "smtp-mail.outlook.com",
-          port: 587,
-          secure: false,
-          requireTLS: true,
-        },
-        imap: {
-          host: "outlook.office365.com",
-          port: 993,
-          secure: true,
-        },
-        authType: "password",
-        displayName: "Outlook",
-      },
+
       yahoo: {
         smtp: {
           host: "smtp.mail.yahoo.com",
@@ -76,6 +58,26 @@ class SmtpConnectionService {
         },
         authType: "password",
         displayName: "Yahoo Mail",
+      },
+      emailight: {
+        smtp: {
+          host: "mail.emailight.com",
+          port: 465,
+          secure: true,
+          requireTLS: false,
+        },
+        imap: {
+          host: "mail.emailight.com",
+          port: 993,
+          secure: true,
+        },
+        pop3: {
+          host: "mail.emailight.com",
+          port: 995,
+          secure: true,
+        },
+        authType: "password",
+        displayName: "Emailight",
       },
       other: {
         smtp: {
@@ -95,59 +97,6 @@ class SmtpConnectionService {
     };
 
     return configs[provider] || configs.other;
-  }
-
-  /**
-   * ✅ Valider les paramètres SMTP
-   */
-  static validateSmtpConfig(smtpConfig) {
-    const errors = [];
-
-    // Validation de l'email
-    if (!smtpConfig.email || !smtpConfig.email.includes("@")) {
-      errors.push("Adresse email valide requise");
-    }
-
-    // Validation du serveur SMTP
-    if (!smtpConfig.smtp || !smtpConfig.smtp.host) {
-      errors.push("Serveur SMTP (host) requis");
-    }
-
-    if (
-      !smtpConfig.smtp.port ||
-      smtpConfig.smtp.port < 1 ||
-      smtpConfig.smtp.port > 65535
-    ) {
-      errors.push("Port SMTP valide requis (1-65535)");
-    }
-
-    // Validation des credentials
-    if (!smtpConfig.username) {
-      errors.push("Nom d'utilisateur SMTP requis");
-    }
-
-    if (!smtpConfig.password) {
-      errors.push("Mot de passe SMTP requis");
-    }
-
-    // Validation optionnelle IMAP
-    if (smtpConfig.imap) {
-      if (!smtpConfig.imap.host) {
-        errors.push("Serveur IMAP (host) requis si IMAP configuré");
-      }
-      if (
-        !smtpConfig.imap.port ||
-        smtpConfig.imap.port < 1 ||
-        smtpConfig.imap.port > 65535
-      ) {
-        errors.push("Port IMAP valide requis si IMAP configuré (1-65535)");
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
   }
 
   /**
@@ -295,13 +244,6 @@ class SmtpConnectionService {
       if (emailDomain.includes("gmail.com")) {
         provider = "gmail";
         displayName = displayName || "Gmail (SMTP)";
-      } else if (
-        emailDomain.includes("outlook.") ||
-        emailDomain.includes("hotmail.") ||
-        emailDomain.includes("live.")
-      ) {
-        provider = "outlook";
-        displayName = displayName || "Outlook (SMTP)";
       } else if (emailDomain.includes("yahoo.")) {
         provider = "yahoo";
         displayName = displayName || "Yahoo (SMTP)";
@@ -397,18 +339,12 @@ class SmtpConnectionService {
 
   /**
    * 🔧 Configurer et tester un compte SMTP/IMAP complet
+   * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
   static async configureSmtpAccount(userId, smtpConfig) {
     try {
-      // 1. Validation des paramètres
-      const validation = this.validateSmtpConfig(smtpConfig);
-      if (!validation.isValid) {
-        throw new ValidationError(
-          "Configuration SMTP invalide",
-          "INVALID_SMTP_CONFIG",
-          { errors: validation.errors }
-        );
-      }
+      // ✅ FIX: Validation déjà effectuée par le middleware Joi
+      // smtpConfig est déjà validé par le schéma smtpConfig
 
       // 2. Auto-complétion avec la config du provider si applicable
       const emailDomain = smtpConfig.email.split("@")[1].toLowerCase();
@@ -416,11 +352,8 @@ class SmtpConnectionService {
 
       if (emailDomain.includes("gmail.com")) {
         autoConfig = this.getProviderConfig("gmail");
-      } else if (
-        emailDomain.includes("outlook.") ||
-        emailDomain.includes("hotmail.")
-      ) {
-        autoConfig = this.getProviderConfig("outlook");
+      } else if (emailDomain.includes("emailight.com")) {
+        autoConfig = this.getProviderConfig("emailight");
       } else if (emailDomain.includes("yahoo.")) {
         autoConfig = this.getProviderConfig("yahoo");
       }
@@ -561,7 +494,7 @@ class SmtpConnectionService {
   static getProviderConfigurations() {
     return {
       gmail: this.getProviderConfig("gmail"),
-      outlook: this.getProviderConfig("outlook"),
+      emailight: this.getProviderConfig("emailight"),
       yahoo: this.getProviderConfig("yahoo"),
       other: this.getProviderConfig("other"),
     };
@@ -579,12 +512,11 @@ class SmtpConnectionService {
       return { provider: "gmail", config: this.getProviderConfig("gmail") };
     }
 
-    if (
-      domain.includes("outlook.") ||
-      domain.includes("hotmail.") ||
-      domain.includes("live.")
-    ) {
-      return { provider: "outlook", config: this.getProviderConfig("outlook") };
+    if (domain.includes("emailight.com")) {
+      return {
+        provider: "emailight",
+        config: this.getProviderConfig("emailight"),
+      };
     }
 
     if (domain.includes("yahoo.")) {

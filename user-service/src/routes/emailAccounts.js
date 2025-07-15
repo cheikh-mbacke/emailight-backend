@@ -2,7 +2,7 @@
 // 📁 src/routes/emailAccounts.js - Routes complètes Email OAuth + SMTP
 // ============================================================================
 
-import UserController from "../controllers/userController.js";
+import EmailAccountsController from "../controllers/emailAccountsController.js";
 import SmtpController from "../controllers/smtpController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import {
@@ -38,8 +38,34 @@ async function emailAccountsRoutes(fastify, options) {
             },
             provider: {
               type: "string",
-              enum: ["gmail", "outlook", "yahoo", "smtp"],
+              enum: ["gmail", "emailight", "yahoo", "smtp"],
               description: "Filtrer par provider",
+            },
+            // Paramètres de pagination
+            page: {
+              type: "integer",
+              minimum: 1,
+              default: 1,
+              description: "Numéro de page (défaut: 1)",
+            },
+            limit: {
+              type: "integer",
+              minimum: 1,
+              maximum: 100,
+              default: 20,
+              description: "Nombre d'éléments par page (défaut: 20, max: 100)",
+            },
+            sortBy: {
+              type: "string",
+              enum: ["createdAt", "lastUsed", "email", "provider"],
+              default: "lastUsed",
+              description: "Champ de tri",
+            },
+            sortOrder: {
+              type: "string",
+              enum: ["asc", "desc"],
+              default: "desc",
+              description: "Ordre de tri",
             },
           },
         },
@@ -77,7 +103,7 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.getEmailAccounts
+    EmailAccountsController.getEmailAccounts
   );
 
   // ============================================================================
@@ -105,7 +131,7 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.disconnectEmailAccount
+    EmailAccountsController.disconnectEmailAccount
   );
 
   // ============================================================================
@@ -132,35 +158,10 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.refreshEmailAccountTokens
+    EmailAccountsController.refreshEmailAccountTokens
   );
 
-  // ============================================================================
-  // 🧪 TEST EMAIL ACCOUNT CONNECTION
-  // ============================================================================
-  fastify.post(
-    "/:accountId/test",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Email Accounts"],
-        summary: "Tester la connexion d'un compte",
-        description: "Teste la validité et la connexion d'un compte email",
-        security: [{ bearerAuth: [] }],
-        params: {
-          type: "object",
-          required: ["accountId"],
-          properties: {
-            accountId: {
-              type: "string",
-              pattern: "^[0-9a-fA-F]{24}$",
-            },
-          },
-        },
-      },
-    },
-    UserController.testEmailAccountConnection
-  );
+
 
   // ============================================================================
   // 📧 OAUTH GMAIL - GÉNÉRATION URL D'AUTORISATION
@@ -193,14 +194,14 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.generateGmailAuthUrl
+    EmailAccountsController.generateGmailAuthUrl
   );
 
   // ============================================================================
   // 📧 OAUTH GMAIL - CONNEXION AVEC CODE
   // ============================================================================
   fastify.post(
-    "/oauth/gmail",
+    "/oauth/gmail/connect",
     {
       preHandler: authenticateToken,
       schema: {
@@ -243,93 +244,10 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.connectGmailAccount
+    EmailAccountsController.connectGmailAccount
   );
 
-  // ============================================================================
-  // 📧 OAUTH OUTLOOK - GÉNÉRATION URL D'AUTORISATION
-  // ============================================================================
-  fastify.get(
-    "/oauth/outlook/auth-url",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Email Accounts"],
-        summary: "Générer l'URL d'autorisation Outlook OAuth",
-        description:
-          "Retourne l'URL pour connecter un compte Outlook via OAuth2",
-        security: [{ bearerAuth: [] }],
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  authUrl: { type: "string" },
-                  state: { type: "string" },
-                  scopes: { type: "array", items: { type: "string" } },
-                },
-              },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    UserController.generateOutlookAuthUrl
-  );
 
-  // ============================================================================
-  // 📧 OAUTH OUTLOOK - CONNEXION AVEC CODE
-  // ============================================================================
-  fastify.post(
-    "/oauth/outlook",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Email Accounts"],
-        summary: "Connecter un compte Outlook via OAuth",
-        description:
-          "Connecte un compte Outlook en utilisant le code d'autorisation OAuth2",
-        security: [{ bearerAuth: [] }],
-        body: {
-          type: "object",
-          required: ["code"],
-          properties: {
-            code: {
-              type: "string",
-              description: "Code d'autorisation OAuth2 retourné par Microsoft",
-            },
-            state: {
-              type: "string",
-              description: "Paramètre state pour validation (optionnel)",
-            },
-          },
-          additionalProperties: false,
-        },
-        response: {
-          201: {
-            type: "object",
-            properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  account: { type: "object" },
-                  connected: { type: "boolean" },
-                  connectedAt: { type: "string", format: "date-time" },
-                },
-              },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    UserController.connectOutlookAccount
-  );
 
   // ============================================================================
   // 📧 SMTP ACCOUNT CREATION - POST /smtp
@@ -506,7 +424,7 @@ async function emailAccountsRoutes(fastify, options) {
         tags: ["Email Accounts"],
         summary: "Obtenir les configurations SMTP/IMAP des providers",
         description:
-          "Retourne les configurations pré-définies pour Gmail, Outlook, Yahoo et autres",
+          "Retourne les configurations pré-définies pour Gmail, Yahoo et autres",
         security: [{ bearerAuth: [] }],
         response: {
           200: {
@@ -645,7 +563,7 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.getDetailedEmailAccountInfo
+    EmailAccountsController.getDetailedEmailAccountInfo
   );
 
   // ============================================================================
@@ -689,7 +607,7 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.updateEmailAccountSettings
+    EmailAccountsController.updateEmailAccountSettings
   );
 
   // ============================================================================
@@ -707,7 +625,7 @@ async function emailAccountsRoutes(fastify, options) {
         security: [{ bearerAuth: [] }],
       },
     },
-    UserController.getTokenRefreshStats
+    EmailAccountsController.getTokenRefreshStats
   );
 
   // ============================================================================
@@ -737,7 +655,7 @@ async function emailAccountsRoutes(fastify, options) {
         },
       },
     },
-    UserController.manualCleanupFailedAccounts
+    EmailAccountsController.manualCleanupFailedAccounts
   );
 
   // ============================================================================
@@ -755,7 +673,7 @@ async function emailAccountsRoutes(fastify, options) {
         security: [{ bearerAuth: [] }],
       },
     },
-    UserController.forceRefreshAllUserTokens
+    EmailAccountsController.forceRefreshAllUserTokens
   );
 }
 

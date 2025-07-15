@@ -11,8 +11,9 @@ import {
   ValidationError,
   SystemError,
   ConflictError,
+  ErrorFactory,
 } from "../utils/customError.js";
-import { EMAIL_ACCOUNT_ERRORS } from "../utils/errorCodes.js";
+import { AUTH_ERRORS, EMAIL_ACCOUNT_ERRORS } from "../utils/errorCodes.js";
 
 /**
  * 📧 Gmail OAuth Service
@@ -206,7 +207,10 @@ class GmailOAuthService {
       );
 
       if (!response.ok) {
-        throw new Error(`Gmail API error: ${response.status}`);
+        throw ErrorFactory.badRequest(
+          `Erreur API Gmail: ${response.status}`,
+          EMAIL_ACCOUNT_ERRORS.EMAIL_CONNECTION_FAILED
+        );
       }
 
       const userInfo = await response.json();
@@ -445,7 +449,10 @@ class GmailOAuthService {
           };
         }
 
-        throw new Error(`Gmail API error: ${response.status}`);
+        throw ErrorFactory.badRequest(
+          `Erreur API Gmail: ${response.status}`,
+          EMAIL_ACCOUNT_ERRORS.EMAIL_CONNECTION_FAILED
+        );
       }
 
       const userInfo = await response.json();
