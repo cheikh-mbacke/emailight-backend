@@ -1,8 +1,13 @@
 import UserService from "../services/userService.js";
 import AuthService from "../services/authService.js";
 
+import GmailOAuthService from "../services/gmailOAuthService.js";
+import OutlookOAuthService from "../services/outlookOAuthService.js";
+import TokenRefreshService from "../services/tokenRefreshService.js";
+import EmailAccount from "../models/EmailAccount.js";
+
 /**
- * 👤 User management controller (MISE À JOUR)
+ * 👤 User management controller
  */
 class UserController {
   // ✅ Injection du logger
@@ -200,7 +205,7 @@ class UserController {
       const result = await UserService.deleteUserAccount(userId);
 
       // Log spécial pour la suppression définitive de compte
-      this.logger.user(
+      this.logger?.user(
         "Compte supprimé définitivement par l'utilisateur",
         {
           email: userEmail,
@@ -311,47 +316,6 @@ class UserController {
   }
 
   /**
-   * Refresh an email account (placeholder)
-   */
-  static async refreshEmailAccount(request, reply) {
-    try {
-      const { accountId } = request.params;
-
-      // TODO: Implement OAuth token refresh logic
-      // Depends on the provider (Gmail, Outlook, etc.)
-
-      this.logger.info(
-        "Tentative de refresh d'un compte email",
-        {
-          accountId,
-          feature: "non_implementé",
-        },
-        {
-          userId: request.user._id.toString(),
-          action: "email_account_refresh_attempted",
-        }
-      );
-
-      return reply.code(501).send({
-        error: "Non implémenté",
-        message:
-          "La fonctionnalité de refresh des tokens sera implémentée prochainement",
-      });
-    } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "REFRESH_ACCOUNT_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
-    }
-  }
-
-  /**
    * Check email account health
    */
   static async checkEmailAccountHealth(request, reply) {
@@ -434,11 +398,662 @@ class UserController {
 
       // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
       // Log local pour debug mais on laisse remonter
-      this.logger.error("Erreur lors du nettoyage des comptes", error, {
+      this.logger?.error("Erreur lors du nettoyage des comptes", error, {
         action: "email_accounts_cleanup_failed",
         userId: request.user?._id?.toString(),
       });
 
+      throw error;
+    }
+  }
+
+  /**
+   * 🔗 Generate Gmail OAuth authorization URL
+   */
+  static async generateGmailAuthUrl(request, reply) {
+    try {
+      const userId = request.user._id;
+
+      const result = GmailOAuthService.generateAuthUrl(userId);
+
+      this.logger?.user(
+        "URL d'autorisation Gmail générée",
+        {
+          userId: userId.toString(),
+          scopes: result.scopes.length,
+        },
+        {
+          userId: userId.toString(),
+          action: "gmail_auth_url_generated",
+        }
+      );
+
+      return reply.success(result, "URL d'autorisation Gmail générée");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GMAIL_AUTH_URL_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 📧 Connect Gmail account via OAuth
+   */
+  static async connectGmailAccount(request, reply) {
+    try {
+      const { code, state } = request.body;
+      const userId = request.user._id;
+
+      // Valider le state si fourni
+      if (state && state !== userId.toString()) {
+        return reply.code(400).send({
+          error: "Paramètre state invalide",
+          message: "Le paramètre state ne correspond pas à l'utilisateur",
+          code: "INVALID_STATE_PARAMETER",
+        });
+      }
+
+      // Échanger le code contre des tokens
+      const tokenResult = await GmailOAuthService.exchangeCodeForTokens(
+        code,
+        userId
+      );
+
+      // Sauvegarder le compte en base
+      const result = await GmailOAuthService.saveGmailAccount(
+        userId,
+        tokenResult.tokens,
+        tokenResult.userInfo,
+        tokenResult.scopes
+      );
+
+      return reply
+        .code(201)
+        .success(result, "Compte Gmail connecté avec succès");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GMAIL_CONNECTION_ERROR",
+          details: error.details || null,
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔗 Generate Outlook OAuth authorization URL
+   */
+  static async generateOutlookAuthUrl(request, reply) {
+    try {
+      const userId = request.user._id;
+
+      const result = OutlookOAuthService.generateAuthUrl(userId);
+
+      this.logger?.user(
+        "URL d'autorisation Outlook générée",
+        {
+          userId: userId.toString(),
+          scopes: result.scopes.length,
+        },
+        {
+          userId: userId.toString(),
+          action: "outlook_auth_url_generated",
+        }
+      );
+
+      return reply.success(result, "URL d'autorisation Outlook générée");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "OUTLOOK_AUTH_URL_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 📧 Connect Outlook account via OAuth
+   */
+  static async connectOutlookAccount(request, reply) {
+    try {
+      const { code, state } = request.body;
+      const userId = request.user._id;
+
+      // Valider le state si fourni
+      if (state && state !== userId.toString()) {
+        return reply.code(400).send({
+          error: "Paramètre state invalide",
+          message: "Le paramètre state ne correspond pas à l'utilisateur",
+          code: "INVALID_STATE_PARAMETER",
+        });
+      }
+
+      // Échanger le code contre des tokens
+      const tokenResult = await OutlookOAuthService.exchangeCodeForTokens(
+        code,
+        userId
+      );
+
+      // Sauvegarder le compte en base
+      const result = await OutlookOAuthService.saveOutlookAccount(
+        userId,
+        tokenResult.tokens,
+        tokenResult.userInfo,
+        tokenResult.scopes
+      );
+
+      return reply
+        .code(201)
+        .success(result, "Compte Outlook connecté avec succès");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "OUTLOOK_CONNECTION_ERROR",
+          details: error.details || null,
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔄 Refresh email account tokens
+   */
+  static async refreshEmailAccountTokens(request, reply) {
+    try {
+      const userId = request.user._id;
+      const { accountId } = request.params;
+
+      const result = await TokenRefreshService.refreshAccountById(
+        accountId,
+        userId
+      );
+
+      return reply.success(result, "Tokens rafraîchis avec succès");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "TOKEN_REFRESH_ERROR",
+          details: error.details || null,
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🧪 Test email account connection
+   */
+  static async testEmailAccountConnection(request, reply) {
+    try {
+      const userId = request.user._id;
+      const { accountId } = request.params;
+
+      // Récupérer le compte
+      const emailAccount = await EmailAccount.findOne({
+        _id: accountId,
+        userId: userId,
+      });
+
+      if (!emailAccount) {
+        return reply.code(404).send({
+          error: "Compte email introuvable",
+          message: "Ce compte email n'existe pas ou ne vous appartient pas",
+          code: "EMAIL_ACCOUNT_NOT_FOUND",
+        });
+      }
+
+      let result;
+
+      // Tester selon le provider
+      switch (emailAccount.provider) {
+        case "gmail":
+          result = await GmailOAuthService.testConnection(emailAccount);
+          break;
+
+        case "outlook":
+          result = await OutlookOAuthService.testConnection(emailAccount);
+          break;
+
+        default:
+          return reply.code(501).send({
+            error: "Provider non supporté",
+            message: `Le test de connexion n'est pas encore implémenté pour ${emailAccount.provider}`,
+            code: "PROVIDER_NOT_SUPPORTED",
+          });
+      }
+
+      const message =
+        result.status === "token_refreshed"
+          ? "Connexion testée - Token rafraîchi automatiquement"
+          : "Connexion testée avec succès";
+
+      return reply.success(result, message);
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "CONNECTION_TEST_ERROR",
+          details: error.details || null,
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 Get token refresh statistics
+   */
+  static async getTokenRefreshStats(request, reply) {
+    try {
+      const result = await TokenRefreshService.getRefreshStats();
+
+      return reply.success(result, "Statistiques de refresh récupérées");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "REFRESH_STATS_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🧹 Manual cleanup of failed email accounts
+   */
+  static async manualCleanupFailedAccounts(request, reply) {
+    try {
+      const userId = request.user._id;
+      const { maxErrors = 10 } = request.query;
+
+      // Nettoyer seulement les comptes de l'utilisateur connecté
+      const userAccounts = await EmailAccount.find({
+        userId,
+        isActive: true,
+        errorCount: { $gte: maxErrors },
+      });
+
+      if (userAccounts.length === 0) {
+        return reply.success(
+          { deactivated: 0, message: "Aucun compte à nettoyer" },
+          "Nettoyage terminé"
+        );
+      }
+
+      // Désactiver les comptes avec trop d'erreurs
+      const result = await EmailAccount.updateMany(
+        {
+          userId,
+          isActive: true,
+          errorCount: { $gte: maxErrors },
+        },
+        {
+          $set: { isActive: false },
+        }
+      );
+
+      this.logger?.user(
+        "Nettoyage manuel des comptes en erreur",
+        {
+          deactivated: result.modifiedCount,
+          maxErrors,
+          userAccounts: userAccounts.map((acc) => ({
+            email: acc.email,
+            provider: acc.provider,
+            errorCount: acc.errorCount,
+          })),
+        },
+        {
+          userId: userId.toString(),
+          action: "manual_cleanup_failed_accounts",
+        }
+      );
+
+      return reply.success(
+        {
+          deactivated: result.modifiedCount,
+          accounts: userAccounts.map((acc) => ({
+            id: acc._id.toString(),
+            email: acc.email,
+            provider: acc.provider,
+            errorCount: acc.errorCount,
+          })),
+        },
+        `${result.modifiedCount} compte(s) désactivé(s)`
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "MANUAL_CLEANUP_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔧 Force refresh all user tokens (manual)
+   */
+  static async forceRefreshAllUserTokens(request, reply) {
+    try {
+      const userId = request.user._id;
+
+      // Récupérer tous les comptes actifs de l'utilisateur
+      const userAccounts = await EmailAccount.find({
+        userId,
+        isActive: true,
+        refreshToken: { $exists: true, $ne: null },
+      });
+
+      if (userAccounts.length === 0) {
+        return reply.success(
+          { refreshed: 0, message: "Aucun compte à rafraîchir" },
+          "Aucun token à rafraîchir"
+        );
+      }
+
+      let refreshedCount = 0;
+      let errorCount = 0;
+      const results = [];
+
+      // Rafraîchir chaque compte individuellement
+      for (const account of userAccounts) {
+        try {
+          const refreshResult =
+            await TokenRefreshService.refreshAccountToken(account);
+
+          refreshedCount++;
+          results.push({
+            accountId: account._id.toString(),
+            email: account.email,
+            provider: account.provider,
+            status: "refreshed",
+            newExpiry: refreshResult.newExpiry,
+          });
+        } catch (error) {
+          errorCount++;
+          results.push({
+            accountId: account._id.toString(),
+            email: account.email,
+            provider: account.provider,
+            status: "failed",
+            error: error.message,
+          });
+        }
+      }
+
+      this.logger?.user(
+        "Refresh forcé de tous les tokens utilisateur",
+        {
+          totalAccounts: userAccounts.length,
+          refreshed: refreshedCount,
+          errors: errorCount,
+        },
+        {
+          userId: userId.toString(),
+          action: "force_refresh_all_user_tokens",
+        }
+      );
+
+      return reply.success(
+        {
+          totalAccounts: userAccounts.length,
+          refreshed: refreshedCount,
+          errors: errorCount,
+          results,
+          processedAt: new Date(),
+        },
+        `${refreshedCount}/${userAccounts.length} tokens rafraîchis`
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "FORCE_REFRESH_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 📧 Get detailed email account info with tokens status
+   */
+  static async getDetailedEmailAccountInfo(request, reply) {
+    try {
+      const userId = request.user._id;
+      const { accountId } = request.params;
+
+      // Récupérer le compte avec plus de détails
+      const emailAccount = await EmailAccount.findOne({
+        _id: accountId,
+        userId: userId,
+      });
+
+      if (!emailAccount) {
+        return reply.code(404).send({
+          error: "Compte email introuvable",
+          message: "Ce compte email n'existe pas ou ne vous appartient pas",
+          code: "EMAIL_ACCOUNT_NOT_FOUND",
+        });
+      }
+
+      // Informations détaillées
+      const now = new Date();
+      const tokenExpiredMinutesAgo = emailAccount.tokenExpiry
+        ? Math.round((now - emailAccount.tokenExpiry) / (1000 * 60))
+        : null;
+
+      const isExpired =
+        emailAccount.tokenExpiry && emailAccount.tokenExpiry < now;
+      const expiresInMinutes = emailAccount.tokenExpiry
+        ? Math.round((emailAccount.tokenExpiry - now) / (1000 * 60))
+        : null;
+
+      const detailedInfo = {
+        account: emailAccount.secureInfo,
+        tokenStatus: {
+          hasAccessToken: !!emailAccount.accessToken,
+          hasRefreshToken: !!emailAccount.refreshToken,
+          isExpired,
+          expiresAt: emailAccount.tokenExpiry,
+          expiresInMinutes: isExpired ? null : expiresInMinutes,
+          expiredMinutesAgo: isExpired ? tokenExpiredMinutesAgo : null,
+          canRefresh: !!emailAccount.refreshToken && emailAccount.isActive,
+        },
+        health: {
+          status: emailAccount.healthStatus,
+          errorCount: emailAccount.errorCount,
+          lastError: emailAccount.lastError,
+          lastUsed: emailAccount.lastUsed,
+          isActive: emailAccount.isActive,
+          recommendations: [],
+        },
+        oauth: {
+          provider: emailAccount.provider,
+          scopes: emailAccount.scopes,
+          providerId: emailAccount.providerId,
+          isVerified: emailAccount.isVerified,
+        },
+        usage: {
+          emailsSent: emailAccount.emailsSent,
+          createdAt: emailAccount.createdAt,
+          lastSyncAt: emailAccount.lastSyncAt,
+        },
+      };
+
+      // Ajouter des recommandations
+      if (isExpired && emailAccount.refreshToken) {
+        detailedInfo.health.recommendations.push(
+          "Token expiré - Refresh recommandé"
+        );
+      }
+      if (emailAccount.errorCount >= 3) {
+        detailedInfo.health.recommendations.push(
+          "Plusieurs erreurs - Vérifier la connexion"
+        );
+      }
+      if (
+        !emailAccount.lastUsed ||
+        now - emailAccount.lastUsed > 30 * 24 * 60 * 60 * 1000
+      ) {
+        detailedInfo.health.recommendations.push(
+          "Compte non utilisé depuis 30+ jours"
+        );
+      }
+      if (!emailAccount.isVerified) {
+        detailedInfo.health.recommendations.push("Email non vérifié");
+      }
+
+      return reply.success(detailedInfo, "Informations détaillées du compte");
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GET_DETAILED_ACCOUNT_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
+    }
+  }
+
+  /**
+   * 🔧 Update email account settings
+   */
+  static async updateEmailAccountSettings(request, reply) {
+    try {
+      const userId = request.user._id;
+      const { accountId } = request.params;
+      const { displayName, isActive, settings } = request.body;
+
+      // Récupérer le compte
+      const emailAccount = await EmailAccount.findOne({
+        _id: accountId,
+        userId: userId,
+      });
+
+      if (!emailAccount) {
+        return reply.code(404).send({
+          error: "Compte email introuvable",
+          message: "Ce compte email n'existe pas ou ne vous appartient pas",
+          code: "EMAIL_ACCOUNT_NOT_FOUND",
+        });
+      }
+
+      // Mettre à jour les champs autorisés
+      const updates = {};
+
+      if (displayName !== undefined) {
+        updates.displayName = displayName.trim();
+      }
+
+      if (isActive !== undefined) {
+        updates.isActive = isActive;
+      }
+
+      if (settings) {
+        // Mettre à jour les paramètres spécifiques
+        if (settings.defaultSignature !== undefined) {
+          updates["settings.defaultSignature"] = settings.defaultSignature;
+        }
+        if (settings.autoReply !== undefined) {
+          updates["settings.autoReply"] = settings.autoReply;
+        }
+        if (settings.allowedAliases !== undefined) {
+          updates["settings.allowedAliases"] = settings.allowedAliases;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return reply.code(400).send({
+          error: "Aucune mise à jour fournie",
+          message: "Au moins un champ doit être modifié",
+          code: "NO_UPDATES_PROVIDED",
+        });
+      }
+
+      // Appliquer les mises à jour
+      const updatedAccount = await EmailAccount.findByIdAndUpdate(
+        accountId,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+
+      this.logger?.user(
+        "Paramètres du compte email mis à jour",
+        {
+          accountId: accountId.toString(),
+          email: updatedAccount.email,
+          updatedFields: Object.keys(updates),
+        },
+        {
+          userId: userId.toString(),
+          email: updatedAccount.email,
+          action: "email_account_settings_updated",
+        }
+      );
+
+      return reply.success(
+        {
+          account: updatedAccount.secureInfo,
+          updatedFields: Object.keys(updates),
+          updatedAt: new Date(),
+        },
+        "Paramètres du compte mis à jour"
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "UPDATE_ACCOUNT_SETTINGS_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
       throw error;
     }
   }

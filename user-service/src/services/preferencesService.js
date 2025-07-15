@@ -9,6 +9,7 @@ import {
   SystemError,
 } from "../utils/customError.js";
 import { USER_ERRORS, PREFERENCES_ERRORS } from "../utils/errorCodes.js";
+import { getEnumValues } from "../constants/enums.js";
 
 /**
  * ⚙️ User Preferences Service
@@ -352,50 +353,25 @@ class PreferencesService {
   }
 
   /**
-   * Validate user preferences values
+   * Validate user preferences values - AVEC constantes externalisées
    */
   static validatePreferences(preferences) {
     const errors = [];
     const warnings = [];
 
-    const validThemes = ["light", "dark", "auto"];
-    const validLanguages = [
-      "FR",
-      "EN",
-      "ES",
-      "DE",
-      "IT",
-      "PT",
-      "NL",
-      "RU",
-      "ZH",
-      "JA",
-    ];
-    const validTones = [
-      "Professionnel",
-      "Formelle",
-      "Amical",
-      "Familier",
-      "Expert",
-      "Confiant",
-      "Aimant",
-      "Prudent",
-      "Affligeant",
-      "Excitant",
-      "Inspirant",
-      "Informatif",
-      "Direct",
-      "Attentionné",
-      "Surprise",
-      "Persuasif",
-      "Joyeux",
-    ];
-    const validLengths = ["Court", "Moyen", "Long"];
+    // ✅ CORRECTION: Utiliser les constantes depuis enums.js
+    const validThemes = getEnumValues.themes();
+    const validLanguages = getEnumValues.languages();
 
-    // Validate individual fields
+    // Pour les tons, utiliser la langue de l'utilisateur ou français par défaut
+    const userLanguage = preferences.language || "FR";
+    const validTones = getEnumValues.emailTones(userLanguage);
+    const validLengths = getEnumValues.emailLengths(userLanguage);
+
+    // Valider les champs individuels
     if (preferences.theme && !validThemes.includes(preferences.theme)) {
       errors.push(
-        "Thème invalide. Valeurs acceptées: " + validThemes.join(", ")
+        `Thème invalide. Valeurs acceptées: ${validThemes.join(", ")}`
       );
     }
 
@@ -404,7 +380,7 @@ class PreferencesService {
       !validLanguages.includes(preferences.language)
     ) {
       errors.push(
-        "Langue invalide. Valeurs acceptées: " + validLanguages.join(", ")
+        `Langue invalide. Valeurs acceptées: ${validLanguages.join(", ")}`
       );
     }
 
@@ -412,7 +388,7 @@ class PreferencesService {
       preferences.defaultTone &&
       !validTones.includes(preferences.defaultTone)
     ) {
-      errors.push("Ton par défaut invalide");
+      errors.push("Ton par défaut invalide pour la langue sélectionnée");
     }
 
     if (
@@ -420,18 +396,19 @@ class PreferencesService {
       !validLengths.includes(preferences.defaultLength)
     ) {
       errors.push(
-        "Longueur par défaut invalide. Valeurs acceptées: " +
-          validLengths.join(", ")
+        `Longueur par défaut invalide. Valeurs acceptées: ${validLengths.join(", ")}`
       );
     }
 
-    // Boolean type checks
-    [
+    // Vérification des types booléens
+    const booleanFields = [
       "defaultEmoji",
       "emailNotifications",
       "marketingEmails",
       "autoSaveDrafts",
-    ].forEach((field) => {
+    ];
+
+    booleanFields.forEach((field) => {
       if (
         preferences[field] !== undefined &&
         typeof preferences[field] !== "boolean"
@@ -440,15 +417,13 @@ class PreferencesService {
       }
     });
 
-    // Warnings (not errors)
-    if (preferences.marketingEmails === true) {
-      warnings.push("Vous avez activé la réception d'emails marketing");
-    }
+    // ✅ CORRECTION: Supprimer les avertissements business du service technique
+    // Ces vérifications doivent être dans le controller ou un service métier dédié
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings,
+      warnings, // Vide maintenant
       validatedPreferences: errors.length === 0 ? preferences : null,
     };
   }

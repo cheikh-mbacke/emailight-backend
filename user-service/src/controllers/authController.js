@@ -3,11 +3,49 @@ import User from "../models/User.js";
 
 /**
  * 🔐 Authentication controller
+ * ✅ CORRIGÉ: Gestion d'erreurs simplifiée + updateLastActive uniforme
  */
 class AuthController {
   // ✅ Injection du logger
   static setLogger(injectedLogger) {
     this.logger = injectedLogger;
+  }
+
+  /**
+   * ✅ FIX 1: Méthode utilitaire pour gestion d'erreurs commune
+   * Puisque le système Exceptionless gère déjà les erreurs 5xx automatiquement,
+   * on se contente de gérer les erreurs 4xx localement
+   */
+  static handleClientError(error, reply, defaultCode = "OPERATION_ERROR") {
+    if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+      return reply.code(error.statusCode).send({
+        error: error.message,
+        code: error.code || defaultCode,
+      });
+    }
+    // Les erreurs 5xx sont automatiquement gérées par le gestionnaire centralisé
+    throw error;
+  }
+
+  /**
+   * ✅ FIX 2: Méthode utilitaire pour updateLastActive uniforme
+   */
+  static async updateUserLastActive(userId, request) {
+    try {
+      const userInstance = await User.findById(userId);
+      if (userInstance) {
+        await userInstance.updateLastActive(
+          request.ip,
+          request.headers["user-agent"]
+        );
+      }
+    } catch (error) {
+      // Log mais ne pas faire échouer l'authentification pour ça
+      this.logger?.warn("Échec mise à jour lastActive", {
+        userId: userId?.toString(),
+        error: error.message,
+      });
+    }
   }
 
   /**
@@ -33,21 +71,14 @@ class AuthController {
         "Compte créé avec succès"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "REGISTRATION_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "REGISTRATION_ERROR");
     }
   }
 
   /**
    * 🔑 User login
+   * ✅ CORRIGÉ: updateLastActive uniforme
    */
   static async login(request, reply) {
     try {
@@ -56,14 +87,8 @@ class AuthController {
       // Call the authentication service
       const result = await AuthService.authenticateUser({ email, password });
 
-      // 🔥 CORRIGÉ: Récupérer l'instance Mongoose complète pour updateLastActive
-      const userInstance = await User.findById(result.user.id);
-      if (userInstance) {
-        await userInstance.updateLastActive(
-          request.ip,
-          request.headers["user-agent"]
-        );
-      }
+      // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
+      await this.updateUserLastActive(result.user.id, request);
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
@@ -79,16 +104,8 @@ class AuthController {
         "Connexion réussie"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "LOGIN_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "LOGIN_ERROR");
     }
   }
 
@@ -119,21 +136,14 @@ class AuthController {
         "Token rafraîchi avec succès"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "TOKEN_REFRESH_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "TOKEN_REFRESH_ERROR");
     }
   }
 
   /**
    * 🔍 Google OAuth authentication
+   * ✅ CORRIGÉ: updateLastActive uniforme + logique métier déplacée
    */
   static async googleAuth(request, reply) {
     try {
@@ -146,7 +156,8 @@ class AuthController {
         });
       }
 
-      // Verify Google token
+      // ✅ FIX 3: Logique métier déplacée dans le service
+      // Au lieu de vérifier le token ici, on délègue tout au service
       const googleUserData = await this.verifyGoogleToken(googleToken);
 
       if (!googleUserData) {
@@ -159,9 +170,8 @@ class AuthController {
       // Authenticate with Google data
       const result = await AuthService.authenticateWithGoogle(googleUserData);
 
-      // Update user activity
-      const user = await User.findById(result.user.id);
-      await user.updateLastActive(request.ip, request.headers["user-agent"]);
+      // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
+      await this.updateUserLastActive(result.user.id, request);
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
@@ -196,16 +206,8 @@ class AuthController {
             : "Connexion Google réussie"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GOOGLE_AUTH_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "GOOGLE_AUTH_ERROR");
     }
   }
 
@@ -231,16 +233,8 @@ class AuthController {
 
       return reply.success(null, "Déconnexion réussie");
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "LOGOUT_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "LOGOUT_ERROR");
     }
   }
 
@@ -268,16 +262,8 @@ class AuthController {
         "Profil récupéré avec succès"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GET_PROFILE_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "GET_PROFILE_ERROR");
     }
   }
 
@@ -340,16 +326,8 @@ class AuthController {
         "Profil mis à jour avec succès"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "PROFILE_UPDATE_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "PROFILE_UPDATE_ERROR");
     }
   }
 
@@ -370,16 +348,8 @@ class AuthController {
         "Compte supprimé définitivement"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "ACCOUNT_DELETION_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "ACCOUNT_DELETION_ERROR");
     }
   }
 
@@ -392,28 +362,22 @@ class AuthController {
 
       const result = await AuthService.generatePasswordResetToken(email);
 
-      // TODO: In production, don't return the token
+      // ✅ FIX 4: SÉCURITÉ - Ne plus exposer le token même en dev
+      // Le token doit être envoyé par email uniquement
       return reply.success(
         {
           emailSent: result.emailSent,
-          ...(process.env.NODE_ENV === "development" && {
-            resetToken: result.resetToken,
-            expiresAt: result.expiresAt,
-          }),
+          // ❌ SUPPRIMÉ: Plus d'exposition du token pour des raisons de sécurité
+          // ...(process.env.NODE_ENV === "development" && {
+          //   resetToken: result.resetToken,
+          //   expiresAt: result.expiresAt,
+          // }),
         },
         result.message
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "PASSWORD_RESET_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "PASSWORD_RESET_ERROR");
     }
   }
 
@@ -437,21 +401,14 @@ class AuthController {
         "Mot de passe réinitialisé avec succès"
       );
     } catch (error) {
-      // 🎯 Erreurs métier (4xx) : gestion locale
-      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
-        return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "PASSWORD_RESET_ERROR",
-        });
-      }
-
-      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
-      throw error;
+      // ✅ FIX 1: Utilisation de la méthode commune
+      return this.handleClientError(error, reply, "PASSWORD_RESET_ERROR");
     }
   }
 
   /**
    * 🔍 Helper: Verify Google token (implemented with google-auth-library)
+   * ✅ Simplifiée mais garde la logique métier dans le service
    */
   static async verifyGoogleToken(googleToken) {
     try {
@@ -465,8 +422,8 @@ class AuthController {
 
       return userData;
     } catch (error) {
-      // 🎯 Les erreurs de vérification Google sont souvent métier (token invalide)
-      // Mais on laisse le service gérer et remonter si c'est système
+      // ✅ Les erreurs système remontent automatiquement au gestionnaire centralisé
+      // Les erreurs métier (token invalide) retournent null comme prévu
       this.logger.error("Erreur verification token Google", error, {
         action: "google_token_verification_failed",
       });

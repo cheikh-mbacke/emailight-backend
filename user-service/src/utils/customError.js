@@ -131,6 +131,16 @@ export class RateLimitError extends AppError {
 }
 
 /**
+ * 📈 Erreurs de quota spécifiques
+ */
+export class QuotaExceededError extends AppError {
+  constructor(message, quotaInfo = {}, code = "QUOTA_EXCEEDED") {
+    super(message, 429, code, { quotaInfo });
+    this.quotaInfo = quotaInfo;
+  }
+}
+
+/**
  * 🏭 Factory pour créer des erreurs facilement
  */
 export class ErrorFactory {

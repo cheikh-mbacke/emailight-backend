@@ -10,6 +10,7 @@ import {
   SystemError,
 } from "../utils/customError.js";
 import { AUTH_ERRORS } from "../utils/errorCodes.js";
+import GoogleAuthService from "../services/googleAuthService.js";
 
 /**
  * 🔍 Google Authentication Service
@@ -47,6 +48,85 @@ class GoogleAuthService {
         action: "google_oauth_init_failed",
       });
       return false;
+    }
+  }
+
+  /**
+   * 🔍 Google OAuth authentication
+   */
+  static async googleAuth(request, reply) {
+    try {
+      const { googleToken } = request.body;
+
+      if (!googleToken) {
+        return reply.code(400).send({
+          error: "Token Google requis",
+          code: "MISSING_GOOGLE_TOKEN",
+        });
+      }
+
+      // ✅ CORRECTION: Utilisation directe du service importé
+      const googleUserData =
+        await GoogleAuthService.verifyGoogleToken(googleToken);
+
+      // ✅ CORRECTION: Gestion d'erreurs cohérente
+      if (!googleUserData) {
+        return reply.code(401).send({
+          error: "Token Google invalide",
+          code: "INVALID_GOOGLE_TOKEN",
+        });
+      }
+
+      // Authenticate with Google data
+      const result = await AuthService.authenticateWithGoogle(googleUserData);
+
+      // Update user activity
+      const user = await User.findById(result.user.id);
+      await user.updateLastActive(request.ip, request.headers["user-agent"]);
+
+      // Generate tokens
+      const tokens = AuthService.generateTokens(result.user.id);
+
+      this.logger.auth(
+        "Authentification Google réussie",
+        {
+          email: result.user.email,
+          isNew: result.isNew,
+          linkedAccount: result.linkedAccount,
+        },
+        {
+          userId: result.user.id,
+          email: result.user.email,
+          action: "google_auth_success",
+        }
+      );
+
+      return reply.success(
+        {
+          user: result.user,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresIn: "24h",
+          isNew: result.isNew,
+          linkedAccount: result.linkedAccount,
+        },
+        result.isNew
+          ? "Compte créé et connecté avec Google"
+          : result.linkedAccount
+            ? "Compte lié à Google avec succès"
+            : "Connexion Google réussie"
+      );
+    } catch (error) {
+      // 🎯 Erreurs métier (4xx) : gestion locale
+      if (error.statusCode && error.statusCode < 500 && error.isOperational) {
+        return reply.code(error.statusCode).send({
+          error: error.message,
+          code: error.code || "GOOGLE_AUTH_ERROR",
+        });
+      }
+
+      // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
+      throw error;
     }
   }
 

@@ -1,266 +1,313 @@
+// ============================================================================
+// 📁 src/models/EmailAccount.js - Modèle Email Account avec support SMTP et compte par défaut
+// ============================================================================
+
 import mongoose from "mongoose";
 import crypto from "crypto";
+import config from "../config/env.js";
 
 /**
- * Schema for email accounts connected via OAuth
+ * 📧 Email Account Schema - Support OAuth + SMTP + Compte par défaut
  */
 const emailAccountSchema = new mongoose.Schema(
   {
-    // 👤 Owner of the account
+    // ============================================================================
+    // 👤 INFORMATIONS UTILISATEUR
+    // ============================================================================
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "User ID is required"],
+      required: true,
       index: true,
     },
 
-    // 📧 Email account details
     email: {
       type: String,
-      required: [true, "Account email is required"],
+      required: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Invalid email format",
-      ],
+      index: true,
     },
+
     displayName: {
       type: String,
+      required: true,
       trim: true,
-      maxlength: [100, "Display name cannot exceed 100 characters"],
+      maxLength: 100,
     },
 
-    // 🔐 OAuth provider
+    // ============================================================================
+    // 🔌 INFORMATIONS PROVIDER
+    // ============================================================================
     provider: {
       type: String,
-      required: [true, "Provider is required"],
-      enum: ["gmail", "outlook", "yahoo", "other"],
-      default: "gmail",
+      required: true,
+      enum: ["gmail", "outlook", "yahoo", "smtp", "other"],
+      index: true,
     },
+
     providerId: {
       type: String,
-      required: [true, "Provider ID is required"],
+      required: false, // Peut être null pour SMTP
+      index: true,
     },
 
-    // 🔑 OAuth tokens (encrypted)
+    // ============================================================================
+    // 🎯 GESTION COMPTE PAR DÉFAUT
+    // ============================================================================
+    isDefault: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    // ============================================================================
+    // 🔐 TOKENS ET CREDENTIALS (CHIFFRÉS)
+    // ============================================================================
     accessToken: {
       type: String,
-      required: [true, "Access token is required"],
-      select: false,
-    },
-    refreshToken: {
-      type: String,
-      select: false,
-    },
-    tokenExpiry: {
-      type: Date,
-      required: [true, "Token expiry date is required"],
+      required: true, // Contient soit OAuth token soit credentials SMTP chiffrés
     },
 
-    // 📊 OAuth scope info
+    refreshToken: {
+      type: String,
+      required: false, // Null pour SMTP
+    },
+
+    tokenExpiry: {
+      type: Date,
+      required: false,
+      index: true,
+    },
+
     scopes: [
       {
         type: String,
-        enum: [
-          "https://www.googleapis.com/auth/gmail.send",
-          "https://www.googleapis.com/auth/gmail.readonly",
-          "https://www.googleapis.com/auth/gmail.modify",
-          "https://mail.google.com/",
-          "profile",
-          "email",
-        ],
       },
     ],
 
-    // ✅ Account status
+    // ============================================================================
+    // ⚙️ CONFIGURATION ET PARAMÈTRES
+    // ============================================================================
+    settings: {
+      // Type de connexion
+      connectionType: {
+        type: String,
+        enum: ["oauth", "smtp"],
+        default: "oauth",
+      },
+
+      // Paramètres SMTP (pour les comptes SMTP)
+      smtpHost: String,
+      smtpPort: Number,
+      smtpSecure: Boolean,
+      imapHost: String,
+      imapPort: Number,
+      imapSecure: Boolean,
+
+      // Résultats des tests de connexion
+      testResults: {
+        smtp: {
+          success: Boolean,
+          message: String,
+          testedAt: Date,
+        },
+        imap: {
+          success: Boolean,
+          message: String,
+          testedAt: Date,
+          skipped: Boolean,
+        },
+        testedAt: Date,
+      },
+
+      // Paramètres utilisateur
+      defaultSignature: String,
+      autoReply: Boolean,
+      allowedAliases: [String],
+    },
+
+    // ============================================================================
+    // 📊 STATUT ET SANTÉ
+    // ============================================================================
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
     },
+
     isVerified: {
       type: Boolean,
       default: false,
     },
 
-    // 📈 Usage metrics
+    // Gestion des erreurs
+    errorCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastError: {
+      message: String,
+      code: String,
+      timestamp: Date,
+    },
+
+    // ============================================================================
+    // 📈 STATISTIQUES D'USAGE
+    // ============================================================================
     emailsSent: {
       type: Number,
       default: 0,
+      min: 0,
     },
+
     lastUsed: {
       type: Date,
       default: Date.now,
     },
-    lastSyncAt: Date,
 
-    // 🚫 Errors and issues
-    lastError: {
-      message: String,
-      code: String,
-      occurredAt: Date,
-    },
-    errorCount: {
-      type: Number,
-      default: 0,
-    },
-
-    // ⚙️ Custom settings
-    settings: {
-      // Default email signature
-      defaultSignature: {
-        type: String,
-        maxlength: [500, "Signature cannot exceed 500 characters"],
-      },
-
-      // Auto-reply settings
-      autoReply: {
-        enabled: { type: Boolean, default: false },
-        message: String,
-      },
-
-      // Allowed sender aliases
-      allowedAliases: [String],
+    lastSyncAt: {
+      type: Date,
     },
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        delete ret.accessToken;
-        delete ret.refreshToken;
-        delete ret.__v;
-        return ret;
-      },
-    },
+    toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
 );
 
-/**
- * 📍 Composite indexes for performance
- */
+// ============================================================================
+// 🔍 INDEX COMPOSÉS
+// ============================================================================
 emailAccountSchema.index({ userId: 1, email: 1 }, { unique: true });
+emailAccountSchema.index({ userId: 1, provider: 1 });
 emailAccountSchema.index({ userId: 1, isActive: 1 });
-emailAccountSchema.index({ provider: 1 });
-emailAccountSchema.index({ tokenExpiry: 1 });
-emailAccountSchema.index({ lastUsed: -1 });
+emailAccountSchema.index({ userId: 1, isDefault: 1 }); // 🆕 Pour compte par défaut
+emailAccountSchema.index({ tokenExpiry: 1, isActive: 1 }); // Pour le refresh automatique
+emailAccountSchema.index({ errorCount: 1, isActive: 1 }); // Pour le nettoyage
+
+// ============================================================================
+// 🔐 CHIFFREMENT DES TOKENS (PRE-SAVE MIDDLEWARE)
+// ============================================================================
+emailAccountSchema.pre("save", function (next) {
+  try {
+    // Chiffrer accessToken si modifié
+    if (this.isModified("accessToken") && this.accessToken) {
+      this.accessToken = this.encryptToken(this.accessToken);
+    }
+
+    // Chiffrer refreshToken si modifié
+    if (this.isModified("refreshToken") && this.refreshToken) {
+      this.refreshToken = this.encryptToken(this.refreshToken);
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// 🎯 MIDDLEWARE GESTION COMPTE PAR DÉFAUT
+// ============================================================================
+// Middleware pour s'assurer qu'un seul compte par défaut par utilisateur
+emailAccountSchema.pre("save", async function (next) {
+  if (this.isModified("isDefault") && this.isDefault) {
+    // Si ce compte devient le défaut, retirer le défaut des autres
+    await this.constructor.updateMany(
+      {
+        userId: this.userId,
+        _id: { $ne: this._id },
+        isDefault: true,
+      },
+      { $set: { isDefault: false } }
+    );
+  }
+  next();
+});
+
+// ============================================================================
+// 🔐 MÉTHODES DE CHIFFREMENT/DÉCHIFFREMENT
+// ============================================================================
 
 /**
- * 🔐 Encryption key (should be stored in env vars)
- */
-const ENCRYPTION_KEY =
-  process.env.TOKEN_ENCRYPTION_KEY || "your-32-character-secret-key-here";
-const ALGORITHM = "aes-256-cbc";
-
-/**
- * 🔒 Method: Encrypt a token
+ * 🔒 Chiffrer un token
  */
 emailAccountSchema.methods.encryptToken = function (token) {
   if (!token) return null;
+
   try {
+    const algorithm = "aes-256-gcm";
+    const key = Buffer.from(config.ENCRYPTION_KEY, "hex");
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher(ALGORITHM, ENCRYPTION_KEY);
+
+    const cipher = crypto.createCipher(algorithm, key);
+    cipher.setAAD(Buffer.from(this._id.toString()));
 
     let encrypted = cipher.update(token, "utf8", "hex");
     encrypted += cipher.final("hex");
 
-    return iv.toString("hex") + ":" + encrypted;
+    const authTag = cipher.getAuthTag();
+
+    return iv.toString("hex") + ":" + authTag.toString("hex") + ":" + encrypted;
   } catch (error) {
-    throw new Error("Error while encrypting token");
+    throw new Error(`Erreur de chiffrement: ${error.message}`);
   }
 };
 
 /**
- * 🔓 Method: Decrypt a token
+ * 🔓 Déchiffrer un token
  */
 emailAccountSchema.methods.decryptToken = function (encryptedToken) {
   if (!encryptedToken) return null;
 
   try {
+    const algorithm = "aes-256-gcm";
+    const key = Buffer.from(config.ENCRYPTION_KEY, "hex");
+
     const parts = encryptedToken.split(":");
-    if (parts.length !== 2) {
-      throw new Error("Invalid encrypted token format");
+    if (parts.length !== 3) {
+      throw new Error("Format de token chiffré invalide");
     }
 
     const iv = Buffer.from(parts[0], "hex");
-    const encrypted = parts[1];
+    const authTag = Buffer.from(parts[1], "hex");
+    const encrypted = parts[2];
 
-    const decipher = crypto.createDecipher(ALGORITHM, ENCRYPTION_KEY);
+    const decipher = crypto.createDecipher(algorithm, key);
+    decipher.setAAD(Buffer.from(this._id.toString()));
+    decipher.setAuthTag(authTag);
 
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
 
     return decrypted;
   } catch (error) {
-    throw new Error("Error while decrypting token");
+    throw new Error(`Erreur de déchiffrement: ${error.message}`);
   }
 };
 
-/**
- * ⏰ Method: Check if the token has expired
- */
-emailAccountSchema.methods.isTokenExpired = function () {
-  return new Date() >= this.tokenExpiry;
-};
+// ============================================================================
+// 📊 PROPRIÉTÉS VIRTUELLES
+// ============================================================================
 
 /**
- * ✅ Method: Mark account as used
- */
-emailAccountSchema.methods.markAsUsed = async function () {
-  this.lastUsed = new Date();
-  this.emailsSent += 1;
-  return this.save();
-};
-
-/**
- * 🚫 Method: Log an error
- */
-emailAccountSchema.methods.recordError = async function (error) {
-  this.lastError = {
-    message: error.message,
-    code: error.code || "UNKNOWN",
-    occurredAt: new Date(),
-  };
-  this.errorCount += 1;
-
-  // Disable account after 10 consecutive errors
-  if (this.errorCount >= 10) {
-    this.isActive = false;
-  }
-
-  return this.save();
-};
-
-/**
- * 🔄 Method: Clear errors after successful use
- */
-emailAccountSchema.methods.clearErrors = async function () {
-  this.errorCount = 0;
-  this.lastError = undefined;
-  this.isActive = true;
-  return this.save();
-};
-
-/**
- * 🎯 Virtual: Account health status
+ * 🏥 Statut de santé du compte
  */
 emailAccountSchema.virtual("healthStatus").get(function () {
   if (!this.isActive) return "inactive";
-  if (this.isTokenExpired()) return "token_expired";
+  if (this.errorCount >= 10) return "critical";
   if (this.errorCount >= 5) return "errors";
-  if (
-    !this.lastUsed ||
-    Date.now() - this.lastUsed.getTime() > 30 * 24 * 60 * 60 * 1000
-  ) {
-    return "stale"; // Not used in over 30 days
-  }
+  if (this.isTokenExpired()) return "token_expired";
+  if (this.errorCount > 0) return "warning";
   return "healthy";
 });
 
 /**
- * 📊 Virtual: Security info (tokens excluded)
+ * 📋 Informations sécurisées (sans tokens)
  */
 emailAccountSchema.virtual("secureInfo").get(function () {
   return {
@@ -268,80 +315,331 @@ emailAccountSchema.virtual("secureInfo").get(function () {
     email: this.email,
     displayName: this.displayName,
     provider: this.provider,
+    connectionType: this.settings?.connectionType || "oauth",
     isActive: this.isActive,
     isVerified: this.isVerified,
+    isDefault: this.isDefault, // 🆕 Inclure le statut par défaut
     healthStatus: this.healthStatus,
+    errorCount: this.errorCount,
+    lastError: this.lastError,
     emailsSent: this.emailsSent,
     lastUsed: this.lastUsed,
-    tokenExpiry: this.tokenExpiry,
+    lastSyncAt: this.lastSyncAt,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
     scopes: this.scopes,
-    errorCount: this.errorCount,
+    settings: {
+      smtpHost: this.settings?.smtpHost,
+      smtpPort: this.settings?.smtpPort,
+      imapHost: this.settings?.imapHost,
+      imapPort: this.settings?.imapPort,
+      testResults: this.settings?.testResults,
+      defaultSignature: this.settings?.defaultSignature,
+      autoReply: this.settings?.autoReply,
+    },
   };
 });
 
+// ============================================================================
+// 🔧 MÉTHODES D'INSTANCE
+// ============================================================================
+
 /**
- * 🔍 Static method: Find accounts by user
+ * ⏰ Vérifier si le token est expiré
  */
-emailAccountSchema.statics.findByUser = function (userId, activeOnly = true) {
-  const query = { userId };
-  if (activeOnly) {
-    query.isActive = true;
-  }
-  return this.find(query).sort({ lastUsed: -1 });
+emailAccountSchema.methods.isTokenExpired = function () {
+  if (!this.tokenExpiry) return false;
+  return new Date() > this.tokenExpiry;
 };
 
 /**
- * 🔍 Static method: Find account by user and email
+ * ⏰ Vérifier si le token expire bientôt (dans les X minutes)
  */
-emailAccountSchema.statics.findByUserAndEmail = function (userId, email) {
-  return this.findOne({
-    userId,
-    email: email.toLowerCase(),
+emailAccountSchema.methods.isTokenExpiringSoon = function (
+  thresholdMinutes = 30
+) {
+  if (!this.tokenExpiry) return false;
+  const threshold = new Date(Date.now() + thresholdMinutes * 60 * 1000);
+  return this.tokenExpiry < threshold;
+};
+
+/**
+ * 📊 Marquer comme utilisé
+ */
+emailAccountSchema.methods.markAsUsed = function () {
+  this.lastUsed = new Date();
+  return this.save();
+};
+
+/**
+ * 📈 Incrémenter le compteur d'emails
+ */
+emailAccountSchema.methods.incrementEmailCount = function () {
+  this.emailsSent += 1;
+  this.lastUsed = new Date();
+  return this.save();
+};
+
+/**
+ * 🚨 Enregistrer une erreur
+ */
+emailAccountSchema.methods.recordError = function (error) {
+  this.errorCount += 1;
+  this.lastError = {
+    message: error.message || "Erreur inconnue",
+    code: error.code || "UNKNOWN_ERROR",
+    timestamp: new Date(),
+  };
+  return this.save();
+};
+
+/**
+ * ✅ Nettoyer les erreurs
+ */
+emailAccountSchema.methods.clearErrors = function () {
+  this.errorCount = 0;
+  this.lastError = undefined;
+  return this.save();
+};
+
+/**
+ * 🔄 Mettre à jour les tokens
+ */
+emailAccountSchema.methods.updateTokens = function (
+  accessToken,
+  refreshToken = null,
+  expiresIn = null
+) {
+  this.accessToken = accessToken;
+
+  if (refreshToken) {
+    this.refreshToken = refreshToken;
+  }
+
+  if (expiresIn) {
+    this.tokenExpiry = new Date(Date.now() + expiresIn * 1000);
+  }
+
+  return this.save();
+};
+
+/**
+ * 🔄 Synchroniser les métadonnées
+ */
+emailAccountSchema.methods.syncMetadata = function (metadata = {}) {
+  if (metadata.displayName) {
+    this.displayName = metadata.displayName;
+  }
+
+  if (metadata.isVerified !== undefined) {
+    this.isVerified = metadata.isVerified;
+  }
+
+  if (metadata.scopes) {
+    this.scopes = metadata.scopes;
+  }
+
+  this.lastSyncAt = new Date();
+  return this.save();
+};
+
+// ============================================================================
+// 🔧 MÉTHODES STATIQUES
+// ============================================================================
+
+/**
+ * 🔍 Trouver les comptes avec tokens expirés
+ */
+emailAccountSchema.statics.findExpiredTokens = function (
+  thresholdMinutes = 30
+) {
+  const threshold = new Date(Date.now() + thresholdMinutes * 60 * 1000);
+  return this.find({
     isActive: true,
+    tokenExpiry: { $lt: threshold },
+    refreshToken: { $exists: true, $ne: null },
   });
 };
 
 /**
- * 🧹 Static method: Deactivate expired or unused accounts
+ * 🧹 Trouver les comptes avec trop d'erreurs
  */
-emailAccountSchema.statics.cleanupExpiredAccounts = async function () {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const result = await this.updateMany(
-    {
-      $or: [
-        { tokenExpiry: { $lt: thirtyDaysAgo } },
-        { errorCount: { $gte: 10 } },
-        { lastUsed: { $lt: thirtyDaysAgo } },
-      ],
-    },
-    {
-      $set: { isActive: false },
-    }
-  );
-
-  return result;
+emailAccountSchema.statics.findFailedAccounts = function (maxErrors = 10) {
+  return this.find({
+    isActive: true,
+    errorCount: { $gte: maxErrors },
+  });
 };
 
 /**
- * 🔒 Pre-save middleware: Encrypt tokens before saving
+ * 📊 Statistiques par provider
  */
-emailAccountSchema.pre("save", function (next) {
-  // Encrypt access token if modified
-  if (this.isModified("accessToken") && this.accessToken) {
-    if (!this.accessToken.includes(":")) {
-      this.accessToken = this.encryptToken(this.accessToken);
+emailAccountSchema.statics.getProviderStats = function (userId = null) {
+  const match = userId ? { userId } : {};
+
+  return this.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: "$provider",
+        total: { $sum: 1 },
+        active: { $sum: { $cond: ["$isActive", 1, 0] } },
+        withErrors: { $sum: { $cond: [{ $gt: ["$errorCount", 0] }, 1, 0] } },
+        totalEmailsSent: { $sum: "$emailsSent" },
+      },
+    },
+  ]);
+};
+
+/**
+ * 🔍 Rechercher par email et utilisateur
+ */
+emailAccountSchema.statics.findByEmailAndUser = function (email, userId) {
+  return this.findOne({
+    email: email.toLowerCase(),
+    userId,
+  });
+};
+
+// ============================================================================
+// 🎯 MÉTHODES STATIQUES - GESTION COMPTE PAR DÉFAUT
+// ============================================================================
+
+/**
+ * 🎯 Définir un compte comme par défaut
+ */
+emailAccountSchema.statics.setAsDefault = async function (accountId, userId) {
+  // Vérifier que le compte existe et appartient à l'utilisateur
+  const account = await this.findOne({
+    _id: accountId,
+    userId,
+    isActive: true,
+  });
+  if (!account) {
+    throw new Error("Compte introuvable ou inactif");
+  }
+
+  // Retirer le défaut de tous les autres comptes
+  await this.updateMany(
+    { userId, _id: { $ne: accountId } },
+    { $set: { isDefault: false } }
+  );
+
+  // Définir ce compte comme défaut
+  await this.findByIdAndUpdate(accountId, { $set: { isDefault: true } });
+
+  return this.findById(accountId);
+};
+
+/**
+ * 🎯 Obtenir le compte par défaut d'un utilisateur
+ */
+emailAccountSchema.statics.getDefaultAccount = function (userId) {
+  return this.findOne({ userId, isDefault: true, isActive: true });
+};
+
+/**
+ * 🎯 Obtenir le premier compte actif si pas de défaut
+ */
+emailAccountSchema.statics.getDefaultOrFirstActive = function (userId) {
+  return this.findOne({ userId, isActive: true }).sort({
+    isDefault: -1,
+    lastUsed: -1,
+  }); // Priorité: défaut, puis dernier utilisé
+};
+
+/**
+ * 🎯 Obtenir tous les comptes avec statut par défaut
+ */
+emailAccountSchema.statics.getUserAccountsWithDefault = function (userId) {
+  return this.find({ userId, isActive: true })
+    .sort({ isDefault: -1, lastUsed: -1 })
+    .select("-accessToken -refreshToken");
+};
+
+/**
+ * 🎯 Vérifier si un utilisateur a un compte par défaut
+ */
+emailAccountSchema.statics.hasDefaultAccount = async function (userId) {
+  const count = await this.countDocuments({
+    userId,
+    isDefault: true,
+    isActive: true,
+  });
+  return count > 0;
+};
+
+/**
+ * 🎯 Auto-définir le premier compte actif comme défaut si aucun défaut
+ */
+emailAccountSchema.statics.ensureDefaultAccount = async function (userId) {
+  const hasDefault = await this.hasDefaultAccount(userId);
+
+  if (!hasDefault) {
+    const firstActive = await this.findOne({ userId, isActive: true }).sort({
+      lastUsed: -1,
+      createdAt: -1,
+    });
+
+    if (firstActive) {
+      await this.setAsDefault(firstActive._id, userId);
+      return firstActive;
     }
   }
 
-  // Encrypt refresh token if modified
-  if (this.isModified("refreshToken") && this.refreshToken) {
-    if (!this.refreshToken.includes(":")) {
-      this.refreshToken = this.encryptToken(this.refreshToken);
+  return this.getDefaultAccount(userId);
+};
+
+/**
+ * 🎯 Retirer le statut par défaut de tous les comptes d'un utilisateur
+ */
+emailAccountSchema.statics.unsetAllDefaults = async function (userId) {
+  return this.updateMany({ userId }, { $set: { isDefault: false } });
+};
+
+/**
+ * 🧹 Nettoyage : s'assurer qu'il n'y a qu'un seul compte par défaut par utilisateur
+ */
+emailAccountSchema.statics.cleanupDuplicateDefaults = async function (
+  userId = null
+) {
+  const match = userId ? { userId } : {};
+
+  const duplicates = await this.aggregate([
+    { $match: { ...match, isDefault: true } },
+    {
+      $group: {
+        _id: "$userId",
+        accounts: { $push: { id: "$_id", lastUsed: "$lastUsed" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $match: { count: { $gt: 1 } } },
+  ]);
+
+  for (const duplicate of duplicates) {
+    // Garder le compte le plus récemment utilisé comme défaut
+    const sortedAccounts = duplicate.accounts.sort(
+      (a, b) => new Date(b.lastUsed || 0) - new Date(a.lastUsed || 0)
+    );
+
+    const toKeep = sortedAccounts[0].id;
+    const toUpdate = sortedAccounts.slice(1).map((acc) => acc.id);
+
+    if (toUpdate.length > 0) {
+      await this.updateMany(
+        { _id: { $in: toUpdate } },
+        { $set: { isDefault: false } }
+      );
     }
   }
 
-  next();
-});
+  return duplicates.length;
+};
 
-export default mongoose.model("EmailAccount", emailAccountSchema);
+// ============================================================================
+// 🎯 EXPORTS
+// ============================================================================
+const EmailAccount = mongoose.model("EmailAccount", emailAccountSchema);
+
+export default EmailAccount;

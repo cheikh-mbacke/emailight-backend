@@ -1,0 +1,4 @@
+- Dans la gestion thème modèle User, il y a value auto, au niveau interface, il va falloir prendre ça en compte
+- Il aussi ces champs à prendre en compte : emailNotifications, marketingEmails afin de demander au User
+- Avoir une description précise de comment fonctionne User, du modèle aux controlers en passant par les service, routes
+- Les possibilités de connexion :   GMAIL, OUTLOOK, SMTP

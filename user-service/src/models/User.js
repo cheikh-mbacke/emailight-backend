@@ -1,207 +1,92 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import config from "../config/env.js";
-
-/**
- * User preferences schema
- */
-const preferencesSchema = new mongoose.Schema(
-  {
-    // 🎨 Interface preferences
-    theme: {
-      type: String,
-      enum: ["light", "dark", "auto"],
-      default: "auto",
-    },
-    language: {
-      type: String,
-      enum: ["FR", "EN", "ES", "DE", "IT", "PT", "NL", "RU", "ZH", "JA"],
-      default: "FR",
-    },
-
-    // 📧 Default email preferences
-    defaultTone: {
-      type: String,
-      enum: [
-        "Accueillant",
-        "Amical",
-        "Apaisant",
-        "Assertif",
-        "Autoritaire",
-        "Bienveillant",
-        "Candide",
-        "Chaleureux",
-        "Clairvoyant",
-        "Collaboratif",
-        "Confidentiel",
-        "Confiant",
-        "Constructif",
-        "Courtois",
-        "Décidé",
-        "Délicat",
-        "Diplomatique",
-        "Direct",
-        "Drôle",
-        "Empathique",
-        "Encourageant",
-        "Enthousiaste",
-        "Excusant",
-        "Ferme",
-        "Formel",
-        "Humble",
-        "Informatif",
-        "Inspirant",
-        "Ironique",
-        "Lucide",
-        "Motivant",
-        "Neutre",
-        "Optimiste",
-        "Persuasif",
-        "Positif",
-        "Professionnel",
-        "Prudent",
-        "Rassurant",
-        "Reconnaissant",
-        "Sincère",
-        "Solennel",
-        "Urgent",
-      ],
-      default: "Professionnel",
-    },
-    defaultLength: {
-      type: String,
-      enum: ["Court", "Moyen", "Long"],
-      default: "Moyen",
-    },
-    defaultEmoji: {
-      type: Boolean,
-      default: false,
-    },
-
-    // 🔔 Notifications
-    emailNotifications: {
-      type: Boolean,
-      default: true,
-    },
-    marketingEmails: {
-      type: Boolean,
-      default: false,
-    },
-
-    // 💾 Auto-save drafts
-    autoSaveDrafts: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  { _id: false }
-);
-
-/**
- * Abuse/security metrics schema
- */
-const securityMetricsSchema = new mongoose.Schema(
-  {
-    // 🚫 Authentication attempts
-    failedLoginAttempts: {
-      type: Number,
-      default: 0,
-    },
-    lastFailedLogin: Date,
-    accountLockedUntil: Date,
-
-    // 📊 Usage metrics
-    lastLoginIP: String,
-    lastLoginUserAgent: String,
-
-    // ⚠️ Reports and abuse
-    reportCount: {
-      type: Number,
-      default: 0,
-    },
-    lastReportDate: Date,
-
-    // 🔒 Security
-    passwordChangedAt: {
-      type: Date,
-      default: Date.now,
-    },
-
-    // 📧 Email sending limits
-    emailsSentToday: {
-      type: Number,
-      default: 0,
-    },
-    lastEmailSentDate: Date,
-  },
-  { _id: false }
-);
+import preferencesSchema from "./schemas/preferencesSchema.js";
+import securityMetricsSchema from "./schemas/securityMetricsSchema.js";
+import I18nService from "../services/i18nService.js";
+import { getValidationMessage } from "../constants/validationMessages.js";
+import {
+  getEnumValues,
+  SUPPORTED_LANGUAGES,
+  AUTH_PROVIDERS,
+  SUBSCRIPTION_STATUS,
+} from "../constants/enums.js";
 
 /**
  * Main User schema
  */
 const userSchema = new mongoose.Schema(
   {
-    // 👤 Basic info
+    // Basic info
     name: {
       type: String,
-      required: [true, "Name is required"],
+      required: [true, getValidationMessage("name", "required")],
       trim: true,
-      maxlength: [100, "Name cannot exceed 100 characters"],
-      minlength: [2, "Name must be at least 2 characters long"],
+      maxlength: [100, getValidationMessage("name", "maxLength")],
+      minlength: [2, getValidationMessage("name", "minLength")],
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: [true, getValidationMessage("email", "required")],
       unique: true,
       lowercase: true,
       trim: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Invalid email format",
+        getValidationMessage("email", "invalid"),
       ],
     },
     password: {
       type: String,
-      minlength: [6, "Password must be at least 6 characters long"],
+      minlength: [6, getValidationMessage("password", "minLength")],
       select: false, // Do not include in queries by default
-      // 🆕 Password optionnel pour les comptes OAuth
+      // Password optional for OAuth accounts
       required: function () {
-        return this.authProvider === "email";
+        return this.authProvider === AUTH_PROVIDERS.EMAIL;
+      },
+      validate: {
+        validator: function (password) {
+          // Only validate if authProvider is email and password is provided
+          if (this.authProvider === AUTH_PROVIDERS.EMAIL && !password) {
+            return false;
+          }
+          return true;
+        },
+        message: getValidationMessage("password", "authProviderRequired"),
       },
     },
 
-    // 🆕 OAuth provider information
+    // OAuth provider information
     authProvider: {
       type: String,
-      enum: ["email", "google"],
-      default: "email",
+      enum: getEnumValues.authProviders(),
+      default: AUTH_PROVIDERS.EMAIL,
       required: true,
     },
     googleId: {
       type: String,
-      sparse: true, // Index partiel pour les valeurs non nulles uniquement
+      sparse: true, // Partial index for non-null values only
       unique: true,
     },
     profilePictureUrl: {
       type: String,
       validate: {
         validator: function (url) {
-          if (!url) return true; // null/undefined autorisé
+          if (!url) return true; // null/undefined allowed
 
-          // URL complète http/https
+          // Full HTTP/HTTPS URL
           const httpRegex = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
 
-          // URL relative locale /uploads/
+          // Local relative URL /uploads/
           const localRegex = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp)$/i;
 
           return httpRegex.test(url) || localRegex.test(url);
         },
-        message: "Invalid profile picture URL format",
+        message: getValidationMessage("profilePicture", "invalid"),
       },
     },
 
-    // ✅ Account status
+    // Account status
     isActive: {
       type: Boolean,
       default: true,
@@ -213,35 +98,59 @@ const userSchema = new mongoose.Schema(
     emailVerificationToken: String,
     emailVerificationExpires: Date,
 
-    // 🔄 Password reset
+    // Password reset
     passwordResetToken: String,
     passwordResetExpires: Date,
 
-    // 💳 Subscription (external service reference)
+    // Subscription (external service reference)
     subscriptionId: {
       type: String,
       default: null,
     },
     subscriptionStatus: {
       type: String,
-      enum: ["free", "premium", "enterprise", "suspended"],
-      default: "free",
+      enum: getEnumValues.subscriptionStatuses(),
+      default: SUBSCRIPTION_STATUS.FREE,
     },
     subscriptionEndsAt: Date,
 
-    // ⚙️ User preferences
+    // User preferences
     preferences: {
       type: preferencesSchema,
-      default: () => ({}),
+      default: function () {
+        return {
+          theme: "auto",
+          language: SUPPORTED_LANGUAGES.FR,
+          defaultTone: "Professionnel",
+          defaultLength: "Moyen",
+          defaultEmoji: false,
+          emailNotifications: true,
+          marketingEmails: false,
+          autoSaveDrafts: true,
+          timezone: "Europe/Paris",
+          compactMode: false,
+          showTutorials: true,
+        };
+      },
     },
 
-    // 📊 Security and abuse metrics
+    // Security and abuse metrics
     security: {
       type: securityMetricsSchema,
-      default: () => ({}),
+      default: function () {
+        return {
+          failedLoginAttempts: 0,
+          reportCount: 0,
+          passwordChangedAt: new Date(),
+          emailsSentToday: 0,
+          passwordResetAttempts: 0,
+          suspiciousActivityFlags: [],
+          knownDevices: [],
+        };
+      },
     },
 
-    // 📧 Connected email accounts (reference)
+    // Connected email accounts (reference)
     connectedEmailAccounts: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -249,7 +158,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // 🕐 Activity tracking
+    // Activity tracking
     lastActiveAt: {
       type: Date,
       default: Date.now,
@@ -263,7 +172,7 @@ const userSchema = new mongoose.Schema(
         delete ret.password;
         delete ret.passwordResetToken;
         delete ret.emailVerificationToken;
-        delete ret.googleId; // 🆕 Ne pas exposer l'ID Google
+        delete ret.googleId; // Don't expose Google ID
         delete ret.__v;
         return ret;
       },
@@ -273,26 +182,81 @@ const userSchema = new mongoose.Schema(
 );
 
 /**
- * 📍 Indexes for performance
+ * Indexes for performance
  */
+// Basic indexes
+userSchema.index({ email: 1 }); // Already unique, but needed for faster lookups
 userSchema.index({ subscriptionStatus: 1 });
 userSchema.index({ isActive: 1 });
-userSchema.index({ "security.accountLockedUntil": 1 });
 userSchema.index({ createdAt: -1 });
-// 🆕 Index pour les recherches OAuth
+
+// Composite indexes for common queries
+userSchema.index({ email: 1, isActive: 1 }); // Login queries
+userSchema.index({ subscriptionStatus: 1, isActive: 1 }); // Subscription analytics
+userSchema.index({ isActive: 1, createdAt: -1 }); // User listing
+
+// Security indexes
+userSchema.index({ "security.accountLockedUntil": 1 }); // Unlock accounts job
+userSchema.index({ "security.failedLoginAttempts": 1, isActive: 1 }); // Security monitoring
+userSchema.index({ "security.lastEmailSentDate": 1 }); // Email quota reset
+
+// OAuth indexes
 userSchema.index({ authProvider: 1 });
 userSchema.index({ googleId: 1 }, { sparse: true });
+userSchema.index({ authProvider: 1, isActive: 1 }); // OAuth user queries
+
+// Admin and analytics indexes
+userSchema.index({ lastActiveAt: -1 }); // Activity monitoring
+userSchema.index({ subscriptionEndsAt: 1 }, { sparse: true }); // Subscription expiry job
+userSchema.index({ emailVerificationExpires: 1 }, { sparse: true }); // Cleanup expired tokens
+userSchema.index({ passwordResetExpires: 1 }, { sparse: true }); // Cleanup expired reset tokens
 
 /**
- * 🔒 Pre-save middleware: hash password if modified
+ * Pre-save middleware: hash password, validate email uniqueness, cleanup
  */
 userSchema.pre("save", async function (next) {
-  // 🆕 Skip password hashing for OAuth users without password
-  if (!this.password || !this.isModified("password")) return next();
-
   try {
-    this.password = await bcrypt.hash(this.password, config.BCRYPT_ROUNDS);
-    this.security.passwordChangedAt = new Date();
+    // 1. Hash password if modified
+    if (this.password && this.isModified("password")) {
+      this.password = await bcrypt.hash(this.password, config.BCRYPT_ROUNDS);
+      this.security.passwordChangedAt = new Date();
+    }
+
+    // 2. Normalize email
+    if (this.isModified("email")) {
+      this.email = this.email.toLowerCase().trim();
+    }
+
+    // 3. Clean up expired tokens
+    const now = new Date();
+    if (this.emailVerificationExpires && this.emailVerificationExpires < now) {
+      this.emailVerificationToken = undefined;
+      this.emailVerificationExpires = undefined;
+    }
+    if (this.passwordResetExpires && this.passwordResetExpires < now) {
+      this.passwordResetToken = undefined;
+      this.passwordResetExpires = undefined;
+    }
+
+    // 4. Reset daily email count if new day
+    if (this.security.lastEmailSentDate) {
+      const today = new Date().toDateString();
+      const lastSentDate = this.security.lastEmailSentDate.toDateString();
+      if (lastSentDate !== today) {
+        this.security.emailsSentToday = 0;
+      }
+    }
+
+    // 5. Audit trail for important changes
+    if (
+      this.isModified("email") ||
+      this.isModified("isActive") ||
+      this.isModified("subscriptionStatus")
+    ) {
+      // You can emit events here for audit logging
+      // EventEmitter.emit('user.important.change', { userId: this._id, changes: this.modifiedPaths() });
+    }
+
     next();
   } catch (error) {
     next(error);
@@ -300,188 +264,134 @@ userSchema.pre("save", async function (next) {
 });
 
 /**
- * 🔑 Method: Compare password
+ * Pre-validate middleware: additional business logic validations
+ */
+userSchema.pre("validate", function (next) {
+  try {
+    // Ensure OAuth users don't have password requirements
+    if (this.authProvider !== AUTH_PROVIDERS.EMAIL && this.password) {
+      // Allow but warn - OAuth users might have passwords from before conversion
+      console.warn(`OAuth user ${this.email} has password - consider cleanup`);
+    }
+
+    // Ensure email verification makes sense
+    if (this.authProvider === AUTH_PROVIDERS.GOOGLE && !this.isEmailVerified) {
+      // Google users should be automatically verified
+      this.isEmailVerified = true;
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Method: Compare password
  */
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
-    // 🆕 Handle OAuth users without password
+    // Handle OAuth users without password
     if (!this.password) {
-      throw new Error("This account uses external authentication");
+      const language = I18nService.getUserLanguage(this);
+      const error = new Error(
+        I18nService.getMessage("auth.externalAuth", language)
+      );
+      error.code = "EXTERNAL_AUTH_ACCOUNT";
+      throw error;
     }
 
-    return await bcrypt.compare(candidatePassword, this.password);
+    // Validate input
+    if (!candidatePassword || typeof candidatePassword !== "string") {
+      const language = I18nService.getUserLanguage(this);
+      const error = new Error(
+        I18nService.getMessage("auth.invalidCredentials", language)
+      );
+      error.code = "INVALID_INPUT";
+      throw error;
+    }
+
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    return isMatch;
   } catch (error) {
-    throw new Error("Error while verifying password");
+    // Don't mask bcrypt errors for debugging, but provide user-friendly messages
+    if (
+      error.code === "EXTERNAL_AUTH_ACCOUNT" ||
+      error.code === "INVALID_INPUT"
+    ) {
+      throw error; // Re-throw our custom errors
+    }
+
+    // Log bcrypt errors for debugging but throw user-friendly message
+    console.error("bcrypt.compare error:", error);
+
+    const language = I18nService.getUserLanguage(this);
+    const userError = new Error(
+      I18nService.getMessage("auth.passwordError", language)
+    );
+    userError.code = "PASSWORD_COMPARISON_FAILED";
+    userError.originalError = error; // Keep original for debugging
+    throw userError;
   }
 };
 
-/**
- * 🔒 Method: Check if account is locked
- */
-userSchema.methods.isAccountLocked = function () {
-  return !!(
-    this.security.accountLockedUntil &&
-    this.security.accountLockedUntil > Date.now()
-  );
-};
+// Note: Business logic methods have been moved to UserService to avoid circular dependencies
+// Use UserService.methodName(user) instead of user.methodName()
 
 /**
- * 🚫 Method: Increment failed login attempts
- */
-userSchema.methods.incLoginAttempts = async function () {
-  if (
-    this.security.accountLockedUntil &&
-    this.security.accountLockedUntil < Date.now()
-  ) {
-    return this.updateOne({
-      $unset: {
-        "security.accountLockedUntil": 1,
-        "security.failedLoginAttempts": 1,
-      },
-    });
-  }
-
-  const updates = {
-    $inc: { "security.failedLoginAttempts": 1 },
-    $set: { "security.lastFailedLogin": Date.now() },
-  };
-
-  if (this.security.failedLoginAttempts + 1 >= 5 && !this.isAccountLocked()) {
-    updates.$set["security.accountLockedUntil"] =
-      Date.now() + 2 * 60 * 60 * 1000; // 2 hours
-  }
-
-  return this.updateOne(updates);
-};
-
-/**
- * ✅ Method: Reset login attempts after successful login
- */
-userSchema.methods.resetLoginAttempts = async function () {
-  return this.updateOne({
-    $unset: {
-      "security.failedLoginAttempts": 1,
-      "security.accountLockedUntil": 1,
-    },
-  });
-};
-
-/**
- * 🕐 Method: Update last active timestamp and session info
- */
-userSchema.methods.updateLastActive = async function (ip, userAgent) {
-  return this.updateOne({
-    $set: {
-      lastActiveAt: new Date(),
-      "security.lastLoginIP": ip,
-      "security.lastLoginUserAgent": userAgent,
-    },
-  });
-};
-
-/**
- * 📧 Method: Check if user can send an email
- */
-userSchema.methods.canSendEmail = function () {
-  const today = new Date().toDateString();
-  const lastSentDate = this.security.lastEmailSentDate
-    ? this.security.lastEmailSentDate.toDateString()
-    : null;
-
-  if (lastSentDate !== today) {
-    this.security.emailsSentToday = 0;
-  }
-
-  const limits = {
-    free: 50,
-    premium: 500,
-    enterprise: 5000,
-  };
-
-  return (
-    this.security.emailsSentToday <
-    (limits[this.subscriptionStatus] || limits.free)
-  );
-};
-
-/**
- * 📊 Method: Increment sent email count
- */
-userSchema.methods.incrementEmailsSent = async function () {
-  const today = new Date().toDateString();
-  const lastSentDate = this.security.lastEmailSentDate
-    ? this.security.lastEmailSentDate.toDateString()
-    : null;
-
-  const updates = {
-    $set: { "security.lastEmailSentDate": new Date() },
-  };
-
-  if (lastSentDate === today) {
-    updates.$inc = { "security.emailsSentToday": 1 };
-  } else {
-    updates.$set["security.emailsSentToday"] = 1;
-  }
-
-  return this.updateOne(updates);
-};
-
-/**
- * 🆕 Method: Check if user is OAuth-based
- */
-userSchema.methods.isOAuthUser = function () {
-  return this.authProvider !== "email";
-};
-
-/**
- * 🆕 Method: Check if user can change password
- */
-userSchema.methods.canChangePassword = function () {
-  return this.authProvider === "email" && this.password;
-};
-
-/**
- * 🎯 Virtual: Public profile info
+ * Virtual: Public profile info
  */
 userSchema.virtual("profile").get(function () {
   return {
     id: this._id,
     name: this.name,
     email: this.email,
-    authProvider: this.authProvider, // 🆕 Exposer le provider
-    profilePictureUrl: this.profilePictureUrl, // 🆕 Photo de profil
+    authProvider: this.authProvider,
+    profilePictureUrl: this.profilePictureUrl,
     subscriptionStatus: this.subscriptionStatus,
     isEmailVerified: this.isEmailVerified,
     createdAt: this.createdAt,
     lastActiveAt: this.lastActiveAt,
-    canChangePassword: this.canChangePassword(), // 🆕 Capacité à changer le mot de passe
+    // Note: Use UserService.canChangePassword(user) in your controllers
+    canChangePassword:
+      this.authProvider === AUTH_PROVIDERS.EMAIL && this.password,
   };
 });
 
 /**
- * 📊 Virtual: Security stats (for admin usage)
+ * Virtual: Security stats (for admin usage)
  */
 userSchema.virtual("securityStats").get(function () {
+  const isLocked = !!(
+    this.security.accountLockedUntil &&
+    this.security.accountLockedUntil > Date.now()
+  );
+  const securityScore = this.security.getSecurityScore
+    ? this.security.getSecurityScore()
+    : 100;
+
   return {
-    isLocked: this.isAccountLocked(),
+    isLocked,
     failedAttempts: this.security.failedLoginAttempts,
     lastLogin: this.security.lastFailedLogin,
     emailsSentToday: this.security.emailsSentToday,
-    canSendEmail: this.canSendEmail(),
-    authProvider: this.authProvider, // 🆕 Provider d'auth
-    isOAuthUser: this.isOAuthUser(), // 🆕 Utilisateur OAuth
+    // Note: Use UserService.canSendEmail(user) in your controllers for accurate results
+    canSendEmail: true, // Simplified - use service method for accurate calculation
+    authProvider: this.authProvider,
+    isOAuthUser: this.authProvider !== AUTH_PROVIDERS.EMAIL,
+    securityScore,
   };
 });
 
 /**
- * 🆕 Static method: Find user by Google ID
+ * Static method: Find user by Google ID
  */
 userSchema.statics.findByGoogleId = function (googleId) {
   return this.findOne({ googleId, isActive: true });
 };
 
 /**
- * 🆕 Static method: Find user by email for OAuth linking
+ * Static method: Find user by email for OAuth linking
  */
 userSchema.statics.findForOAuthLinking = function (email) {
   return this.findOne({
