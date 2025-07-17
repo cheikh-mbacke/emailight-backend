@@ -24,6 +24,7 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/register",
     {
+      attachValidation: true, // Désactive la validation automatique Fastify
       preHandler: [
         createRateLimitMiddleware({
           max: 3,
@@ -40,10 +41,24 @@ async function authRoutes(fastify, options) {
           type: "object",
           required: ["name", "email", "password"],
           properties: {
-            name: { type: "string", minLength: 2, maxLength: 100 },
-            email: { type: "string", format: "email" },
-            password: { type: "string", minLength: 6 },
+            name: {
+              type: "string",
+              minLength: 2,
+              maxLength: 100,
+              description: "User's full name",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              description: "User's email address",
+            },
+            password: {
+              type: "string",
+              minLength: 6,
+              description: "User's password (min 6 characters)",
+            },
           },
+          additionalProperties: false,
         },
         response: {
           201: {
@@ -74,6 +89,7 @@ async function authRoutes(fastify, options) {
   fastify.post(
     "/login",
     {
+      attachValidation: true, // Désactive la validation automatique Fastify
       preHandler: [loginRateLimit, validateLogin],
       schema: {
         tags: ["Authentication"],
@@ -82,9 +98,17 @@ async function authRoutes(fastify, options) {
           type: "object",
           required: ["email", "password"],
           properties: {
-            email: { type: "string", format: "email" },
-            password: { type: "string" },
+            email: {
+              type: "string",
+              format: "email",
+              description: "User's email address",
+            },
+            password: {
+              type: "string",
+              description: "User's password",
+            },
           },
+          additionalProperties: false,
         },
         response: {
           200: {
@@ -121,16 +145,7 @@ async function authRoutes(fastify, options) {
         tags: ["Authentication"],
         summary: "Refresh access token",
         description: "Generate a new access token using a valid refresh token",
-        body: {
-          type: "object",
-          required: ["refreshToken"],
-          properties: {
-            refreshToken: {
-              type: "string",
-              description: "Valid refresh token",
-            },
-          },
-        },
+        // Pas de validation body ici - gérée par le middleware Joi avec traductions
         response: {
           200: {
             type: "object",
@@ -165,16 +180,7 @@ async function authRoutes(fastify, options) {
         tags: ["Authentication"],
         summary: "Google OAuth authentication",
         description: "Authenticate user using Google OAuth2 token",
-        body: {
-          type: "object",
-          required: ["googleToken"],
-          properties: {
-            googleToken: {
-              type: "string",
-              description: "Google ID token from OAuth2 flow",
-            },
-          },
-        },
+        // Pas de validation body ici - gérée par le middleware Joi avec traductions
         response: {
           200: {
             type: "object",
@@ -250,15 +256,7 @@ async function authRoutes(fastify, options) {
         tags: ["Authentication"],
         summary: "Update user profile",
         security: [{ bearerAuth: [] }],
-        body: {
-          type: "object",
-          properties: {
-            name: { type: "string", minLength: 2, maxLength: 100 },
-            email: { type: "string", format: "email" },
-            currentPassword: { type: "string" },
-            newPassword: { type: "string", minLength: 6 },
-          },
-        },
+        // Pas de validation body ici - gérée par le middleware Joi avec traductions
       },
     },
     AuthController.updateProfile
@@ -294,17 +292,12 @@ async function authRoutes(fastify, options) {
           message:
             "Trop de demandes de réinitialisation. Réessayez dans 1 heure.",
         }),
+        validateForgotPassword,
       ],
       schema: {
         tags: ["Authentication"],
         summary: "Request password reset",
-        body: {
-          type: "object",
-          required: ["email"],
-          properties: {
-            email: { type: "string", format: "email" },
-          },
-        },
+        // Pas de validation body ici - gérée par le middleware Joi avec traductions
       },
     },
     AuthController.forgotPassword
@@ -324,18 +317,12 @@ async function authRoutes(fastify, options) {
           message:
             "Trop de tentatives de réinitialisation. Réessayez dans 15 minutes.",
         }),
+        validateResetPassword,
       ],
       schema: {
         tags: ["Authentication"],
         summary: "Reset password using a token",
-        body: {
-          type: "object",
-          required: ["token", "password"],
-          properties: {
-            token: { type: "string" },
-            password: { type: "string", minLength: 6 },
-          },
-        },
+        // Pas de validation body ici - gérée par le middleware Joi avec traductions
       },
     },
     AuthController.resetPassword

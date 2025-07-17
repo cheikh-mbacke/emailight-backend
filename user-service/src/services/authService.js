@@ -18,6 +18,10 @@ import TokenBlacklistService from "./tokenBlacklistService.js";
 import EmailAccount from "../models/EmailAccount.js";
 import fs from "fs/promises";
 import path from "path";
+import I18nService from "./i18nService.js";
+
+// 🌍 Langue par défaut pour les erreurs système
+let defaultLanguage = "FR";
 
 /**
  * 🔐 Authentication service
@@ -28,10 +32,17 @@ class AuthService {
   }
 
   /**
+   * 🌍 Définir la langue par défaut pour les erreurs
+   */
+  static setLanguage(language) {
+    defaultLanguage = language;
+  }
+
+  /**
    * Register a new user
    * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
-  static async registerUser(userData) {
+  static async registerUser(userData, language = defaultLanguage) {
     // ✅ FIX: Validation déjà effectuée par le middleware Joi
     // Les données sont déjà validées, nettoyées et typées
     const { name, email, password } = userData;
@@ -63,7 +74,7 @@ class AuthService {
       if (error.code === 11000 || error.name === "MongoServerError") {
         // Index unique violation - utilisateur existe déjà
         throw new ConflictError(
-          "Un compte avec cette adresse email existe déjà",
+          I18nService.getMessage("auth.user_exists", language),
           AUTH_ERRORS.USER_EXISTS
         );
       }
@@ -87,7 +98,7 @@ class AuthService {
    * Authenticate a user
    * ✅ CORRIGÉ: Validation déléguée au middleware Joi
    */
-  static async authenticateUser(credentials) {
+  static async authenticateUser(credentials, language = defaultLanguage) {
     // ✅ FIX: Validation déjà effectuée par le middleware Joi
     // Les données sont déjà validées, nettoyées et typées
     const { email, password } = credentials;
@@ -100,7 +111,7 @@ class AuthService {
 
       if (!user) {
         throw new AuthError(
-          "Email ou mot de passe incorrect",
+          I18nService.getMessage("auth.invalid_credentials", language),
           AUTH_ERRORS.INVALID_CREDENTIALS
         );
       }
@@ -108,7 +119,7 @@ class AuthService {
       // Check if account is locked
       if (user.isAccountLocked()) {
         throw new AuthError(
-          "Compte temporairement verrouillé en raison de tentatives de connexion échouées",
+          I18nService.getMessage("auth.account_locked", language),
           AUTH_ERRORS.ACCOUNT_LOCKED
         );
       }
@@ -130,7 +141,7 @@ class AuthService {
         );
 
         throw new AuthError(
-          "Email ou mot de passe incorrect",
+          I18nService.getMessage("auth.invalid_credentials", language),
           AUTH_ERRORS.INVALID_CREDENTIALS
         );
       }
@@ -138,7 +149,7 @@ class AuthService {
       // Check if account is active
       if (!user.isActive) {
         throw new AuthError(
-          "Votre compte a été désactivé. Contactez le support.",
+          I18nService.getMessage("auth.account_disabled", language),
           AUTH_ERRORS.ACCOUNT_DISABLED
         );
       }
@@ -466,8 +477,9 @@ class AuthService {
       }
 
       // Check current password
-      const isCurrentPasswordValid =
-        await user.comparePassword(currentPassword);
+      const isCurrentPasswordValid = await user.comparePassword(
+        currentPassword
+      );
       if (!isCurrentPasswordValid) {
         throw new AuthError(
           "Le mot de passe actuel est incorrect",

@@ -1,6 +1,7 @@
 import AuthService from "../services/authService.js";
 import User from "../models/User.js";
 import TokenBlacklistService from "../services/tokenBlacklistService.js";
+import I18nService from "../services/i18nService.js";
 
 /**
  * 🔐 Authentication controller
@@ -14,14 +15,15 @@ class AuthController {
 
   /**
    * ✅ FIX 1: Méthode utilitaire pour gestion d'erreurs commune
-   * Puisque le système Exceptionless gère déjà les erreurs 5xx automatiquement,
-   * on se contente de gérer les erreurs 4xx localement
+   * Format uniforme: statusCode, code, error, message
    */
   static handleClientError(error, reply, defaultCode = "OPERATION_ERROR") {
     if (error.statusCode && error.statusCode < 500 && error.isOperational) {
       return reply.code(error.statusCode).send({
-        error: error.message,
+        statusCode: error.statusCode,
         code: error.code || defaultCode,
+        error: error.name || "ClientError",
+        message: error.message,
       });
     }
     // Les erreurs 5xx sont automatiquement gérées par le gestionnaire centralisé
@@ -56,24 +58,30 @@ class AuthController {
     try {
       const { name, email, password } = request.body;
 
+      // 🌍 Obtenir la langue de manière sécurisée
+      const language = I18nService.getRequestLanguage(request);
+
       // Call the service
-      const result = await AuthService.registerUser({ name, email, password });
+      const result = await AuthService.registerUser({ name, email, password }, language);
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
 
       return reply.code(201).success(
         {
-          user: result.user,
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: "24h",
         },
-        "Compte créé avec succès"
+        I18nService.getAuthErrorMessage("account_created", language)
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "REGISTRATION_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "REGISTRATION_ERROR"
+      );
     }
   }
 
@@ -85,11 +93,14 @@ class AuthController {
     try {
       const { email, password } = request.body;
 
+      // 🌍 Obtenir la langue de manière sécurisée
+      const language = I18nService.getRequestLanguage(request);
+
       // Call the authentication service
-      const result = await AuthService.authenticateUser({ email, password });
+      const result = await AuthService.authenticateUser({ email, password }, language);
 
       // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
-      await this.updateUserLastActive(result.user.id, request);
+      await AuthController.updateUserLastActive(result.user.id, request);
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
@@ -102,11 +113,11 @@ class AuthController {
           expiresIn: "24h",
           lastLogin: result.lastLogin,
         },
-        "Connexion réussie"
+        I18nService.getAuthErrorMessage("login_success", language)
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "LOGIN_ERROR");
+      return AuthController.handleClientError(error, reply, "LOGIN_ERROR");
     }
   }
 
@@ -118,8 +129,12 @@ class AuthController {
       const { refreshToken } = request.body;
 
       if (!refreshToken) {
+        const language = I18nService.getRequestLanguage(request);
         return reply.code(400).send({
-          error: "Token de rafraîchissement requis",
+          error: I18nService.getAuthErrorMessage(
+            "refresh_token_required",
+            language
+          ),
           code: "MISSING_REFRESH_TOKEN",
         });
       }
@@ -127,6 +142,7 @@ class AuthController {
       // Call the service to refresh the token
       const result = await AuthService.refreshAccessToken(refreshToken);
 
+      const language = I18nService.getRequestLanguage(request);
       return reply.success(
         {
           user: result.user,
@@ -134,11 +150,15 @@ class AuthController {
           refreshToken: result.refreshToken,
           expiresIn: result.expiresIn,
         },
-        "Token rafraîchi avec succès"
+        I18nService.getAuthErrorMessage("token_refreshed", language)
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "TOKEN_REFRESH_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "TOKEN_REFRESH_ERROR"
+      );
     }
   }
 
@@ -151,19 +171,29 @@ class AuthController {
       const { googleToken } = request.body;
 
       if (!googleToken) {
+        const language = I18nService.getRequestLanguage(request);
         return reply.code(400).send({
-          error: "Token Google requis",
+          error: I18nService.getAuthErrorMessage(
+            "google_token_required",
+            language
+          ),
           code: "MISSING_GOOGLE_TOKEN",
         });
       }
 
       // ✅ FIX 3: Logique métier déplacée dans le service
       // Au lieu de vérifier le token ici, on délègue tout au service
-      const googleUserData = await this.verifyGoogleToken(googleToken);
+      const googleUserData = await AuthController.verifyGoogleToken(
+        googleToken
+      );
 
       if (!googleUserData) {
+        const language = I18nService.getRequestLanguage(request);
         return reply.code(401).send({
-          error: "Token Google invalide",
+          error: I18nService.getAuthErrorMessage(
+            "google_token_invalid",
+            language
+          ),
           code: "INVALID_GOOGLE_TOKEN",
         });
       }
@@ -172,7 +202,7 @@ class AuthController {
       const result = await AuthService.authenticateWithGoogle(googleUserData);
 
       // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
-      await this.updateUserLastActive(result.user.id, request);
+      await AuthController.updateUserLastActive(result.user.id, request);
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
@@ -191,6 +221,26 @@ class AuthController {
         }
       );
 
+      // 🌍 Obtenir le message approprié selon le cas
+      const language = I18nService.getRequestLanguage(request);
+      let message;
+      if (result.isNew) {
+        message = I18nService.getAuthErrorMessage(
+          "google_account_created",
+          language
+        );
+      } else if (result.linkedAccount) {
+        message = I18nService.getAuthErrorMessage(
+          "google_account_linked",
+          language
+        );
+      } else {
+        message = I18nService.getAuthErrorMessage(
+          "google_auth_success",
+          language
+        );
+      }
+
       return reply.success(
         {
           user: result.user,
@@ -200,11 +250,7 @@ class AuthController {
           isNew: result.isNew,
           linkedAccount: result.linkedAccount,
         },
-        result.isNew
-          ? "Compte créé et connecté avec Google"
-          : result.linkedAccount
-            ? "Compte lié à Google avec succès"
-            : "Connexion Google réussie"
+        message
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune

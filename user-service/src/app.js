@@ -46,6 +46,12 @@ import { setLogger as setValidationMiddlewareLogger } from "./middleware/validat
 import { setLogger as setUploadValidationLogger } from "./middleware/uploadValidation.js";
 import { setLogger as setSmtpValidationLogger } from "./middleware/smtpValidation.js"; // 🆕 SMTP Validation
 
+// 🌍 Import du middleware de détection de langue
+import {
+  languageDetectionMiddleware,
+  setLogger as setLanguageDetectionLogger,
+} from "./middleware/languageDetection.js";
+
 // ✨ Import du service Exceptionless centralisé
 import exceptionlessService from "./utils/exceptionless.js";
 
@@ -83,6 +89,7 @@ export async function createApp(fastify, options = {}) {
     setValidationMiddlewareLogger(logger);
     setUploadValidationLogger(logger);
     setSmtpValidationLogger(logger); // 🆕 SMTP Validation
+    setLanguageDetectionLogger(logger); // 🌍 Détection de langue
 
     logger.info("Logger injecté dans tous les modules", {
       modules: [
@@ -99,6 +106,7 @@ export async function createApp(fastify, options = {}) {
         "smtpController", // 🆕
         "smtpService", // 🆕
         "smtpValidation", // 🆕
+        "languageDetection", // 🌍
       ],
     });
 
@@ -248,6 +256,9 @@ export async function createApp(fastify, options = {}) {
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "Accept"],
     });
+
+    // 🌍 Middleware de détection de langue (doit être avant les routes)
+    fastify.addHook('preHandler', languageDetectionMiddleware);
 
     // Limitation du débit des requêtes
     await fastify.register(rateLimit, {

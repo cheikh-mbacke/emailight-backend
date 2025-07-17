@@ -1,205 +1,83 @@
-import { SUPPORTED_LANGUAGES } from "../constants/enums.js";
+// ============================================================================
+// 📁 src/services/i18nService.js - Service d'internationalisation refactorisé
+// ============================================================================
 
-/**
- * Translation dictionaries
- */
-const translations = {
-  [SUPPORTED_LANGUAGES.FR]: {
-    validation: {
-      name: {
-        required: "Le nom est requis",
-        minLength: "Le nom doit contenir au moins {min} caractères",
-        maxLength: "Le nom ne peut pas dépasser {max} caractères",
-      },
-      email: {
-        required: "L'email est requis",
-        invalid: "Format d'email invalide",
-      },
-      password: {
-        required: "Le mot de passe est requis",
-        minLength: "Le mot de passe doit contenir au moins {min} caractères",
-        authProviderRequired:
-          "Le mot de passe est requis pour l'authentification par email",
-      },
-      profilePicture: {
-        invalid: "Format d'URL de photo de profil invalide",
-      },
-    },
-    auth: {
-      accountLocked: "Compte verrouillé temporairement",
-      invalidCredentials: "Identifiants invalides",
-      emailNotVerified: "Email non vérifié",
-      accountNotFound: "Compte introuvable",
-      externalAuth: "Ce compte utilise une authentification externe",
-      passwordError: "Erreur lors de la vérification du mot de passe",
-    },
-    user: {
-      notFound: "Utilisateur introuvable",
-      profileError: "Erreur lors de la récupération du profil",
-      nameEmpty: "Le nom ne peut pas être vide",
-      updateError: "Erreur lors de la mise à jour",
-      deleteError: "Erreur lors de la suppression",
-      avatarError: "Erreur lors de la gestion de l'avatar",
-      noAvatar: "Aucun avatar à supprimer",
-    },
-    emailAccount: {
-      notFound: "Ce compte email n'existe pas ou ne vous appartient pas",
-      disconnectError: "Erreur lors de la déconnexion du compte",
-      healthError: "Erreur lors du test de santé du compte",
-      cleanupError: "Erreur lors du nettoyage des comptes",
-    },
-    success: {
-      nameUpdated: "Nom utilisateur mis à jour",
-      avatarUpdated: "Avatar mis à jour",
-      avatarDeleted: "Avatar supprimé",
-      accountDeleted: "Compte utilisateur supprimé définitivement",
-      emailAccountDisconnected: "Compte email déconnecté",
-      accountsCleaned: "Comptes email inactifs nettoyés",
-    },
-    logs: {
-      nameUpdated: "Nom utilisateur mis à jour",
-      avatarUpdated: "Avatar mis à jour",
-      avatarDeleted: "Avatar supprimé",
-      accountDeleted: "Compte utilisateur supprimé définitivement",
-      emailAccountDisconnected: "Compte email déconnecté",
-      accountsCleaned: "Comptes email inactifs nettoyés",
-      oldAvatarDeleteFailed: "Impossible de supprimer l'ancien avatar",
-      avatarDeleteFailed:
-        "Impossible de supprimer l'avatar lors de la suppression du compte",
-    },
-    health: {
-      tokenExpired: "Token expiré - reconnexion nécessaire",
-      tooManyErrors: "Trop d'erreurs - vérifier la configuration",
-      notUsedRecently: "Compte non utilisé depuis 30 jours",
-    },
-    subscription: {
-      limitReached: "Limite d'envoi quotidienne atteinte",
-      upgradeRequired: "Mise à niveau requise pour plus d'envois",
-    },
+import { SUPPORTED_LANGUAGES } from "../constants/enums.js";
+import {
+  getTranslation,
+  getAllTranslations,
+  hasTranslation,
+} from "../constants/translations.js";
+
+// Logger par défaut avec injection
+let logger = {
+  debug: (msg, data) => {
+    if (typeof console !== "undefined") {
+      console.log(`🌍 [I18N] ${msg}`, data || "");
+    }
   },
-  [SUPPORTED_LANGUAGES.EN]: {
-    validation: {
-      name: {
-        required: "Name is required",
-        minLength: "Name must be at least {min} characters long",
-        maxLength: "Name cannot exceed {max} characters",
-      },
-      email: {
-        required: "Email is required",
-        invalid: "Invalid email format",
-      },
-      password: {
-        required: "Password is required",
-        minLength: "Password must be at least {min} characters long",
-        authProviderRequired: "Password is required for email authentication",
-      },
-      profilePicture: {
-        invalid: "Invalid profile picture URL format",
-      },
-    },
-    auth: {
-      accountLocked: "Account temporarily locked",
-      invalidCredentials: "Invalid credentials",
-      emailNotVerified: "Email not verified",
-      accountNotFound: "Account not found",
-      externalAuth: "This account uses external authentication",
-      passwordError: "Error while verifying password",
-    },
-    user: {
-      notFound: "User not found",
-      profileError: "Error retrieving profile",
-      nameEmpty: "Name cannot be empty",
-      updateError: "Error during update",
-      deleteError: "Error during deletion",
-      avatarError: "Error managing avatar",
-      noAvatar: "No avatar to delete",
-    },
-    emailAccount: {
-      notFound: "This email account does not exist or does not belong to you",
-      disconnectError: "Error disconnecting account",
-      healthError: "Error checking account health",
-      cleanupError: "Error cleaning up accounts",
-    },
-    success: {
-      nameUpdated: "Username updated",
-      avatarUpdated: "Avatar updated",
-      avatarDeleted: "Avatar deleted",
-      accountDeleted: "User account permanently deleted",
-      emailAccountDisconnected: "Email account disconnected",
-      accountsCleaned: "Inactive email accounts cleaned",
-    },
-    logs: {
-      nameUpdated: "Username updated",
-      avatarUpdated: "Avatar updated",
-      avatarDeleted: "Avatar deleted",
-      accountDeleted: "User account permanently deleted",
-      emailAccountDisconnected: "Email account disconnected",
-      accountsCleaned: "Inactive email accounts cleaned",
-      oldAvatarDeleteFailed: "Could not delete old avatar",
-      avatarDeleteFailed: "Could not delete avatar during account deletion",
-    },
-    health: {
-      tokenExpired: "Token expired - reconnection required",
-      tooManyErrors: "Too many errors - check configuration",
-      notUsedRecently: "Account not used for 30 days",
-    },
-    subscription: {
-      limitReached: "Daily sending limit reached",
-      upgradeRequired: "Upgrade required for more sends",
-    },
+  error: (msg, error) => {
+    if (typeof console !== "undefined") {
+      console.error(`❌ [I18N] ${msg}`, error || "");
+    }
   },
 };
 
 /**
- * Internationalization Service
+ * 🌍 Service d'internationalisation centralisé
  */
 class I18nService {
+  /**
+   * ✅ Injection du logger
+   */
+  static setLogger(injectedLogger) {
+    logger = injectedLogger;
+  }
+
+  /**
+   * 🌍 Obtenir un message traduit
+   * @param {string} key - Clé de traduction (ex: "auth.login_success")
+   * @param {string} language - Langue cible
+   * @param {object} params - Paramètres d'interpolation
+   * @returns {string} Message traduit
+   */
   static getMessage(key, language = SUPPORTED_LANGUAGES.FR, params = {}) {
     try {
-      if (!Object.values(SUPPORTED_LANGUAGES).includes(language)) {
+      // Valider la langue
+      if (!this.isLanguageSupported(language)) {
         language = SUPPORTED_LANGUAGES.FR;
+        logger.debug("Langue non supportée, fallback vers FR", {
+          requestedLanguage: language,
+        });
       }
-      const dict = translations[language];
-      if (!dict) {
-        return this.getMessage(key, SUPPORTED_LANGUAGES.FR, params);
+
+      // Obtenir la traduction
+      const translation = getTranslation(key, language, params);
+
+      // Log si la clé n'existe pas
+      if (translation === key) {
+        logger.debug("Clé de traduction non trouvée", { key, language });
       }
-      const keys = key.split(".");
-      let translation = dict;
-      for (const k of keys) {
-        if (translation && typeof translation === "object" && translation[k]) {
-          translation = translation[k];
-        } else {
-          if (language !== SUPPORTED_LANGUAGES.FR) {
-            return this.getMessage(key, SUPPORTED_LANGUAGES.FR, params);
-          }
-          return key;
-        }
-      }
-      if (typeof translation !== "string") {
-        return key;
-      }
-      return this.interpolate(translation, params);
+
+      return translation;
     } catch (error) {
-      // Fallback to key if logger not available
-      if (this.logger) {
-        this.logger.error("I18n error:", error);
-      }
+      logger.error("Erreur lors de la traduction", {
+        key,
+        language,
+        error: error.message,
+      });
       return key;
     }
   }
 
-  static interpolate(translation, params) {
-    if (!params || typeof params !== "object") {
-      return translation;
-    }
-    let result = translation;
-    Object.keys(params).forEach((key) => {
-      const placeholder = `{${key}}`;
-      result = result.replace(new RegExp(placeholder, "g"), params[key]);
-    });
-    return result;
-  }
-
+  /**
+   * ✅ Obtenir un message de validation
+   * @param {string} field - Nom du champ
+   * @param {string} rule - Règle de validation
+   * @param {string} language - Langue cible
+   * @param {object} params - Paramètres d'interpolation
+   * @returns {string} Message de validation traduit
+   */
   static getValidationMessage(
     field,
     rule,
@@ -210,14 +88,127 @@ class I18nService {
     return this.getMessage(key, language, params);
   }
 
+  /**
+   * ✅ Obtenir un message de succès
+   * @param {string} type - Type de succès
+   * @param {string} language - Langue cible
+   * @returns {string} Message de succès traduit
+   */
+  static getSuccessMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `auth.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message d'erreur d'authentification
+   * @param {string} type - Type d'erreur
+   * @param {string} language - Langue cible
+   * @returns {string} Message d'erreur traduit
+   */
+  static getAuthErrorMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `auth.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message utilisateur
+   * @param {string} type - Type de message
+   * @param {string} language - Langue cible
+   * @returns {string} Message utilisateur traduit
+   */
+  static getUserMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `user.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de compte email
+   * @param {string} type - Type de message
+   * @param {string} language - Langue cible
+   * @returns {string} Message de compte email traduit
+   */
+  static getEmailAccountMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `email_account.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de succès
+   * @param {string} type - Type de succès
+   * @param {string} language - Langue cible
+   * @returns {string} Message de succès traduit
+   */
+  static getSuccessMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `success.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de log
+   * @param {string} type - Type de log
+   * @param {string} language - Langue cible
+   * @returns {string} Message de log traduit
+   */
+  static getLogMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `logs.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de santé
+   * @param {string} type - Type de message de santé
+   * @param {string} language - Langue cible
+   * @returns {string} Message de santé traduit
+   */
+  static getHealthMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `health.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de quota
+   * @param {string} type - Type de message de quota
+   * @param {string} language - Langue cible
+   * @returns {string} Message de quota traduit
+   */
+  static getQuotaMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `quota.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * ✅ Obtenir un message de sécurité
+   * @param {string} type - Type de message de sécurité
+   * @param {string} language - Langue cible
+   * @returns {string} Message de sécurité traduit
+   */
+  static getSecurityMessage(type, language = SUPPORTED_LANGUAGES.FR) {
+    const key = `security.${type}`;
+    return this.getMessage(key, language);
+  }
+
+  /**
+   * 🌍 Obtenir les langues supportées
+   * @returns {object} Objet des langues supportées
+   */
   static getAvailableLanguages() {
     return SUPPORTED_LANGUAGES;
   }
 
+  /**
+   * 🌍 Vérifier si une langue est supportée
+   * @param {string} language - Langue à vérifier
+   * @returns {boolean} True si la langue est supportée
+   */
   static isLanguageSupported(language) {
     return Object.values(SUPPORTED_LANGUAGES).includes(language);
   }
 
+  /**
+   * 🌍 Obtenir la langue d'un utilisateur
+   * @param {object} user - Objet utilisateur
+   * @returns {string} Langue de l'utilisateur ou FR par défaut
+   */
   static getUserLanguage(user) {
     if (user && user.preferences && user.preferences.language) {
       return this.isLanguageSupported(user.preferences.language)
@@ -227,13 +218,87 @@ class I18nService {
     return SUPPORTED_LANGUAGES.FR;
   }
 
+  /**
+   * 🌍 Obtenir la langue depuis une requête
+   * @param {object} request - Objet requête Fastify
+   * @returns {string} Langue détectée ou FR par défaut
+   */
+  static getRequestLanguage(request) {
+    return request.language || SUPPORTED_LANGUAGES.FR;
+  }
+
+  /**
+   * ✅ Créer une erreur de validation avec message traduit
+   * @param {string} field - Nom du champ
+   * @param {string} rule - Règle de validation
+   * @param {string} language - Langue cible
+   * @param {object} params - Paramètres d'interpolation
+   * @returns {array} [isError, message] pour compatibilité
+   */
   static createValidationError(
     field,
     rule,
     language = SUPPORTED_LANGUAGES.FR,
     params = {}
   ) {
-    return [true, this.getValidationMessage(field, rule, language, params)];
+    const message = this.getValidationMessage(field, rule, language, params);
+    return [true, message];
+  }
+
+  /**
+   * 🌍 Obtenir toutes les traductions pour une langue
+   * @param {string} language - Langue cible
+   * @returns {object} Toutes les traductions pour la langue
+   */
+  static getAllTranslations(language = SUPPORTED_LANGUAGES.FR) {
+    return getAllTranslations(language);
+  }
+
+  /**
+   * 🌍 Vérifier si une clé de traduction existe
+   * @param {string} key - Clé à vérifier
+   * @param {string} language - Langue cible
+   * @returns {boolean} True si la clé existe
+   */
+  static hasTranslation(key, language = SUPPORTED_LANGUAGES.FR) {
+    return hasTranslation(key, language);
+  }
+
+  /**
+   * 🔧 Obtenir les statistiques de traduction
+   * @returns {object} Statistiques des traductions
+   */
+  static getTranslationStats() {
+    const stats = {};
+
+    Object.values(SUPPORTED_LANGUAGES).forEach((lang) => {
+      const translations = getAllTranslations(lang);
+      stats[lang] = {
+        totalKeys: this.countKeys(translations),
+        categories: Object.keys(translations).length,
+      };
+    });
+
+    return stats;
+  }
+
+  /**
+   * 🔧 Compter le nombre de clés dans un objet de traductions
+   * @param {object} obj - Objet de traductions
+   * @returns {number} Nombre de clés
+   */
+  static countKeys(obj) {
+    let count = 0;
+
+    for (const key in obj) {
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        count += this.countKeys(obj[key]);
+      } else {
+        count++;
+      }
+    }
+
+    return count;
   }
 }
 

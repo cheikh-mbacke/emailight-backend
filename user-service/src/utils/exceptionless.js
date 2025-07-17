@@ -332,63 +332,73 @@ class ExceptionlessService {
    * 📋 Construire une réponse d'erreur standardisée
    */
   _buildErrorResponse(error, reply) {
-    // Gestion des erreurs opérationnelles
+    // Format uniformisé pour toutes les erreurs
+    const statusCode = error.statusCode || 500;
+    const isProduction = this.config?.NODE_ENV === "production";
+
+    // Structure de base uniformisée
+    const errorResponse = {
+      statusCode,
+      success: false,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Gestion des erreurs opérationnelles (erreurs métier)
     if (error.isOperational) {
-      return reply.code(error.statusCode || 500).send({
-        success: false,
-        error: error.message,
-        code: error.code,
-        message: error.userMessage || error.message,
-        timestamp: new Date().toISOString(),
+      return reply.code(statusCode).send({
+        ...errorResponse,
+        code: error.code || "OPERATION_ERROR",
+        error: error.message || "Erreur d'opération",
+        message:
+          error.userMessage || error.message || "Une erreur s'est produite",
       });
     }
 
     // Gestion des erreurs de validation Fastify
     if (error.validation) {
       return reply.code(400).send({
-        success: false,
+        ...errorResponse,
+        statusCode: 400,
+        code: "VALIDATION_ERROR",
         error: "Données invalides",
         message: "Les données fournies ne respectent pas le format attendu",
         details: error.validation,
-        timestamp: new Date().toISOString(),
       });
     }
 
     // Gestion des erreurs JWT
     if (error.code && error.code.startsWith("FST_JWT_")) {
       return reply.code(401).send({
-        success: false,
+        ...errorResponse,
+        statusCode: 401,
+        code: error.code,
         error: "Erreur d'authentification",
         message: "Token invalide ou expiré",
-        code: error.code,
-        timestamp: new Date().toISOString(),
       });
     }
 
     // Gestion des erreurs de taux limite
     if (error.statusCode === 429) {
       return reply.code(429).send({
-        success: false,
+        ...errorResponse,
+        statusCode: 429,
+        code: "RATE_LIMIT_EXCEEDED",
         error: "Trop de requêtes",
         message: "Veuillez patienter avant de refaire une requête",
         retryAfter: error.retryAfter,
-        timestamp: new Date().toISOString(),
       });
     }
 
     // Erreur générique
-    const isProduction = this.config?.NODE_ENV === "production";
-    const statusCode = error.statusCode || 500;
-
     return reply.code(statusCode).send({
-      success: false,
+      ...errorResponse,
+      code: statusCode >= 500 ? "INTERNAL_SERVER_ERROR" : "CLIENT_ERROR",
       error:
         statusCode >= 500 ? "Erreur interne du serveur" : "Erreur de requête",
       message:
         statusCode >= 500
           ? "Une erreur inattendue s'est produite"
           : error.message || "Requête invalide",
-      timestamp: new Date().toISOString(),
       ...(!isProduction &&
         statusCode >= 500 && {
           details: error.message,

@@ -4,7 +4,6 @@ import config from "../config/env.js";
 import preferencesSchema from "./schemas/preferencesSchema.js";
 import securityMetricsSchema from "./schemas/securityMetricsSchema.js";
 import I18nService from "../services/i18nService.js";
-import { getValidationMessage } from "../constants/validationMessages.js";
 import { VALIDATION_RULES } from "../constants/validationRules.js";
 import {
   getEnumValues,
@@ -21,33 +20,48 @@ const userSchema = new mongoose.Schema(
     // Basic info
     name: {
       type: String,
-      required: [true, getValidationMessage("name", "required")],
+      required: [true, I18nService.getValidationMessage("name", "required")],
       trim: true,
       maxlength: [
         VALIDATION_RULES.NAME.MAX_LENGTH,
-        getValidationMessage("name", "maxLength"),
+        I18nService.getValidationMessage(
+          "name",
+          "max_length",
+          SUPPORTED_LANGUAGES.FR,
+          { max: VALIDATION_RULES.NAME.MAX_LENGTH }
+        ),
       ],
       minlength: [
         VALIDATION_RULES.NAME.MIN_LENGTH,
-        getValidationMessage("name", "minLength"),
+        I18nService.getValidationMessage(
+          "name",
+          "min_length",
+          SUPPORTED_LANGUAGES.FR,
+          { min: VALIDATION_RULES.NAME.MIN_LENGTH }
+        ),
       ],
     },
     email: {
       type: String,
-      required: [true, getValidationMessage("email", "required")],
+      required: [true, I18nService.getValidationMessage("email", "required")],
       unique: true,
       lowercase: true,
       trim: true,
       match: [
         VALIDATION_RULES.EMAIL.PATTERN,
-        getValidationMessage("email", "invalid"),
+        I18nService.getValidationMessage("email", "invalid"),
       ],
     },
     password: {
       type: String,
       minlength: [
         VALIDATION_RULES.PASSWORD.MIN_LENGTH,
-        getValidationMessage("password", "minLength"),
+        I18nService.getValidationMessage(
+          "password",
+          "min_length",
+          SUPPORTED_LANGUAGES.FR,
+          { min: VALIDATION_RULES.PASSWORD.MIN_LENGTH }
+        ),
       ],
       select: false, // Do not include in queries by default
       // Password optional for OAuth accounts
@@ -62,7 +76,10 @@ const userSchema = new mongoose.Schema(
           }
           return true;
         },
-        message: getValidationMessage("password", "authProviderRequired"),
+        message: I18nService.getValidationMessage(
+          "password",
+          "auth_provider_required"
+        ),
       },
     },
 
@@ -91,7 +108,7 @@ const userSchema = new mongoose.Schema(
             VALIDATION_RULES.PROFILE_PICTURE.LOCAL_PATTERN.test(url)
           );
         },
-        message: getValidationMessage("profilePicture", "invalid"),
+        message: I18nService.getValidationMessage("profile_picture", "invalid"),
       },
     },
 
