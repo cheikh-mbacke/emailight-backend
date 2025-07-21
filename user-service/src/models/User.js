@@ -361,6 +361,45 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
+/**
+ * Method: Increment failed login attempts
+ */
+userSchema.methods.incLoginAttempts = async function () {
+  try {
+    this.security.failedLoginAttempts =
+      (this.security.failedLoginAttempts || 0) + 1;
+    await this.save();
+    return {
+      failedAttempts: this.security.failedLoginAttempts,
+      incrementedAt: new Date(),
+    };
+  } catch (error) {
+    throw new Error(
+      `Erreur lors de l'incrémentation des tentatives: ${error.message}`
+    );
+  }
+};
+
+/**
+ * Method: Reset failed login attempts
+ */
+userSchema.methods.resetLoginAttempts = async function () {
+  try {
+    const hadFailedAttempts = this.security.failedLoginAttempts > 0;
+    this.security.failedLoginAttempts = 0;
+    await this.save();
+    return {
+      reset: true,
+      hadFailedAttempts,
+      resetAt: new Date(),
+    };
+  } catch (error) {
+    throw new Error(
+      `Erreur lors de la réinitialisation des tentatives: ${error.message}`
+    );
+  }
+};
+
 // Note: Business logic methods have been moved to UserService to avoid circular dependencies
 // Use UserService.methodName(user) instead of user.methodName()
 

@@ -19,6 +19,7 @@ import EmailAccount from "../models/EmailAccount.js";
 import fs from "fs/promises";
 import path from "path";
 import I18nService from "./i18nService.js";
+import SecurityService from "./securityService.js";
 
 // 🌍 Langue par défaut pour les erreurs système
 let defaultLanguage = "FR";
@@ -117,7 +118,7 @@ class AuthService {
       }
 
       // Check if account is locked
-      if (user.isAccountLocked()) {
+      if (SecurityService.isAccountLocked(user)) {
         throw new AuthError(
           I18nService.getMessage("auth.account_locked", language),
           AUTH_ERRORS.ACCOUNT_LOCKED
@@ -259,7 +260,7 @@ class AuthService {
         throw new AuthError("Compte désactivé", AUTH_ERRORS.ACCOUNT_DISABLED);
       }
 
-      if (user.isAccountLocked()) {
+      if (SecurityService.isAccountLocked(user)) {
         throw new AuthError("Compte verrouillé", AUTH_ERRORS.ACCOUNT_LOCKED);
       }
 
@@ -377,7 +378,7 @@ class AuthService {
           );
         }
 
-        if (user.isAccountLocked()) {
+        if (SecurityService.isAccountLocked(user)) {
           throw new AuthError(
             "Compte temporairement verrouillé",
             AUTH_ERRORS.ACCOUNT_LOCKED

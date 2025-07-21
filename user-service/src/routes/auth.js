@@ -64,18 +64,110 @@ async function authRoutes(fastify, options) {
           201: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: {
+                type: "string",
+                enum: ["success"],
+                description: "Response status",
+              },
               data: {
                 type: "object",
                 properties: {
-                  user: { type: "object" },
-                  accessToken: { type: "string" },
-                  refreshToken: { type: "string" },
-                  expiresIn: { type: "string" },
+                  accessToken: {
+                    type: "string",
+                    description: "JWT access token",
+                  },
+                  refreshToken: {
+                    type: "string",
+                    description: "JWT refresh token",
+                  },
+                  expiresIn: {
+                    type: "string",
+                    description: "Token expiration time",
+                  },
                 },
+                required: ["accessToken", "refreshToken", "expiresIn"],
               },
-              message: { type: "string" },
+              message: { type: "string", description: "Success message" },
             },
+            required: ["status", "data", "message"],
+          },
+          400: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "400",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "VALIDATION_ERROR",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Email is required",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
+          },
+          409: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "409",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "EMAIL_ALREADY_EXISTS",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Email already exists",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
+          },
+          500: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "500",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "SYSTEM_ERROR",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Internal server error",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
           },
         },
       },
@@ -114,19 +206,136 @@ async function authRoutes(fastify, options) {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: {
+                type: "string",
+                enum: ["success"],
+                description: "Response status",
+              },
               data: {
                 type: "object",
                 properties: {
-                  user: { type: "object" },
-                  accessToken: { type: "string" },
-                  refreshToken: { type: "string" },
-                  expiresIn: { type: "string" },
-                  lastLogin: { type: "string", format: "date-time" },
+                  accessToken: {
+                    type: "string",
+                    description: "JWT access token",
+                  },
+                  refreshToken: {
+                    type: "string",
+                    description: "JWT refresh token",
+                  },
+                  expiresIn: {
+                    type: "string",
+                    description: "Token expiration time",
+                  },
                 },
+                required: ["accessToken", "refreshToken", "expiresIn"],
               },
-              message: { type: "string" },
+              message: { type: "string", description: "Success message" },
             },
+            required: ["status", "data", "message"],
+          },
+          400: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "400",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "VALIDATION_ERROR",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Email is required",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
+          },
+          401: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "401",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "INVALID_CREDENTIALS",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Invalid email or password",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
+          },
+          429: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "429",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "RATE_LIMIT_EXCEEDED",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Too many login attempts",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
+          },
+          500: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["failed"],
+                description: "Response status",
+              },
+              errorCode: {
+                type: "string",
+                description: "HTTP status code",
+                example: "500",
+              },
+              errorName: {
+                type: "string",
+                description: "Error name/type",
+                example: "SYSTEM_ERROR",
+              },
+              errorMessage: {
+                type: "string",
+                description: "Error message",
+                example: "Internal server error",
+              },
+            },
+            required: ["status", "errorCode", "errorName", "errorMessage"],
           },
         },
       },

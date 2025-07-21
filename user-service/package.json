@@ -18,7 +18,9 @@
     "dev": "nodemon src/index.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test:auth": "node scripts/auth-testing.js",
+    "test:auth:clean": "node scripts/cleanup-test-data.js && node scripts/auth-testing.js"
   },
   "dependencies": {
     "@exceptionless/node": "^3.1.0",
@@ -42,7 +44,6 @@
     "nodemailer": "^7.0.5"
   },
   "devDependencies": {
-    "axios": "^1.10.0",
     "eslint": "^8.57.0",
     "nodemon": "^3.1.10"
   },

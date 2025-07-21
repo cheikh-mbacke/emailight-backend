@@ -62,26 +62,43 @@ class AuthController {
       const language = I18nService.getRequestLanguage(request);
 
       // Call the service
-      const result = await AuthService.registerUser({ name, email, password }, language);
+      const result = await AuthService.registerUser(
+        { name, email, password },
+        language
+      );
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
 
-      return reply.code(201).success(
-        {
+      return reply.code(201).send({
+        status: "success",
+        data: {
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: "24h",
         },
-        I18nService.getAuthErrorMessage("account_created", language)
-      );
+        message: I18nService.getAuthErrorMessage("account_created", language),
+      });
     } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(
-        error,
-        reply,
-        "REGISTRATION_ERROR"
-      );
+      // Format d'erreur personnalisé
+      if (error.isOperational) {
+        const statusCode = error.statusCode || 400;
+        return reply.code(statusCode).send({
+          status: "failed",
+          errorCode: statusCode.toString(),
+          errorName: error.code || "REGISTRATION_ERROR",
+          errorMessage: error.message,
+        });
+      }
+
+      // Erreur système
+      return reply.code(500).send({
+        status: "failed",
+        errorCode: "INTERNAL_ERROR",
+        errorName: "SystemError",
+        errorMessage:
+          "Une erreur inattendue s'est produite lors de l'inscription",
+      });
     }
   }
 
@@ -97,7 +114,10 @@ class AuthController {
       const language = I18nService.getRequestLanguage(request);
 
       // Call the authentication service
-      const result = await AuthService.authenticateUser({ email, password }, language);
+      const result = await AuthService.authenticateUser(
+        { email, password },
+        language
+      );
 
       // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
       await AuthController.updateUserLastActive(result.user.id, request);
@@ -105,19 +125,35 @@ class AuthController {
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);
 
-      return reply.success(
-        {
-          user: result.user,
+      return reply.send({
+        status: "success",
+        data: {
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: "24h",
-          lastLogin: result.lastLogin,
         },
-        I18nService.getAuthErrorMessage("login_success", language)
-      );
+        message: I18nService.getAuthErrorMessage("login_success", language),
+      });
     } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(error, reply, "LOGIN_ERROR");
+      // Format d'erreur personnalisé
+      if (error.isOperational) {
+        const statusCode = error.statusCode || 400;
+        return reply.code(statusCode).send({
+          status: "failed",
+          errorCode: statusCode.toString(),
+          errorName: error.code || "LOGIN_ERROR",
+          errorMessage: error.message,
+        });
+      }
+
+      // Erreur système
+      return reply.code(500).send({
+        status: "failed",
+        errorCode: "INTERNAL_ERROR",
+        errorName: "SystemError",
+        errorMessage:
+          "Une erreur inattendue s'est produite lors de la connexion",
+      });
     }
   }
 

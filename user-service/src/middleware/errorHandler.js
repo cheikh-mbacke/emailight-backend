@@ -37,10 +37,10 @@ export const createErrorHandler = (logger) => {
 
       // Réponse de fallback
       return reply.code(500).send({
-        error: "Erreur interne du serveur",
-        code: "INTERNAL_ERROR",
-        statusCode: 500,
-        timestamp: new Date().toISOString(),
+        status: "failed",
+        errorCode: "500",
+        errorName: "INTERNAL_ERROR",
+        errorMessage: "Erreur interne du serveur",
       });
     }
   };
@@ -56,13 +56,13 @@ async function buildErrorResponse(error, request, context) {
   // Erreurs opérationnelles (métier)
   if (error.isOperational) {
     return {
-      error: error.message,
-      code: error.code || "OPERATIONAL_ERROR",
-      statusCode: error.statusCode || 400,
-      details: error.details || null,
-      timestamp: new Date().toISOString(),
+      status: "failed",
+      errorCode: (error.statusCode || 400).toString(),
+      errorName: error.code || "OPERATIONAL_ERROR",
+      errorMessage: error.message,
       // Ajouter des détails en développement
       ...(process.env.NODE_ENV === "development" && {
+        details: error.details || null,
         stack: error.stack,
         context,
       }),
@@ -72,30 +72,32 @@ async function buildErrorResponse(error, request, context) {
   // Erreurs de validation Joi
   if (error.validation) {
     return {
-      error: "Données invalides",
-      code: "VALIDATION_ERROR",
-      statusCode: 400,
-      details: error.validation,
-      timestamp: new Date().toISOString(),
+      status: "failed",
+      errorCode: "400",
+      errorName: "VALIDATION_ERROR",
+      errorMessage: "Données invalides",
+      ...(process.env.NODE_ENV === "development" && {
+        details: error.validation,
+      }),
     };
   }
 
   // Erreurs JWT
   if (error.code && error.code.startsWith("FST_JWT_")) {
     return {
-      error: "Token d'authentification invalide",
-      code: "INVALID_TOKEN",
-      statusCode: 401,
-      timestamp: new Date().toISOString(),
+      status: "failed",
+      errorCode: "401",
+      errorName: "INVALID_TOKEN",
+      errorMessage: "Token d'authentification invalide",
     };
   }
 
   // Erreurs système (non opérationnelles)
   return {
-    error: "Erreur interne du serveur",
-    code: "SYSTEM_ERROR",
-    statusCode: 500,
-    timestamp: new Date().toISOString(),
+    status: "failed",
+    errorCode: "500",
+    errorName: "SYSTEM_ERROR",
+    errorMessage: "Erreur interne du serveur",
     // En développement, exposer plus de détails
     ...(process.env.NODE_ENV === "development" && {
       originalError: error.message,
@@ -158,11 +160,13 @@ export const handleControllerError = (error, request, reply, logger) => {
   // Si c'est une erreur opérationnelle, la gérer directement
   if (error.isOperational) {
     return reply.code(error.statusCode || 400).send({
-      error: error.message,
-      code: error.code,
-      statusCode: error.statusCode || 400,
-      details: error.details || null,
-      timestamp: new Date().toISOString(),
+      status: "failed",
+      errorCode: (error.statusCode || 400).toString(),
+      errorName: error.code,
+      errorMessage: error.message,
+      ...(process.env.NODE_ENV === "development" && {
+        details: error.details || null,
+      }),
     });
   }
 
@@ -174,9 +178,9 @@ export const handleControllerError = (error, request, reply, logger) => {
   });
 
   return reply.code(500).send({
-    error: "Erreur interne du serveur",
-    code: "SYSTEM_ERROR",
-    statusCode: 500,
-    timestamp: new Date().toISOString(),
+    status: "failed",
+    errorCode: "500",
+    errorName: "SYSTEM_ERROR",
+    errorMessage: "Erreur interne du serveur",
   });
 };

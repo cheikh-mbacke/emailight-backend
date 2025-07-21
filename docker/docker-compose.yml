@@ -56,8 +56,6 @@ services:
       retries: 5
       start_period: 120s
 
-
-
   # ================================
   # ADMIN INTERFACES
   # ================================
@@ -113,67 +111,77 @@ services:
       USER_SERVICE_PORT: 3001
       # 🔥 CORRIGÉ: 0.0.0.0 pour écouter sur toutes les interfaces
       HOST: 0.0.0.0
-      
+
       # MongoDB
       MONGODB_URI: mongodb://${MONGO_APP_USERNAME}:${MONGO_APP_PASSWORD}@mongodb:27017/${MONGO_DATABASE}
-      
+
       # JWT & Security
       JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      
+
       # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
-      
+
       # Gmail OAuth
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
       GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
       GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI:-http://localhost:3000/auth/gmail/callback}
-      
+
       # Rate Limiting
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
-      
+
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      
+
       # Logging
       ENABLE_LOGGING: ${ENABLE_LOGGING:-true}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       VERBOSE_LOGS: ${VERBOSE_LOGS:-true}
-      
+
       # Exceptionless
       USER_SERVICE_EXCEPTIONLESS_API_KEY: ${USER_SERVICE_EXCEPTIONLESS_API_KEY:-}
       USER_SERVICE_EXCEPTIONLESS_SERVER_URL: ${USER_SERVICE_EXCEPTIONLESS_SERVER_URL:-http://exceptionless:8080}
-      
+
       # Localisation
       LOCALE: ${LOCALE:-fr-FR}
       TIMEZONE: ${TIMEZONE:-Europe/Paris}
-      
+
       # 🆕 CORS Configuration (pour résoudre le problème CORS)
       ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001"
-    
+
     depends_on:
       - mongodb
       - redis
       - exceptionless
-    
+
     volumes:
       # Hot reload en développement
       - ../user-service/src:/usr/src/app/src:ro
+      # Scripts de test synchronisés
+      - ../user-service/scripts:/usr/src/app/scripts:ro
+      # Configuration et package.json
+      - ../user-service/package.json:/usr/src/app/package.json:ro
       # Logs persistants
       - user_service_logs:/usr/src/app/logs
       - ../user-service/uploads:/usr/src/app/uploads
-    
+
     networks:
       - emailight-network
-    
+
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

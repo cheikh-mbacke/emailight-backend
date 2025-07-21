@@ -84,7 +84,36 @@ class ExceptionlessService {
     }
 
     try {
-      const event = Exceptionless.createException(error);
+      // 🔧 Créer un objet d'erreur propre pour Exceptionless
+      let cleanError = error;
+
+      // Si c'est un SystemError avec originalError, extraire les infos importantes
+      if (error.originalError) {
+        cleanError = new Error(error.message);
+        cleanError.name = error.name || "SystemError";
+        cleanError.statusCode = error.statusCode;
+        cleanError.code = error.code;
+        cleanError.stack = error.stack;
+
+        // Ajouter l'erreur originale dans le contexte plutôt que dans l'erreur elle-même
+        if (context.data) {
+          context.data.originalError = {
+            message: error.originalError?.message,
+            name: error.originalError?.name,
+            stack: error.originalError?.stack,
+          };
+        } else {
+          context.data = {
+            originalError: {
+              message: error.originalError?.message,
+              name: error.originalError?.name,
+              stack: error.originalError?.stack,
+            },
+          };
+        }
+      }
+
+      const event = Exceptionless.createException(cleanError);
 
       // Ajouter le contexte de la requête si disponible
       if (context.request) {
@@ -124,11 +153,75 @@ class ExceptionlessService {
         });
       }
     } catch (submitError) {
-      if (this.logger) {
-        this.logger.error(
-          "Erreur lors de l'envoi à Exceptionless",
-          submitError
-        );
+      // 🔄 Fallback : essayer d'envoyer comme un log si l'exception échoue
+      try {
+        const logMessage = `${error.name || "Error"}: ${error.message}`;
+        const logLevel = error.statusCode >= 500 ? "Error" : "Warn";
+
+        const logEvent = Exceptionless.createLog(logMessage, logLevel);
+
+        // Ajouter les informations de base
+        if (context.request) {
+          logEvent.setProperty("request", {
+            method: context.request.method,
+            url: context.request.url,
+            ip: context.request.ip,
+          });
+        }
+
+        if (context.userId) {
+          logEvent.setUserIdentity(context.userId);
+        }
+
+        if (context.action) {
+          logEvent.setProperty("action", context.action);
+        }
+
+        // Ajouter les détails de l'erreur
+        logEvent.setProperty("errorDetails", {
+          name: error.name,
+          message: error.message,
+          statusCode: error.statusCode,
+          code: error.code,
+          originalError: error.originalError
+            ? {
+                message: error.originalError.message,
+                name: error.originalError.name,
+              }
+            : null,
+        });
+
+        if (context.tags && Array.isArray(context.tags)) {
+          context.tags.forEach((tag) => logEvent.addTags(tag));
+        }
+
+        // Ajouter un tag pour indiquer que c'est un fallback
+        logEvent.addTags("fallback-log", "exception-failed");
+
+        await logEvent.submit();
+
+        if (this.logger) {
+          this.logger.info("Erreur envoyée à Exceptionless via fallback log", {
+            errorMessage: error.message,
+            action: context.action,
+            fallbackReason: submitError.message,
+          });
+        }
+      } catch (fallbackError) {
+        // Si même le fallback échoue, seulement logger localement
+        if (this.logger) {
+          this.logger.error(
+            "Erreur lors de l'envoi à Exceptionless (exception et fallback échoués)",
+            submitError,
+            {
+              originalErrorMessage: error?.message,
+              originalErrorName: error?.name,
+              submitErrorMessage: submitError?.message,
+              fallbackErrorMessage: fallbackError?.message,
+              context: context?.action,
+            }
+          );
+        }
       }
     }
   }

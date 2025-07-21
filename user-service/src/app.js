@@ -161,7 +161,8 @@ export async function createApp(fastify, options = {}) {
     // ============================================================================
 
     // Démarrer le scheduler de refresh des tokens si au moins un service OAuth est disponible
-    if (gmailOAuthInitialized) {
+    // ET si ce n'est pas désactivé explicitement (par exemple en mode test)
+    if (gmailOAuthInitialized && !process.env.DISABLE_TOKEN_REFRESH_SCHEDULER) {
       const refreshStarted = TokenRefreshService.startRefreshScheduler(
         appConfig.TOKEN_REFRESH_INTERVAL_MINUTES || 60
       );
@@ -176,9 +177,10 @@ export async function createApp(fastify, options = {}) {
         logger.warn("Impossible de démarrer le service de refresh des tokens");
       }
     } else {
-      logger.info(
-        "Service de refresh des tokens non démarré - Aucun service OAuth configuré"
-      );
+      const reason = process.env.DISABLE_TOKEN_REFRESH_SCHEDULER
+        ? "Service désactivé par DISABLE_TOKEN_REFRESH_SCHEDULER"
+        : "Aucun service OAuth configuré";
+      logger.info(`Service de refresh des tokens non démarré - ${reason}`);
     }
 
     // ============================================================================
@@ -258,7 +260,7 @@ export async function createApp(fastify, options = {}) {
     });
 
     // 🌍 Middleware de détection de langue (doit être avant les routes)
-    fastify.addHook('preHandler', languageDetectionMiddleware);
+    fastify.addHook("preHandler", languageDetectionMiddleware);
 
     // Limitation du débit des requêtes
     await fastify.register(rateLimit, {
@@ -537,6 +539,8 @@ export async function createApp(fastify, options = {}) {
         : "❌ Désactivé",
       errorHandling: "✅ Centralisé",
     });
+
+    return fastify;
   } catch (error) {
     logger.error("Erreur lors de la configuration de l'application", error);
 

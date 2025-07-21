@@ -63,10 +63,10 @@ const createValidationMiddleware = (schema, target = "body") => {
         const specificMessage = firstError.message;
 
         return reply.code(400).send({
-          statusCode: 400,
-          code: "VALIDATION_ERROR",
-          error: "ValidationError",
-          message: specificMessage,
+          status: "failed",
+          errorCode: "400",
+          errorName: "VALIDATION_ERROR",
+          errorMessage: specificMessage,
         });
       }
 
@@ -79,9 +79,10 @@ const createValidationMiddleware = (schema, target = "body") => {
         target,
       });
       return reply.code(500).send({
-        success: false,
-        error: "Erreur interne de validation",
-        code: "VALIDATION_INTERNAL_ERROR",
+        status: "failed",
+        errorCode: "500",
+        errorName: "VALIDATION_INTERNAL_ERROR",
+        errorMessage: "Erreur interne de validation",
       });
     }
   };
