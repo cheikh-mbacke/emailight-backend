@@ -42,8 +42,9 @@ export const authenticateToken = async (request, reply) => {
     // 🆕 Vérifier si le token est dans la blacklist
     const token = request.headers.authorization?.replace("Bearer ", "");
     if (token) {
-      const isBlacklisted =
-        await TokenBlacklistService.isTokenBlacklisted(token);
+      const isBlacklisted = await TokenBlacklistService.isTokenBlacklisted(
+        token
+      );
       if (isBlacklisted) {
         logger.warn(
           "Tentative d'utilisation d'un token blacklisté",
@@ -100,7 +101,7 @@ export const authenticateToken = async (request, reply) => {
     }
 
     // Check if the account is locked
-    if (user.isAccountLocked()) {
+    if (user.security.isAccountLocked()) {
       logger.warn(
         "Tentative d'accès avec compte verrouillé",
         { userId, email: user.email },
@@ -121,8 +122,9 @@ export const authenticateToken = async (request, reply) => {
     // Attach the full user object to the request
     request.user = user;
 
-    // Update last active time and session info
-    await user.updateLastActive(request.ip, request.headers["user-agent"]);
+    // Update last active time
+    user.lastActiveAt = new Date();
+    await user.save();
 
     // Log successful authentication
     logger.auth(
@@ -248,9 +250,10 @@ export const optionalAuth = async (request, reply) => {
 
     if (userId) {
       const user = await User.findById(userId);
-      if (user && user.isActive && !user.isAccountLocked()) {
+      if (user && user.isActive && !user.security.isAccountLocked()) {
         request.user = user;
-        await user.updateLastActive(request.ip, request.headers["user-agent"]);
+        user.lastActiveAt = new Date();
+        await user.save();
 
         logger.auth(
           "Authentification optionnelle réussie",
@@ -402,7 +405,9 @@ export const checkEmailLimits = async (request, reply) => {
 
     return reply.code(429).send({
       error: "Email limit reached",
-      message: `You have reached your daily limit of ${limits[request.user.subscriptionStatus]} emails`,
+      message: `You have reached your daily limit of ${
+        limits[request.user.subscriptionStatus]
+      } emails`,
       dailyLimit: limits[request.user.subscriptionStatus],
       emailsSentToday: request.user.security.emailsSentToday,
       subscriptionStatus: request.user.subscriptionStatus,

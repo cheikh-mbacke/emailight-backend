@@ -83,7 +83,8 @@ class GoogleAuthService {
 
       // Update user activity
       const user = await User.findById(result.user.id);
-      await user.updateLastActive(request.ip, request.headers["user-agent"]);
+      user.lastActiveAt = new Date();
+      await user.save();
 
       // Generate tokens
       const tokens = AuthService.generateTokens(result.user.id);

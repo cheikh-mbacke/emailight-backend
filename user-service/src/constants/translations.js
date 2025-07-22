@@ -28,6 +28,7 @@ export const TRANSLATIONS = {
       token_required: "Token requis",
       refresh_token_required: "Token de rafraîchissement requis",
       refresh_token_invalid: "Token de rafraîchissement invalide",
+      refresh_token_expired: "Token de rafraîchissement expiré",
       google_token_required: "Token Google requis",
       google_token_invalid: "Token Google invalide",
 
@@ -90,6 +91,10 @@ export const TRANSLATIONS = {
       current_password: {
         required: "Le mot de passe actuel est requis",
         invalid: "Le mot de passe actuel est incorrect",
+      },
+      refresh_token: {
+        required: "Le token de rafraîchissement est requis",
+        invalid: "Format du token de rafraîchissement invalide",
       },
       profile_picture: {
         invalid: "Format d'URL de photo de profil invalide",
@@ -230,6 +235,7 @@ export const TRANSLATIONS = {
       token_required: "Token required",
       refresh_token_required: "Refresh token required",
       refresh_token_invalid: "Invalid refresh token",
+      refresh_token_expired: "Refresh token expired",
       google_token_required: "Google token required",
       google_token_invalid: "Invalid Google token",
 
@@ -289,6 +295,10 @@ export const TRANSLATIONS = {
       current_password: {
         required: "Current password is required",
         invalid: "Current password is incorrect",
+      },
+      refresh_token: {
+        required: "Refresh token is required",
+        invalid: "Invalid refresh token format",
       },
       profile_picture: {
         invalid: "Invalid profile picture URL format",

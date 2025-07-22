@@ -2,6 +2,7 @@
 
 // ============================================================================
 // 📁 scripts/auth-testing.js - Script d'automatisation des tests d'authentification
+// 🧪 Tests automatisés : 44+ tests (18 register + 16 login + 10+ refresh-token)
 // ============================================================================
 
 import http from "http";
@@ -172,6 +173,43 @@ class AuthTester {
   }
 
   /**
+   * ✅ Valide une réponse de succès pour refresh-token
+   */
+  validateRefreshTokenSuccessResponse(response, expectedMessage, lang = "FR") {
+    const { statusCode, body } = response;
+
+    if (statusCode !== 200) {
+      throw new Error(`Expected status 200, got ${statusCode}`);
+    }
+
+    if (!body || body.status !== "success") {
+      throw new Error(`Expected status 'success', got '${body?.status}'`);
+    }
+
+    if (!body.data || !body.data.accessToken) {
+      throw new Error("Missing required accessToken in response");
+    }
+
+    if (!body.data.expiresIn || body.data.expiresIn !== "24h") {
+      throw new Error(`Expected expiresIn '24h', got '${body.data.expiresIn}'`);
+    }
+
+    // Vérifier le message de succès traduit
+    const expectedMessages = {
+      FR: "Token rafraîchi avec succès",
+      EN: "Token refreshed successfully",
+    };
+
+    if (body.message !== expectedMessages[lang]) {
+      throw new Error(
+        `Expected message '${expectedMessages[lang]}', got '${body.message}'`
+      );
+    }
+
+    return true;
+  }
+
+  /**
    * ❌ Valide une réponse d'erreur
    */
   validateErrorResponse(
@@ -234,10 +272,22 @@ class AuthTester {
           FR: "Le mot de passe est requis",
           EN: "Password is required",
         },
+        refresh_token_required: {
+          FR: "Le token de rafraîchissement est requis",
+          EN: "Refresh token is required",
+        },
+        refresh_token_invalid: {
+          FR: "Format du token de rafraîchissement invalide",
+          EN: "Invalid refresh token format",
+        },
       },
       INVALID_CREDENTIALS: {
         FR: "Identifiants invalides",
         EN: "Invalid credentials",
+      },
+      TOKEN_EXPIRED: {
+        FR: "Token de rafraîchissement expiré",
+        EN: "Refresh token expired",
       },
     };
 
@@ -1006,6 +1056,254 @@ class AuthTester {
   }
 
   /**
+   * 🔄 Tests de rafraîchissement de token (Refresh Token)
+   */
+  async testRefreshToken() {
+    log.section("Tests POST /api/v1/auth/refresh-token");
+
+    // Créer un utilisateur de test et récupérer ses tokens
+    let testTokens = null;
+    const testEmail = `refresh-test-${randomBytes(4).toString(
+      "hex"
+    )}@emailight.com`;
+
+    try {
+      // Créer un utilisateur de test
+      const registerResponse = await makeRequest("POST", "/auth/register", {
+        name: "Test Refresh User",
+        email: testEmail,
+        password: "TestPassword123",
+      });
+
+      if (registerResponse.statusCode !== 201) {
+        throw new Error("Impossible de créer l'utilisateur de test");
+      }
+
+      testTokens = {
+        refreshToken: registerResponse.body.data.refreshToken,
+        accessToken: registerResponse.body.data.accessToken,
+      };
+    } catch (error) {
+      log.error(
+        `Erreur lors de la création de l'utilisateur de test: ${error.message}`
+      );
+      return;
+    }
+
+    // ✅ Succès - Token valide (FR)
+    await this.runTest("Refresh Token - Succès valide (FR)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {
+          refreshToken: testTokens.refreshToken,
+        },
+        { "Accept-Language": "fr-FR" }
+      );
+
+      this.validateRefreshTokenSuccessResponse(
+        response,
+        "token_refreshed",
+        "FR"
+      );
+    });
+
+    // ✅ Succès - Token valide (EN)
+    await this.runTest("Refresh Token - Succès valide (EN)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {
+          refreshToken: testTokens.refreshToken,
+        },
+        { "Accept-Language": "en-US" }
+      );
+
+      this.validateRefreshTokenSuccessResponse(
+        response,
+        "token_refreshed",
+        "EN"
+      );
+    });
+
+    // ❌ Token manquant (FR)
+    await this.runTest("Refresh Token - Token manquant (FR)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {},
+        { "Accept-Language": "fr-FR" }
+      );
+
+      this.validateErrorResponse(
+        response,
+        400,
+        "VALIDATION_ERROR",
+        "refresh_token_required",
+        "FR"
+      );
+    });
+
+    // ❌ Token manquant (EN)
+    await this.runTest("Refresh Token - Token manquant (EN)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {},
+        { "Accept-Language": "en-US" }
+      );
+
+      this.validateErrorResponse(
+        response,
+        400,
+        "VALIDATION_ERROR",
+        "refresh_token_required",
+        "EN"
+      );
+    });
+
+    // ❌ Token vide (FR)
+    await this.runTest("Refresh Token - Token vide (FR)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {
+          refreshToken: "",
+        },
+        { "Accept-Language": "fr-FR" }
+      );
+
+      this.validateErrorResponse(
+        response,
+        400,
+        "VALIDATION_ERROR",
+        "refresh_token_required",
+        "FR"
+      );
+    });
+
+    // ❌ Token vide (EN)
+    await this.runTest("Refresh Token - Token vide (EN)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/refresh-token",
+        {
+          refreshToken: "",
+        },
+        { "Accept-Language": "en-US" }
+      );
+
+      this.validateErrorResponse(
+        response,
+        400,
+        "VALIDATION_ERROR",
+        "refresh_token_required",
+        "EN"
+      );
+    });
+
+    // ❌ Token invalide/malformé (FR)
+    await this.runTest(
+      "Refresh Token - Token invalide/malformé (FR)",
+      async () => {
+        const response = await makeRequest(
+          "POST",
+          "/auth/refresh-token",
+          {
+            refreshToken: "abc",
+          },
+          { "Accept-Language": "fr-FR" }
+        );
+
+        this.validateErrorResponse(
+          response,
+          400,
+          "VALIDATION_ERROR",
+          "refresh_token_invalid",
+          "FR"
+        );
+      }
+    );
+
+    // ❌ Token invalide/malformé (EN)
+    await this.runTest(
+      "Refresh Token - Token invalide/malformé (EN)",
+      async () => {
+        const response = await makeRequest(
+          "POST",
+          "/auth/refresh-token",
+          {
+            refreshToken: "abc",
+          },
+          { "Accept-Language": "en-US" }
+        );
+
+        this.validateErrorResponse(
+          response,
+          400,
+          "VALIDATION_ERROR",
+          "refresh_token_invalid",
+          "EN"
+        );
+      }
+    );
+
+    // ❌ Token expiré - Générer un token expiré avec l'endpoint de test
+    let expiredToken = null;
+    try {
+      const testTokenResponse = await makeRequest(
+        "POST",
+        "/auth/test/generate-tokens",
+        {
+          refreshTokenExpiresIn: "1s",
+        },
+        {
+          "Accept-Language": "fr-FR",
+          Authorization: `Bearer ${testTokens.accessToken}`,
+        }
+      );
+
+      if (testTokenResponse.statusCode === 200) {
+        expiredToken = testTokenResponse.body.data.refreshToken;
+        // Attendre que le token expire
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    } catch (error) {
+      log.warning("Impossible de générer un token expiré - test ignoré");
+    }
+
+    if (expiredToken) {
+      // ❌ Token expiré (FR)
+      await this.runTest("Refresh Token - Token expiré (FR)", async () => {
+        const response = await makeRequest(
+          "POST",
+          "/auth/refresh-token",
+          {
+            refreshToken: expiredToken,
+          },
+          { "Accept-Language": "fr-FR" }
+        );
+
+        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "FR");
+      });
+
+      // ❌ Token expiré (EN)
+      await this.runTest("Refresh Token - Token expiré (EN)", async () => {
+        const response = await makeRequest(
+          "POST",
+          "/auth/refresh-token",
+          {
+            refreshToken: expiredToken,
+          },
+          { "Accept-Language": "en-US" }
+        );
+
+        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "EN");
+      });
+    }
+  }
+
+  /**
    * 📊 Affiche les résultats finaux
    */
   showResults() {
@@ -1071,6 +1369,7 @@ class AuthTester {
 
       await this.testRegister();
       await this.testLogin();
+      await this.testRefreshToken();
 
       this.showResults();
 

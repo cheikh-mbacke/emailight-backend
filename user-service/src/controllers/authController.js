@@ -2,6 +2,8 @@ import AuthService from "../services/authService.js";
 import User from "../models/User.js";
 import TokenBlacklistService from "../services/tokenBlacklistService.js";
 import I18nService from "../services/i18nService.js";
+import jwt from "jsonwebtoken";
+import config from "../config/env.js";
 
 /**
  * 🔐 Authentication controller
@@ -20,10 +22,10 @@ class AuthController {
   static handleClientError(error, reply, defaultCode = "OPERATION_ERROR") {
     if (error.statusCode && error.statusCode < 500 && error.isOperational) {
       return reply.code(error.statusCode).send({
-        statusCode: error.statusCode,
-        code: error.code || defaultCode,
-        error: error.name || "ClientError",
-        message: error.message,
+        status: "failed",
+        errorCode: String(error.statusCode),
+        errorName: error.code || defaultCode,
+        errorMessage: error.message,
       });
     }
     // Les erreurs 5xx sont automatiquement gérées par le gestionnaire centralisé
@@ -37,10 +39,8 @@ class AuthController {
     try {
       const userInstance = await User.findById(userId);
       if (userInstance) {
-        await userInstance.updateLastActive(
-          request.ip,
-          request.headers["user-agent"]
-        );
+        userInstance.lastActiveAt = new Date();
+        await userInstance.save();
       }
     } catch (error) {
       // Log mais ne pas faire échouer l'authentification pour ça
@@ -167,27 +167,27 @@ class AuthController {
       if (!refreshToken) {
         const language = I18nService.getRequestLanguage(request);
         return reply.code(400).send({
-          error: I18nService.getAuthErrorMessage(
+          status: "failed",
+          errorCode: "400",
+          errorName: "MISSING_REFRESH_TOKEN",
+          errorMessage: I18nService.getAuthErrorMessage(
             "refresh_token_required",
             language
           ),
-          code: "MISSING_REFRESH_TOKEN",
         });
       }
 
       // Call the service to refresh the token
-      const result = await AuthService.refreshAccessToken(refreshToken);
-
       const language = I18nService.getRequestLanguage(request);
-      return reply.success(
-        {
-          user: result.user,
+      const result = await AuthService.refreshAccessToken(refreshToken, language);
+      return reply.send({
+        status: "success",
+        data: {
           accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
           expiresIn: result.expiresIn,
         },
-        I18nService.getAuthErrorMessage("token_refreshed", language)
-      );
+        message: I18nService.getAuthErrorMessage("token_refreshed", language),
+      });
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
       return AuthController.handleClientError(
@@ -195,6 +195,60 @@ class AuthController {
         reply,
         "TOKEN_REFRESH_ERROR"
       );
+    }
+  }
+
+  /**
+   * 🧪 Generate test refresh token with custom expiration (DEV ONLY)
+   */
+  static async generateTestTokens(request, reply) {
+    try {
+      // Vérifier qu'on est en développement
+      if (process.env.NODE_ENV !== "development") {
+        return reply.code(403).send({
+          status: "failed",
+          errorCode: "403",
+          errorName: "FORBIDDEN",
+          errorMessage:
+            "Endpoint de test disponible uniquement en développement",
+        });
+      }
+
+      // Récupérer l'userId depuis le token d'authentification
+      const userId = request.user._id;
+      const { refreshTokenExpiresIn = "7d" } = request.body;
+
+      // Générer le refresh token avec expiration personnalisée
+      const refreshToken = jwt.sign(
+        { userId, type: "refresh" },
+        config.JWT_SECRET,
+        { expiresIn: refreshTokenExpiresIn }
+      );
+
+      request.log.info("Token de test généré", {
+        userId: userId.toString(),
+        refreshTokenExpiresIn,
+        userEmail: request.user.email,
+      });
+
+      return reply.send({
+        status: "success",
+        data: {
+          refreshToken,
+          refreshTokenExpiresIn,
+          generatedAt: new Date().toISOString(),
+        },
+        message: `Token de test généré pour ${request.user.name}`,
+      });
+    } catch (error) {
+      request.log.error("Erreur génération token de test", error);
+
+      return reply.code(500).send({
+        status: "failed",
+        errorCode: "500",
+        errorName: "SYSTEM_ERROR",
+        errorMessage: "Erreur lors de la génération du token de test",
+      });
     }
   }
 

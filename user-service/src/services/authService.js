@@ -226,11 +226,11 @@ class AuthService {
    * 🔄 Refresh access token using refresh token
    * ✅ CORRIGÉ: Gestion d'erreurs JWT plus précise
    */
-  static async refreshAccessToken(refreshToken) {
+  static async refreshAccessToken(refreshToken, language = defaultLanguage) {
     // ✅ FIX 1: Defensive programming
     if (!refreshToken || typeof refreshToken !== "string") {
       throw new ValidationError(
-        "Token de rafraîchissement requis",
+        I18nService.getMessage("auth.refresh_token_required", language),
         "MISSING_REFRESH_TOKEN"
       );
     }
@@ -241,7 +241,7 @@ class AuthService {
 
       if (decoded.type !== "refresh") {
         throw new AuthError(
-          "Token de rafraîchissement invalide",
+          I18nService.getMessage("auth.refresh_token_invalid", language),
           AUTH_ERRORS.INVALID_TOKEN
         );
       }
@@ -251,17 +251,23 @@ class AuthService {
 
       if (!user) {
         throw new NotFoundError(
-          "Utilisateur introuvable",
+          I18nService.getMessage("user.not_found", language),
           USER_ERRORS.USER_NOT_FOUND
         );
       }
 
       if (!user.isActive) {
-        throw new AuthError("Compte désactivé", AUTH_ERRORS.ACCOUNT_DISABLED);
+        throw new AuthError(
+          I18nService.getMessage("auth.account_disabled", language),
+          AUTH_ERRORS.ACCOUNT_DISABLED
+        );
       }
 
       if (SecurityService.isAccountLocked(user)) {
-        throw new AuthError("Compte verrouillé", AUTH_ERRORS.ACCOUNT_LOCKED);
+        throw new AuthError(
+          I18nService.getMessage("auth.account_locked", language),
+          AUTH_ERRORS.ACCOUNT_LOCKED
+        );
       }
 
       // Generate new tokens
@@ -289,17 +295,17 @@ class AuthService {
         // Token malformé, signature invalide, etc.
         if (error.message.includes("invalid signature")) {
           throw new AuthError(
-            "Signature du token invalide",
+            I18nService.getMessage("auth.token_invalid", language),
             AUTH_ERRORS.INVALID_TOKEN
           );
         } else if (error.message.includes("malformed")) {
           throw new AuthError(
-            "Format du token invalide",
+            I18nService.getMessage("auth.token_invalid", language),
             AUTH_ERRORS.INVALID_TOKEN
           );
         } else {
           throw new AuthError(
-            "Token de rafraîchissement invalide",
+            I18nService.getMessage("auth.refresh_token_invalid", language),
             AUTH_ERRORS.INVALID_TOKEN
           );
         }
@@ -307,14 +313,14 @@ class AuthService {
 
       if (error.name === "TokenExpiredError") {
         throw new AuthError(
-          "Token de rafraîchissement expiré",
+          I18nService.getMessage("auth.refresh_token_expired", language),
           AUTH_ERRORS.TOKEN_EXPIRED
         );
       }
 
       if (error.name === "NotBeforeError") {
         throw new AuthError(
-          "Token non encore valide",
+          I18nService.getMessage("auth.token_invalid", language),
           AUTH_ERRORS.INVALID_TOKEN
         );
       }
