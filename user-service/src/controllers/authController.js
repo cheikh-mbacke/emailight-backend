@@ -179,7 +179,10 @@ class AuthController {
 
       // Call the service to refresh the token
       const language = I18nService.getRequestLanguage(request);
-      const result = await AuthService.refreshAccessToken(refreshToken, language);
+      const result = await AuthService.refreshAccessToken(
+        refreshToken,
+        language
+      );
       return reply.send({
         status: "success",
         data: {
@@ -199,7 +202,7 @@ class AuthController {
   }
 
   /**
-   * 🧪 Generate test refresh token with custom expiration (DEV ONLY)
+   * 🧪 Generate test tokens with custom expiration (DEV ONLY)
    */
   static async generateTestTokens(request, reply) {
     try {
@@ -216,17 +219,25 @@ class AuthController {
 
       // Récupérer l'userId depuis le token d'authentification
       const userId = request.user._id;
-      const { refreshTokenExpiresIn = "7d" } = request.body;
+      const { accessTokenExpiresIn = "24h", refreshTokenExpiresIn = "7d" } =
+        request.body;
 
-      // Générer le refresh token avec expiration personnalisée
+      // Générer les tokens avec expiration personnalisée
+      const accessToken = jwt.sign(
+        { userId, type: "access" },
+        config.JWT_SECRET,
+        { expiresIn: accessTokenExpiresIn }
+      );
+
       const refreshToken = jwt.sign(
         { userId, type: "refresh" },
         config.JWT_SECRET,
         { expiresIn: refreshTokenExpiresIn }
       );
 
-      request.log.info("Token de test généré", {
+      request.log.info("Tokens de test générés", {
         userId: userId.toString(),
+        accessTokenExpiresIn,
         refreshTokenExpiresIn,
         userEmail: request.user.email,
       });
@@ -234,20 +245,22 @@ class AuthController {
       return reply.send({
         status: "success",
         data: {
+          accessToken,
           refreshToken,
+          accessTokenExpiresIn,
           refreshTokenExpiresIn,
           generatedAt: new Date().toISOString(),
         },
-        message: `Token de test généré pour ${request.user.name}`,
+        message: `Tokens de test générés pour ${request.user.name}`,
       });
     } catch (error) {
-      request.log.error("Erreur génération token de test", error);
+      request.log.error("Erreur génération tokens de test", error);
 
       return reply.code(500).send({
         status: "failed",
         errorCode: "500",
         errorName: "SYSTEM_ERROR",
-        errorMessage: "Erreur lors de la génération du token de test",
+        errorMessage: "Erreur lors de la génération des tokens de test",
       });
     }
   }
@@ -344,7 +357,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "GOOGLE_AUTH_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "GOOGLE_AUTH_ERROR"
+      );
     }
   }
 
@@ -353,6 +370,9 @@ class AuthController {
    */
   static async logout(request, reply) {
     try {
+      // 🌍 Obtenir la langue de la requête
+      const language = I18nService.getRequestLanguage(request);
+
       // 🆕 Ajouter le token à la blacklist
       const token = request.headers.authorization?.replace("Bearer ", "");
       if (token) {
@@ -363,11 +383,12 @@ class AuthController {
         );
       }
 
-      this.logger.auth(
+      AuthController.logger.auth(
         "Déconnexion utilisateur",
         {
           email: request.user.email,
           tokenBlacklisted: !!token,
+          language,
         },
         {
           userId: request.user._id.toString(),
@@ -376,10 +397,13 @@ class AuthController {
         }
       );
 
-      return reply.success(null, "Déconnexion réussie");
+      // 🌍 Message traduit selon la langue détectée
+      const message = I18nService.getMessage("auth.logout_success", language);
+
+      return reply.success(null, message);
     } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "LOGOUT_ERROR");
+      // ✅ FIX: Utiliser AuthController au lieu de this pour les méthodes statiques
+      return AuthController.handleClientError(error, reply, "LOGOUT_ERROR");
     }
   }
 
@@ -408,7 +432,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "GET_PROFILE_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "GET_PROFILE_ERROR"
+      );
     }
   }
 
@@ -472,7 +500,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "PROFILE_UPDATE_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "PROFILE_UPDATE_ERROR"
+      );
     }
   }
 
@@ -494,7 +526,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "ACCOUNT_DELETION_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "ACCOUNT_DELETION_ERROR"
+      );
     }
   }
 
@@ -522,7 +558,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "PASSWORD_RESET_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "PASSWORD_RESET_ERROR"
+      );
     }
   }
 
@@ -547,7 +587,11 @@ class AuthController {
       );
     } catch (error) {
       // ✅ FIX 1: Utilisation de la méthode commune
-      return this.handleClientError(error, reply, "PASSWORD_RESET_ERROR");
+      return AuthController.handleClientError(
+        error,
+        reply,
+        "PASSWORD_RESET_ERROR"
+      );
     }
   }
 

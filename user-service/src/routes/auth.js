@@ -649,14 +649,19 @@ async function authRoutes(fastify, options) {
         preHandler: authenticateToken,
         schema: {
           tags: ["Authentication"],
-          summary:
-            "Generate test refresh token with custom expiration (DEV ONLY)",
+          summary: "Generate test tokens with custom expiration (DEV ONLY)",
           description:
-            "Generate refresh token for testing purposes with custom expiration time",
+            "Generate access and refresh tokens for testing purposes with custom expiration times",
           security: [{ bearerAuth: [] }],
           body: {
             type: "object",
             properties: {
+              accessTokenExpiresIn: {
+                type: "string",
+                default: "24h",
+                description:
+                  "Access token expiration (e.g., '5s', '30s', '1m', '1h', '24h')",
+              },
               refreshTokenExpiresIn: {
                 type: "string",
                 default: "7d",
@@ -678,9 +683,17 @@ async function authRoutes(fastify, options) {
                 data: {
                   type: "object",
                   properties: {
+                    accessToken: {
+                      type: "string",
+                      description: "JWT access token with custom expiration",
+                    },
                     refreshToken: {
                       type: "string",
                       description: "JWT refresh token with custom expiration",
+                    },
+                    accessTokenExpiresIn: {
+                      type: "string",
+                      description: "Access token expiration time",
                     },
                     refreshTokenExpiresIn: {
                       type: "string",
@@ -688,11 +701,13 @@ async function authRoutes(fastify, options) {
                     },
                     generatedAt: {
                       type: "string",
-                      description: "Timestamp when token was generated",
+                      description: "Timestamp when tokens were generated",
                     },
                   },
                   required: [
+                    "accessToken",
                     "refreshToken",
+                    "accessTokenExpiresIn",
                     "refreshTokenExpiresIn",
                     "generatedAt",
                   ],

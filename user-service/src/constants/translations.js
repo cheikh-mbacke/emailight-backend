@@ -44,6 +44,15 @@ export const TRANSLATIONS = {
       google_auth_success: "Connexion Google réussie",
       google_account_linked: "Compte lié à Google avec succès",
       google_account_created: "Compte créé et connecté avec Google",
+
+      // Messages d'erreur d'authentification
+      missing_token: "Token d'accès requis",
+      invalid_token: "Token invalide",
+      token_expired: "Token expiré",
+      token_revoked: "Token révoqué",
+      user_not_found: "Utilisateur introuvable",
+      account_disabled: "Compte désactivé",
+      account_locked: "Compte temporairement verrouillé",
     },
 
     // ============================================================================
@@ -251,6 +260,15 @@ export const TRANSLATIONS = {
       google_auth_success: "Google login successful",
       google_account_linked: "Account linked to Google successfully",
       google_account_created: "Account created and connected with Google",
+
+      // Authentication error messages
+      missing_token: "Access token required",
+      invalid_token: "Invalid token",
+      token_expired: "Token expired",
+      token_revoked: "Token revoked",
+      user_not_found: "User not found",
+      account_disabled: "Account disabled",
+      account_locked: "Account temporarily locked",
     },
 
     // ============================================================================

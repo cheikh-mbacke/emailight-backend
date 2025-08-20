@@ -4,6 +4,7 @@
 
 import Redis from "ioredis";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import config from "../config/env.js";
 import { SystemError, ErrorFactory } from "../utils/customError.js";
 import { SYSTEM_ERRORS } from "../utils/errorCodes.js";
@@ -342,7 +343,6 @@ class TokenBlacklistService {
    * 🔐 Hasher un token pour le stockage sécurisé
    */
   static hashToken(token) {
-    const crypto = require("crypto");
     return crypto.createHash("sha256").update(token).digest("hex");
   }
 

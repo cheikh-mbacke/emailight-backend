@@ -364,8 +364,18 @@ export async function createApp(fastify, options = {}) {
 
     // Décorateur pour les réponses de succès standardisées
     fastify.decorateReply("success", function (data, message = "Succès") {
+      // Si data est null, on utilise le format simple sans data
+      if (data === null || data === undefined) {
+        return this.send({
+          status: "success",
+          message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Sinon, format standard avec data
       return this.send({
-        success: true,
+        status: "success",
         data,
         message,
         timestamp: new Date().toISOString(),

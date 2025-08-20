@@ -4,6 +4,8 @@
 
 import User from "../models/User.js";
 import TokenBlacklistService from "../services/tokenBlacklistService.js";
+import I18nService from "../services/i18nService.js";
+import { getRequestLanguage } from "./languageDetection.js";
 
 let logger = null;
 
@@ -24,9 +26,12 @@ export const authenticateToken = async (request, reply) => {
     const userId = request.user.userId;
 
     if (!userId) {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Token JWT invalide - userId manquant",
-        { token: "présent" },
+        { token: "présent", language },
         {
           action: "invalid_jwt_token",
           endpoint: `${request.method} ${request.url}`,
@@ -34,8 +39,10 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "Invalid token",
-        message: "User ID is missing from token",
+        status: "failed",
+        errorCode: "401",
+        errorName: "INVALID_TOKEN",
+        errorMessage: I18nService.getMessage("auth.invalid_token", language),
       });
     }
 
@@ -46,9 +53,12 @@ export const authenticateToken = async (request, reply) => {
         token
       );
       if (isBlacklisted) {
+        // 🌍 Obtenir la langue de la requête
+        const language = getRequestLanguage(request);
+
         logger.warn(
           "Tentative d'utilisation d'un token blacklisté",
-          { userId },
+          { userId, language },
           {
             userId: userId.toString(),
             action: "blacklisted_token_used",
@@ -57,8 +67,10 @@ export const authenticateToken = async (request, reply) => {
         );
 
         return reply.code(401).send({
-          error: "Token revoked",
-          message: "This token has been revoked and is no longer valid",
+          status: "failed",
+          errorCode: "401",
+          errorName: "TOKEN_REVOKED",
+          errorMessage: I18nService.getMessage("auth.token_revoked", language),
         });
       }
     }
@@ -67,9 +79,12 @@ export const authenticateToken = async (request, reply) => {
     const user = await User.findById(userId);
 
     if (!user) {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Utilisateur introuvable pour le token JWT",
-        { userId },
+        { userId, language },
         {
           action: "user_not_found_for_token",
           endpoint: `${request.method} ${request.url}`,
@@ -77,16 +92,21 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "User not found",
-        message: "The user associated with this token no longer exists",
+        status: "failed",
+        errorCode: "401",
+        errorName: "USER_NOT_FOUND",
+        errorMessage: I18nService.getMessage("auth.user_not_found", language),
       });
     }
 
     // Check if the account is active
     if (!user.isActive) {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Tentative d'accès avec compte désactivé",
-        { userId, email: user.email },
+        { userId, email: user.email, language },
         {
           userId: userId.toString(),
           action: "inactive_account_access",
@@ -95,16 +115,21 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "Account disabled",
-        message: "Your account has been deactivated",
+        status: "failed",
+        errorCode: "401",
+        errorName: "ACCOUNT_DISABLED",
+        errorMessage: I18nService.getMessage("auth.account_disabled", language),
       });
     }
 
     // Check if the account is locked
     if (user.security.isAccountLocked()) {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Tentative d'accès avec compte verrouillé",
-        { userId, email: user.email },
+        { userId, email: user.email, language },
         {
           userId: userId.toString(),
           action: "locked_account_access",
@@ -113,9 +138,10 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(423).send({
-        error: "Account locked",
-        message:
-          "Your account is temporarily locked due to too many failed login attempts",
+        status: "failed",
+        errorCode: "423",
+        errorName: "ACCOUNT_LOCKED",
+        errorMessage: I18nService.getMessage("auth.account_locked", language),
       });
     }
 
@@ -143,11 +169,15 @@ export const authenticateToken = async (request, reply) => {
   } catch (error) {
     // 🎯 Handle specific JWT errors (4xx - métier)
     if (error.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER") {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Tentative d'accès sans token",
         {
           endpoint: `${request.method} ${request.url}`,
           ip: request.ip,
+          language,
         },
         {
           action: "missing_authorization_header",
@@ -156,17 +186,23 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "Missing token",
-        message: "Authorization header required with a Bearer token",
+        status: "failed",
+        errorCode: "401",
+        errorName: "MISSING_TOKEN",
+        errorMessage: I18nService.getMessage("auth.missing_token", language),
       });
     }
 
     if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED") {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.info(
         "Token JWT expiré",
         {
           endpoint: `${request.method} ${request.url}`,
           ip: request.ip,
+          language,
         },
         {
           action: "token_expired",
@@ -175,17 +211,23 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "Token expired",
-        message: "Your session has expired, please log in again",
+        status: "failed",
+        errorCode: "401",
+        errorName: "TOKEN_EXPIRED",
+        errorMessage: I18nService.getMessage("auth.token_expired", language),
       });
     }
 
     if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_INVALID") {
+      // 🌍 Obtenir la langue de la requête
+      const language = getRequestLanguage(request);
+
       logger.warn(
         "Token JWT invalide",
         {
           endpoint: `${request.method} ${request.url}`,
           ip: request.ip,
+          language,
         },
         {
           action: "invalid_token",
@@ -194,8 +236,10 @@ export const authenticateToken = async (request, reply) => {
       );
 
       return reply.code(401).send({
-        error: "Invalid token",
-        message: "The authentication token is invalid",
+        status: "failed",
+        errorCode: "401",
+        errorName: "INVALID_TOKEN",
+        errorMessage: I18nService.getMessage("auth.invalid_token", language),
       });
     }
 
@@ -218,16 +262,21 @@ export const authenticateToken = async (request, reply) => {
     }
 
     // 🎯 Autres erreurs JWT (probablement métier)
+    const language = getRequestLanguage(request);
+
     logger.error("Erreur d'authentification non catégorisée", error, {
       action: "authentication_failed",
       endpoint: `${request.method} ${request.url}`,
       ip: request.ip,
       errorCode: error.code,
+      language,
     });
 
     return reply.code(401).send({
-      error: "Authentication failed",
-      message: "Unable to verify your identity",
+      status: "failed",
+      errorCode: "401",
+      errorName: "AUTHENTICATION_FAILED",
+      errorMessage: I18nService.getMessage("auth.invalid_token", language),
     });
   }
 };

@@ -210,6 +210,47 @@ class AuthTester {
   }
 
   /**
+   * ✅ Valide une réponse de succès pour logout
+   */
+  validateLogoutSuccessResponse(response, expectedMessage, lang = "FR") {
+    const { statusCode, body } = response;
+
+    if (statusCode !== 200) {
+      throw new Error(`Expected status 200, got ${statusCode}`);
+    }
+
+    if (!body || body.status !== "success") {
+      throw new Error(`Expected status 'success', got '${body?.status}'`);
+    }
+
+    // Vérifier le message de succès traduit
+    const expectedMessages = {
+      FR: "Déconnexion réussie",
+      EN: "Logout successful",
+    };
+
+    if (body.message !== expectedMessages[lang]) {
+      throw new Error(
+        `Expected message '${expectedMessages[lang]}', got '${body.message}'`
+      );
+    }
+
+    // Vérifier la présence du timestamp
+    if (!body.timestamp) {
+      throw new Error("Timestamp manquant dans la réponse");
+    }
+
+    // Vérifier qu'il n'y a pas de champ data
+    if (body.hasOwnProperty("data")) {
+      throw new Error(
+        "Le champ 'data' ne devrait pas être présent pour logout"
+      );
+    }
+
+    return true;
+  }
+
+  /**
    * ❌ Valide une réponse d'erreur
    */
   validateErrorResponse(
@@ -286,8 +327,16 @@ class AuthTester {
         EN: "Invalid credentials",
       },
       TOKEN_EXPIRED: {
-        FR: "Token de rafraîchissement expiré",
-        EN: "Refresh token expired",
+        FR: "Token expiré",
+        EN: "Token expired",
+      },
+      MISSING_TOKEN: {
+        FR: "Token d'accès requis",
+        EN: "Access token required",
+      },
+      AUTHENTICATION_FAILED: {
+        FR: "Token invalide",
+        EN: "Invalid token",
       },
     };
 
@@ -1304,6 +1353,258 @@ class AuthTester {
   }
 
   /**
+   * 🚪 Tests de déconnexion (Logout)
+   */
+  async testLogout() {
+    log.section("Tests POST /api/v1/auth/logout");
+
+    // ✅ Tests de succès
+    await this.runTest("Logout - Succès valide (FR)", async () => {
+      // Créer un utilisateur de test
+      const uniqueEmail = `logout-test-${randomBytes(4).toString(
+        "hex"
+      )}@emailight.com`;
+      const registerResponse = await makeRequest("POST", "/auth/register", {
+        name: "Test Logout User",
+        email: uniqueEmail,
+        password: "TestPassword123!",
+      });
+
+      if (registerResponse.statusCode !== 201) {
+        throw new Error("Impossible de créer l'utilisateur de test");
+      }
+
+      const accessToken = registerResponse.body.data.accessToken;
+
+      // Tester le logout
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        {
+          Authorization: `Bearer ${accessToken}`,
+          "Accept-Language": "fr-FR",
+        }
+      );
+
+      this.validateLogoutSuccessResponse(response, "Déconnexion réussie", "FR");
+
+      // Vérifier que le token est maintenant blacklisté
+      const testResponse = await makeRequest("GET", "/auth/profile", null, {
+        Authorization: `Bearer ${accessToken}`,
+      });
+
+      if (testResponse.statusCode !== 401) {
+        throw new Error("Le token devrait être blacklisté après logout");
+      }
+    });
+
+    await this.runTest("Logout - Succès valide (EN)", async () => {
+      // Créer un utilisateur de test
+      const uniqueEmail = `logout-test-${randomBytes(4).toString(
+        "hex"
+      )}@emailight.com`;
+      const registerResponse = await makeRequest("POST", "/auth/register", {
+        name: "Test Logout User",
+        email: uniqueEmail,
+        password: "TestPassword123!",
+      });
+
+      if (registerResponse.statusCode !== 201) {
+        throw new Error("Impossible de créer l'utilisateur de test");
+      }
+
+      const accessToken = registerResponse.body.data.accessToken;
+
+      // Tester le logout
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        {
+          Authorization: `Bearer ${accessToken}`,
+          "Accept-Language": "en-US",
+        }
+      );
+
+      this.validateLogoutSuccessResponse(response, "Logout successful", "EN");
+    });
+
+    // ❌ Tests d'erreur
+    await this.runTest("Logout - Token manquant (FR)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        { "Accept-Language": "fr-FR" }
+      );
+
+      this.validateErrorResponse(response, 401, "MISSING_TOKEN", null, "FR");
+    });
+
+    await this.runTest("Logout - Token manquant (EN)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        { "Accept-Language": "en-US" }
+      );
+
+      this.validateErrorResponse(response, 401, "MISSING_TOKEN", null, "EN");
+    });
+
+    await this.runTest("Logout - Token malformé (FR)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        {
+          Authorization: "Bearer abc123",
+          "Accept-Language": "fr-FR",
+        }
+      );
+
+      this.validateErrorResponse(
+        response,
+        401,
+        "AUTHENTICATION_FAILED",
+        null,
+        "FR"
+      );
+    });
+
+    await this.runTest("Logout - Token malformé (EN)", async () => {
+      const response = await makeRequest(
+        "POST",
+        "/auth/logout",
+        {},
+        {
+          Authorization: "Bearer abc123",
+          "Accept-Language": "en-US",
+        }
+      );
+
+      this.validateErrorResponse(
+        response,
+        401,
+        "AUTHENTICATION_FAILED",
+        null,
+        "EN"
+      );
+    });
+
+    await this.runTest("Logout - Token expiré (FR)", async () => {
+      // Créer un utilisateur de test
+      const uniqueEmail = `logout-test-${randomBytes(4).toString(
+        "hex"
+      )}@emailight.com`;
+      const registerResponse = await makeRequest("POST", "/auth/register", {
+        name: "Test Logout User",
+        email: uniqueEmail,
+        password: "TestPassword123!",
+      });
+
+      if (registerResponse.statusCode !== 201) {
+        throw new Error("Impossible de créer l'utilisateur de test");
+      }
+
+      const accessToken = registerResponse.body.data.accessToken;
+
+      // Générer un token expiré
+      let expiredToken = null;
+      try {
+        const testTokenResponse = await makeRequest(
+          "POST",
+          "/auth/test/generate-tokens",
+          { accessTokenExpiresIn: "1s" },
+          {
+            "Accept-Language": "fr-FR",
+            Authorization: `Bearer ${accessToken}`,
+          }
+        );
+
+        if (testTokenResponse.statusCode === 200) {
+          expiredToken = testTokenResponse.body.data.accessToken;
+          // Attendre que le token expire
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      } catch (error) {
+        log.warning("Impossible de générer un token expiré - test ignoré");
+        return;
+      }
+
+      if (expiredToken) {
+        const response = await makeRequest(
+          "POST",
+          "/auth/logout",
+          {},
+          {
+            Authorization: `Bearer ${expiredToken}`,
+            "Accept-Language": "fr-FR",
+          }
+        );
+
+        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "FR");
+      }
+    });
+
+    await this.runTest("Logout - Token expiré (EN)", async () => {
+      // Créer un utilisateur de test
+      const uniqueEmail = `logout-test-${randomBytes(4).toString(
+        "hex"
+      )}@emailight.com`;
+      const registerResponse = await makeRequest("POST", "/auth/register", {
+        name: "Test Logout User",
+        email: uniqueEmail,
+        password: "TestPassword123!",
+      });
+
+      if (registerResponse.statusCode !== 201) {
+        throw new Error("Impossible de créer l'utilisateur de test");
+      }
+
+      const accessToken = registerResponse.body.data.accessToken;
+
+      // Générer un token expiré
+      let expiredToken = null;
+      try {
+        const testTokenResponse = await makeRequest(
+          "POST",
+          "/auth/test/generate-tokens",
+          { accessTokenExpiresIn: "1s" },
+          {
+            "Accept-Language": "en-US",
+            Authorization: `Bearer ${accessToken}`,
+          }
+        );
+
+        if (testTokenResponse.statusCode === 200) {
+          expiredToken = testTokenResponse.body.data.accessToken;
+          // Attendre que le token expire
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      } catch (error) {
+        log.warning("Impossible de générer un token expiré - test ignoré");
+        return;
+      }
+
+      if (expiredToken) {
+        const response = await makeRequest(
+          "POST",
+          "/auth/logout",
+          {},
+          {
+            Authorization: `Bearer ${expiredToken}`,
+            "Accept-Language": "en-US",
+          }
+        );
+
+        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "EN");
+      }
+    });
+  }
+
+  /**
    * 📊 Affiche les résultats finaux
    */
   showResults() {
@@ -1370,6 +1671,7 @@ class AuthTester {
       await this.testRegister();
       await this.testLogin();
       await this.testRefreshToken();
+      await this.testLogout();
 
       this.showResults();
 
