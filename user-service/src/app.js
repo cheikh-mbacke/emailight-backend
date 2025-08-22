@@ -31,7 +31,7 @@ import SmtpController from "./controllers/smtpController.js"; // 🆕 SMTP Contr
 import AuthService from "./services/authService.js";
 import UserService from "./services/userService.js";
 import PreferencesService from "./services/preferencesService.js";
-import GoogleAuthService from "./services/googleAuthService.js";
+
 import FileUploadService from "./services/fileUploadService.js";
 
 // 🆕 Import des services OAuth Email et SMTP
@@ -73,7 +73,7 @@ export async function createApp(fastify, options = {}) {
     AuthService.setLogger(logger);
     UserService.setLogger(logger);
     PreferencesService.setLogger(logger);
-    GoogleAuthService.setLogger(logger);
+
     FileUploadService.setLogger(logger);
 
     // 🆕 Injection du logger dans les services OAuth Email et SMTP
@@ -97,7 +97,7 @@ export async function createApp(fastify, options = {}) {
         "controllers",
         "services",
         "middleware",
-        "googleAuth",
+
         "fileUpload",
         "uploadValidation",
         "gmailOAuth", // 🆕
@@ -109,21 +109,6 @@ export async function createApp(fastify, options = {}) {
         "languageDetection", // 🌍
       ],
     });
-
-    // ============================================================================
-    // 🔍 INITIALISATION GOOGLE OAUTH SERVICE
-    // ============================================================================
-    const googleAuthInitialized = GoogleAuthService.initialize();
-    if (googleAuthInitialized) {
-      logger.success("Google OAuth Service initialisé", {
-        clientConfigured: !!appConfig.GOOGLE_CLIENT_ID,
-      });
-    } else {
-      logger.warn("Google OAuth Service non disponible", {
-        reason: "GOOGLE_CLIENT_ID manquant",
-        impact: "Authentification Google désactivée",
-      });
-    }
 
     // ============================================================================
     // 🆕 INITIALISATION DES SERVICES OAUTH EMAIL
@@ -419,7 +404,7 @@ export async function createApp(fastify, options = {}) {
               name: "MongoDB",
             },
             oauth: {
-              google: GoogleAuthService.getStatus(),
+              google: { enabled: false, status: "disabled" },
               gmail: gmailOAuthStatus, // 🆕
             },
             smtp: {
@@ -536,7 +521,7 @@ export async function createApp(fastify, options = {}) {
         "multipart",
       ],
       environment: appConfig.NODE_ENV,
-      googleOAuth: googleAuthInitialized ? "✅ Activé" : "❌ Désactivé",
+      googleOAuth: "❌ Désactivé (supprimé)",
       gmailOAuth: gmailOAuthInitialized ? "✅ Activé" : "❌ Désactivé", // 🆕
 
       smtpSupport: "✅ Activé", // 🆕

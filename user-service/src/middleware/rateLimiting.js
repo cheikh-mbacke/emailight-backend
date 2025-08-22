@@ -97,19 +97,6 @@ const RATE_LIMIT_RULES = {
   },
 
   // OAuth
-  "GET /api/v1/auth/google": {
-    max: 10,
-    window: 60 * 1000, // 1 minute
-    keyGenerator: (request) => `google-oauth:${request.ip}`,
-    message:
-      "Trop de tentatives d'authentification Google. Réessayez dans 1 minute.",
-  },
-  "GET /api/v1/auth/google/callback": {
-    max: 10,
-    window: 60 * 1000, // 1 minute
-    keyGenerator: (request) => `google-callback:${request.ip}`,
-    message: "Trop de callbacks Google. Réessayez dans 1 minute.",
-  },
 };
 
 /**
@@ -487,10 +474,10 @@ export const getRateLimitStats = async () => {
           type: key.includes("login")
             ? "login"
             : key.includes("email")
-              ? "email"
-              : key.includes("register")
-                ? "register"
-                : "general",
+            ? "email"
+            : key.includes("register")
+            ? "register"
+            : "general",
         };
       }
     }

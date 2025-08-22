@@ -293,41 +293,6 @@ export const validationSchemas = {
     });
   },
 
-  // 🔍 Google OAuth
-  googleAuth: (request) => {
-    const language = I18nService.getRequestLanguage(request);
-
-    return Joi.object({
-      googleToken: Joi.string()
-        .trim()
-        .min(VALIDATION_RULES.GOOGLE_TOKEN.MIN_LENGTH)
-        .max(VALIDATION_RULES.GOOGLE_TOKEN.MAX_LENGTH)
-        .required()
-        .messages({
-          "string.empty": I18nService.getValidationMessage(
-            "google_token",
-            "required",
-            language
-          ),
-          "string.min": I18nService.getValidationMessage(
-            "google_token",
-            "invalid",
-            language
-          ),
-          "string.max": I18nService.getValidationMessage(
-            "google_token",
-            "invalid",
-            language
-          ),
-          "any.required": I18nService.getValidationMessage(
-            "google_token",
-            "required",
-            language
-          ),
-        }),
-    });
-  },
-
   // 🔄 Forgot password
   forgotPassword: (request) => {
     const language = I18nService.getRequestLanguage(request);
@@ -429,51 +394,6 @@ export const validationSchemas = {
           ),
         }),
     });
-  },
-
-  // 👤 Update profile
-  updateProfile: (request) => {
-    const language = I18nService.getRequestLanguage(request);
-
-    return Joi.object({
-      name: Joi.string()
-        .trim()
-        .min(VALIDATION_RULES.NAME.MIN_LENGTH)
-        .max(VALIDATION_RULES.NAME.MAX_LENGTH)
-        .pattern(VALIDATION_RULES.NAME.PATTERN)
-        .optional()
-        .messages({
-          "string.min": I18nService.getValidationMessage(
-            "name",
-            "min_length",
-            language,
-            {
-              min: VALIDATION_RULES.NAME.MIN_LENGTH,
-            }
-          ),
-          "string.max": I18nService.getValidationMessage(
-            "name",
-            "max_length",
-            language,
-            {
-              max: VALIDATION_RULES.NAME.MAX_LENGTH,
-            }
-          ),
-          "string.pattern.base": I18nService.getValidationMessage(
-            "name",
-            "pattern",
-            language
-          ),
-        }),
-    })
-      .min(1)
-      .messages({
-        "object.min": I18nService.getValidationMessage(
-          "at_least_one_field",
-          "at_least_one_field",
-          language
-        ),
-      });
   },
 
   // 🔐 Change password
@@ -698,13 +618,6 @@ export const validateRefreshToken = (request, reply) => {
   )(request, reply);
 };
 
-export const validateGoogleAuth = (request, reply) => {
-  return createValidationMiddleware(
-    validationSchemas.googleAuth(request),
-    "body"
-  )(request, reply);
-};
-
 export const validateForgotPassword = (request, reply) => {
   return createValidationMiddleware(
     validationSchemas.forgotPassword(request),
@@ -715,13 +628,6 @@ export const validateForgotPassword = (request, reply) => {
 export const validateResetPassword = (request, reply) => {
   return createValidationMiddleware(
     validationSchemas.resetPassword(request),
-    "body"
-  )(request, reply);
-};
-
-export const validateUpdateProfile = (request, reply) => {
-  return createValidationMiddleware(
-    validationSchemas.updateProfile(request),
     "body"
   )(request, reply);
 };

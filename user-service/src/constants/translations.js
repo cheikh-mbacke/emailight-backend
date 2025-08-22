@@ -29,8 +29,6 @@ export const TRANSLATIONS = {
       refresh_token_required: "Token de rafraîchissement requis",
       refresh_token_invalid: "Token de rafraîchissement invalide",
       refresh_token_expired: "Token de rafraîchissement expiré",
-      google_token_required: "Token Google requis",
-      google_token_invalid: "Token Google invalide",
 
       // Messages de succès
       account_created: "Compte créé avec succès",
@@ -41,9 +39,6 @@ export const TRANSLATIONS = {
       account_deleted: "Compte supprimé avec succès",
       password_reset_sent: "Email de réinitialisation envoyé",
       password_reset_success: "Mot de passe réinitialisé avec succès",
-      google_auth_success: "Connexion Google réussie",
-      google_account_linked: "Compte lié à Google avec succès",
-      google_account_created: "Compte créé et connecté avec Google",
 
       // Messages d'erreur d'authentification
       missing_token: "Token d'accès requis",
@@ -245,8 +240,6 @@ export const TRANSLATIONS = {
       refresh_token_required: "Refresh token required",
       refresh_token_invalid: "Invalid refresh token",
       refresh_token_expired: "Refresh token expired",
-      google_token_required: "Google token required",
-      google_token_invalid: "Invalid Google token",
 
       // Success messages
       account_created: "Account created successfully",
@@ -257,9 +250,6 @@ export const TRANSLATIONS = {
       account_deleted: "Account deleted successfully",
       password_reset_sent: "Password reset email sent",
       password_reset_success: "Password reset successfully",
-      google_auth_success: "Google login successful",
-      google_account_linked: "Account linked to Google successfully",
-      google_account_created: "Account created and connected with Google",
 
       // Authentication error messages
       missing_token: "Access token required",

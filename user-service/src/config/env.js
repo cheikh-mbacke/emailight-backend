@@ -74,15 +74,6 @@ const config = {
   RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 60000,
 
   // ============================================================================
-  // 🔍 GOOGLE OAUTH (authentification utilisateur)
-  // ============================================================================
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  GOOGLE_REDIRECT_URI:
-    process.env.GOOGLE_REDIRECT_URI ||
-    "http://localhost:3000/auth/google/callback",
-
-  // ============================================================================
   // 🆕 GMAIL OAUTH (connexions email)
   // ============================================================================
   GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID,
@@ -301,24 +292,6 @@ const validateConfig = () => {
   }
 
   // ============================================================================
-  // 🔍 VALIDATION GOOGLE OAUTH (authentification utilisateur)
-  // ============================================================================
-  if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
-    if (config.NODE_ENV === "production") {
-      warnings.push(
-        "GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET recommandés en production pour OAuth Google"
-      );
-    } else {
-      logger.info("Google OAuth désactivé - Clés non configurées");
-    }
-  } else {
-    logger.success("Google OAuth configuré", {
-      clientId: config.GOOGLE_CLIENT_ID ? "***configured***" : "not_configured",
-      redirectUri: config.GOOGLE_REDIRECT_URI,
-    });
-  }
-
-  // ============================================================================
   // 🆕 VALIDATION GMAIL OAUTH (connexions email)
   // ============================================================================
   if (!config.GMAIL_CLIENT_ID || !config.GMAIL_CLIENT_SECRET) {
@@ -454,9 +427,7 @@ const validateConfig = () => {
         bcrypt_rounds: config.BCRYPT_ROUNDS,
       },
       oauth: {
-        google_enabled: !!(
-          config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
-        ),
+        google_enabled: false,
         gmail_enabled: !!(config.GMAIL_CLIENT_ID && config.GMAIL_CLIENT_SECRET),
       },
       smtp: {
@@ -513,11 +484,9 @@ export const getConfigSummary = () => {
     },
     oauth: {
       google: {
-        enabled: !!(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET),
-        client_id: config.GOOGLE_CLIENT_ID
-          ? "***configured***"
-          : "not_configured",
-        redirect_uri: config.GOOGLE_REDIRECT_URI,
+        enabled: false,
+        client_id: "not_configured",
+        redirect_uri: "not_configured",
       },
       gmail: {
         enabled: !!(config.GMAIL_CLIENT_ID && config.GMAIL_CLIENT_SECRET),
@@ -590,7 +559,6 @@ export const getConfigMetrics = () => {
       !config.MONGODB_URI && "MONGODB_URI",
     ].filter(Boolean),
     optionalMissing: [
-      !config.GOOGLE_CLIENT_ID && "GOOGLE_CLIENT_ID",
       !config.GMAIL_CLIENT_ID && "GMAIL_CLIENT_ID",
 
       !config.USER_SERVICE_EXCEPTIONLESS_API_KEY && "EXCEPTIONLESS_API_KEY",

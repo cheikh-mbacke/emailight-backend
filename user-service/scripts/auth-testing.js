@@ -276,9 +276,15 @@ class AuthTester {
       );
     }
 
-    if (body.errorName !== expectedErrorName) {
+    // Cas spécial : TOKEN_EXPIRED_REFRESH est validé contre TOKEN_EXPIRED
+    const actualExpectedErrorName =
+      expectedErrorName === "TOKEN_EXPIRED_REFRESH"
+        ? "TOKEN_EXPIRED"
+        : expectedErrorName;
+
+    if (body.errorName !== actualExpectedErrorName) {
       throw new Error(
-        `Expected errorName '${expectedErrorName}', got '${body.errorName}'`
+        `Expected errorName '${actualExpectedErrorName}', got '${body.errorName}'`
       );
     }
 
@@ -330,11 +336,19 @@ class AuthTester {
         FR: "Token expiré",
         EN: "Token expired",
       },
+      TOKEN_EXPIRED_REFRESH: {
+        FR: "Token de rafraîchissement expiré",
+        EN: "Refresh token expired",
+      },
       MISSING_TOKEN: {
         FR: "Token d'accès requis",
         EN: "Access token required",
       },
       AUTHENTICATION_FAILED: {
+        FR: "Token invalide",
+        EN: "Invalid token",
+      },
+      INVALID_TOKEN: {
         FR: "Token invalide",
         EN: "Invalid token",
       },
@@ -1333,7 +1347,13 @@ class AuthTester {
           { "Accept-Language": "fr-FR" }
         );
 
-        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "FR");
+        this.validateErrorResponse(
+          response,
+          401,
+          "TOKEN_EXPIRED_REFRESH",
+          null,
+          "FR"
+        );
       });
 
       // ❌ Token expiré (EN)
@@ -1347,7 +1367,13 @@ class AuthTester {
           { "Accept-Language": "en-US" }
         );
 
-        this.validateErrorResponse(response, 401, "TOKEN_EXPIRED", null, "EN");
+        this.validateErrorResponse(
+          response,
+          401,
+          "TOKEN_EXPIRED_REFRESH",
+          null,
+          "EN"
+        );
       });
     }
   }
@@ -1390,7 +1416,7 @@ class AuthTester {
       this.validateLogoutSuccessResponse(response, "Déconnexion réussie", "FR");
 
       // Vérifier que le token est maintenant blacklisté
-      const testResponse = await makeRequest("GET", "/auth/profile", null, {
+      const testResponse = await makeRequest("GET", "/users/me", null, {
         Authorization: `Bearer ${accessToken}`,
       });
 
@@ -1464,13 +1490,7 @@ class AuthTester {
         }
       );
 
-      this.validateErrorResponse(
-        response,
-        401,
-        "AUTHENTICATION_FAILED",
-        null,
-        "FR"
-      );
+      this.validateErrorResponse(response, 401, "INVALID_TOKEN", null, "FR");
     });
 
     await this.runTest("Logout - Token malformé (EN)", async () => {
@@ -1484,13 +1504,7 @@ class AuthTester {
         }
       );
 
-      this.validateErrorResponse(
-        response,
-        401,
-        "AUTHENTICATION_FAILED",
-        null,
-        "EN"
-      );
+      this.validateErrorResponse(response, 401, "INVALID_TOKEN", null, "EN");
     });
 
     await this.runTest("Logout - Token expiré (FR)", async () => {

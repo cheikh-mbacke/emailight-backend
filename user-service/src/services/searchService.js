@@ -15,24 +15,6 @@ class SearchService {
   /**
    * 🔍 Trouve un utilisateur par Google ID
    */
-  static async findByGoogleId(googleId) {
-    try {
-      return await User.findOne({ googleId, isActive: true });
-    } catch (error) {
-      if (error.isOperational) {
-        throw error;
-      }
-
-      this.logger?.error("Erreur lors de la recherche par Google ID", error, {
-        action: "find_user_by_google_id_failed",
-        googleId,
-      });
-
-      throw new SystemError("Erreur lors de la recherche utilisateur", error, {
-        googleId,
-      });
-    }
-  }
 
   /**
    * 🔍 Trouve un utilisateur par email pour liaison OAuth

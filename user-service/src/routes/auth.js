@@ -3,11 +3,7 @@ import { authenticateToken } from "../middleware/auth.js";
 import {
   validateRegister,
   validateLogin,
-  validateUpdateProfile,
-  validateForgotPassword,
-  validateResetPassword,
   validateRefreshToken,
-  validateGoogleAuth,
 } from "../middleware/validation.js";
 import {
   loginRateLimit,
@@ -481,50 +477,6 @@ async function authRoutes(fastify, options) {
   );
 
   // ============================================================================
-  // 🔍 GOOGLE OAUTH AUTHENTICATION
-  // ============================================================================
-  fastify.post(
-    "/google",
-    {
-      preHandler: validateGoogleAuth,
-      schema: {
-        tags: ["Authentication"],
-        summary: "Google OAuth authentication",
-        description: "Authenticate user using Google OAuth2 token",
-        // Pas de validation body ici - gérée par le middleware Joi avec traductions
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  user: { type: "object" },
-                  accessToken: { type: "string" },
-                  refreshToken: { type: "string" },
-                  expiresIn: { type: "string" },
-                  isNew: {
-                    type: "boolean",
-                    description: "True if this is a new account",
-                  },
-                  linkedAccount: {
-                    type: "boolean",
-                    description:
-                      "True if existing email account was linked to Google",
-                  },
-                },
-              },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    AuthController.googleAuth
-  );
-
-  // ============================================================================
   // 🚪 LOGOUT
   // ============================================================================
   fastify.post(
@@ -538,105 +490,6 @@ async function authRoutes(fastify, options) {
       },
     },
     AuthController.logout
-  );
-
-  // ============================================================================
-  // 👤 CURRENT USER PROFILE
-  // ============================================================================
-  fastify.get(
-    "/me",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Authentication"],
-        summary: "Get the connected user profile",
-        security: [{ bearerAuth: [] }],
-      },
-    },
-    AuthController.getProfile
-  );
-
-  // ============================================================================
-  // ✏️ UPDATE PROFILE
-  // ============================================================================
-  fastify.patch(
-    "/me",
-    {
-      preHandler: [authenticateToken, validateUpdateProfile],
-      schema: {
-        tags: ["Authentication"],
-        summary: "Update user profile",
-        security: [{ bearerAuth: [] }],
-        // Pas de validation body ici - gérée par le middleware Joi avec traductions
-      },
-    },
-    AuthController.updateProfile
-  );
-
-  // ============================================================================
-  // 🗑️ DELETE ACCOUNT (GDPR)
-  // ============================================================================
-  fastify.delete(
-    "/me",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Authentication"],
-        summary: "Permanently delete user account",
-        security: [{ bearerAuth: [] }],
-      },
-    },
-    AuthController.deleteAccount
-  );
-
-  // ============================================================================
-  // 🔄 FORGOT PASSWORD
-  // ============================================================================
-  fastify.post(
-    "/forgot-password",
-    {
-      preHandler: [
-        createRateLimitMiddleware({
-          max: 3,
-          window: 60 * 60 * 1000, // 1 heure
-          keyGenerator: (request) => `forgot-password:${request.ip}`,
-          message:
-            "Trop de demandes de réinitialisation. Réessayez dans 1 heure.",
-        }),
-        validateForgotPassword,
-      ],
-      schema: {
-        tags: ["Authentication"],
-        summary: "Request password reset",
-        // Pas de validation body ici - gérée par le middleware Joi avec traductions
-      },
-    },
-    AuthController.forgotPassword
-  );
-
-  // ============================================================================
-  // 🔒 RESET PASSWORD
-  // ============================================================================
-  fastify.post(
-    "/reset-password",
-    {
-      preHandler: [
-        createRateLimitMiddleware({
-          max: 5,
-          window: 15 * 60 * 1000, // 15 minutes
-          keyGenerator: (request) => `reset-password:${request.ip}`,
-          message:
-            "Trop de tentatives de réinitialisation. Réessayez dans 15 minutes.",
-        }),
-        validateResetPassword,
-      ],
-      schema: {
-        tags: ["Authentication"],
-        summary: "Reset password using a token",
-        // Pas de validation body ici - gérée par le middleware Joi avec traductions
-      },
-    },
-    AuthController.resetPassword
   );
 
   // ============================================================================

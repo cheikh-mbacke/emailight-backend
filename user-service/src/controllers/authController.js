@@ -266,106 +266,6 @@ class AuthController {
   }
 
   /**
-   * 🔍 Google OAuth authentication
-   * ✅ CORRIGÉ: updateLastActive uniforme + logique métier déplacée
-   */
-  static async googleAuth(request, reply) {
-    try {
-      const { googleToken } = request.body;
-
-      if (!googleToken) {
-        const language = I18nService.getRequestLanguage(request);
-        return reply.code(400).send({
-          error: I18nService.getAuthErrorMessage(
-            "google_token_required",
-            language
-          ),
-          code: "MISSING_GOOGLE_TOKEN",
-        });
-      }
-
-      // ✅ FIX 3: Logique métier déplacée dans le service
-      // Au lieu de vérifier le token ici, on délègue tout au service
-      const googleUserData = await AuthController.verifyGoogleToken(
-        googleToken
-      );
-
-      if (!googleUserData) {
-        const language = I18nService.getRequestLanguage(request);
-        return reply.code(401).send({
-          error: I18nService.getAuthErrorMessage(
-            "google_token_invalid",
-            language
-          ),
-          code: "INVALID_GOOGLE_TOKEN",
-        });
-      }
-
-      // Authenticate with Google data
-      const result = await AuthService.authenticateWithGoogle(googleUserData);
-
-      // ✅ FIX 2: Utilisation de la méthode commune pour updateLastActive
-      await AuthController.updateUserLastActive(result.user.id, request);
-
-      // Generate tokens
-      const tokens = AuthService.generateTokens(result.user.id);
-
-      this.logger.auth(
-        "Authentification Google réussie",
-        {
-          email: result.user.email,
-          isNew: result.isNew,
-          linkedAccount: result.linkedAccount,
-        },
-        {
-          userId: result.user.id,
-          email: result.user.email,
-          action: "google_auth_success",
-        }
-      );
-
-      // 🌍 Obtenir le message approprié selon le cas
-      const language = I18nService.getRequestLanguage(request);
-      let message;
-      if (result.isNew) {
-        message = I18nService.getAuthErrorMessage(
-          "google_account_created",
-          language
-        );
-      } else if (result.linkedAccount) {
-        message = I18nService.getAuthErrorMessage(
-          "google_account_linked",
-          language
-        );
-      } else {
-        message = I18nService.getAuthErrorMessage(
-          "google_auth_success",
-          language
-        );
-      }
-
-      return reply.success(
-        {
-          user: result.user,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          expiresIn: "24h",
-          isNew: result.isNew,
-          linkedAccount: result.linkedAccount,
-        },
-        message
-      );
-    } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(
-        error,
-        reply,
-        "GOOGLE_AUTH_ERROR"
-      );
-    }
-  }
-
-  /**
    * 🚪 Logout
    */
   static async logout(request, reply) {
@@ -378,7 +278,7 @@ class AuthController {
       if (token) {
         await TokenBlacklistService.blacklistToken(
           token,
-          request.user._id,
+          request.user.userId || request.user._id,
           "logout"
         );
       }
@@ -404,133 +304,6 @@ class AuthController {
     } catch (error) {
       // ✅ FIX: Utiliser AuthController au lieu de this pour les méthodes statiques
       return AuthController.handleClientError(error, reply, "LOGOUT_ERROR");
-    }
-  }
-
-  /**
-   * 👤 Get current user profile
-   */
-  static async getProfile(request, reply) {
-    try {
-      // User is already available via auth middleware
-      const user = request.user;
-
-      // Populate connected email accounts
-      await user.populate(
-        "connectedEmailAccounts",
-        "email provider isActive lastUsed"
-      );
-
-      return reply.success(
-        {
-          user: user.profile,
-          preferences: user.preferences,
-          securityStats: user.securityStats,
-          connectedAccounts: user.connectedEmailAccounts,
-        },
-        "Profil récupéré avec succès"
-      );
-    } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(
-        error,
-        reply,
-        "GET_PROFILE_ERROR"
-      );
-    }
-  }
-
-  /**
-   * ✏️ Update user profile
-   */
-  static async updateProfile(request, reply) {
-    try {
-      const { name, email, currentPassword, newPassword } = request.body;
-      const userId = request.user._id;
-
-      // If password is changing
-      if (newPassword) {
-        await AuthService.changePassword(userId, {
-          currentPassword,
-          newPassword,
-        });
-      }
-
-      // Update other fields
-      const updates = {};
-      if (name) updates.name = name.trim();
-      if (email && email !== request.user.email) {
-        // Check if the new email is available
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
-          return reply.code(409).send({
-            error: "Email déjà utilisé",
-            message: "Cette adresse email est déjà associée à un autre compte",
-          });
-        }
-        updates.email = email.toLowerCase();
-        updates.isEmailVerified = false; // Will require new verification
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await User.findByIdAndUpdate(userId, updates, { runValidators: true });
-      }
-
-      // Get the updated user
-      const updatedUser = await User.findById(userId);
-
-      this.logger.user(
-        "Profil mis à jour",
-        {
-          updatedFields: Object.keys(updates),
-          passwordChanged: !!newPassword,
-        },
-        {
-          userId: userId.toString(),
-          email: updatedUser.email,
-          action: "profile_updated",
-        }
-      );
-
-      return reply.success(
-        {
-          user: updatedUser.profile,
-        },
-        "Profil mis à jour avec succès"
-      );
-    } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(
-        error,
-        reply,
-        "PROFILE_UPDATE_ERROR"
-      );
-    }
-  }
-
-  /**
-   * 🗑️ Delete user account (GDPR)
-   */
-  static async deleteAccount(request, reply) {
-    try {
-      const userId = request.user._id;
-
-      const result = await AuthService.deleteUserAccount(userId);
-
-      return reply.success(
-        {
-          accountDeleted: result.accountDeleted,
-          deletedAt: result.deletedAt,
-        },
-        "Compte supprimé définitivement"
-      );
-    } catch (error) {
-      // ✅ FIX 1: Utilisation de la méthode commune
-      return AuthController.handleClientError(
-        error,
-        reply,
-        "ACCOUNT_DELETION_ERROR"
-      );
     }
   }
 
@@ -592,38 +365,6 @@ class AuthController {
         reply,
         "PASSWORD_RESET_ERROR"
       );
-    }
-  }
-
-  /**
-   * 🔍 Helper: Verify Google token (implemented with google-auth-library)
-   * ✅ Simplifiée mais garde la logique métier dans le service
-   */
-  static async verifyGoogleToken(googleToken) {
-    try {
-      // Import Google Auth Service
-      const GoogleAuthService = (
-        await import("../services/googleAuthService.js")
-      ).default;
-
-      // Verify token with Google
-      const userData = await GoogleAuthService.verifyGoogleToken(googleToken);
-
-      return userData;
-    } catch (error) {
-      // ✅ Les erreurs système remontent automatiquement au gestionnaire centralisé
-      // Les erreurs métier (token invalide) retournent null comme prévu
-      this.logger.error("Erreur verification token Google", error, {
-        action: "google_token_verification_failed",
-      });
-
-      // Si c'est une erreur système, elle remontera
-      // Si c'est métier, on retourne null (comportement attendu)
-      if (error.isOperational && error.statusCode < 500) {
-        return null;
-      }
-
-      throw error;
     }
   }
 }

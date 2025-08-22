@@ -42,11 +42,6 @@ export const VALIDATION_RULES = {
     MAX_LENGTH: 1000,
   },
 
-  GOOGLE_TOKEN: {
-    MIN_LENGTH: 100,
-    MAX_LENGTH: 5000,
-  },
-
   // 🔄 Password reset
   PASSWORD_RESET_TOKEN: {
     MIN_LENGTH: 32,
@@ -116,7 +111,7 @@ export const VALIDATION_RULES = {
   // 📧 Email account validation
   EMAIL_ACCOUNT: {
     PROVIDER: {
-              ALLOWED_VALUES: ["gmail", "emailight", "yahoo", "other"],
+      ALLOWED_VALUES: ["gmail", "emailight", "yahoo", "other"],
     },
     DISPLAY_NAME: {
       MAX_LENGTH: 100,

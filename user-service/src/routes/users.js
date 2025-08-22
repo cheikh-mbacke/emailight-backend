@@ -1,6 +1,12 @@
 import ProfileController from "../controllers/profileController.js";
 import UserController from "../controllers/userController.js";
+import AuthController from "../controllers/authController.js";
 import { authenticateToken } from "../middleware/auth.js";
+import {
+  validateForgotPassword,
+  validateResetPassword,
+} from "../middleware/validation.js";
+import { createRateLimitMiddleware } from "../middleware/rateLimiting.js";
 
 /**
  * 👤 User routes plugin - Routes de base utilisateur uniquement
@@ -356,6 +362,102 @@ async function userRoutes(fastify, options) {
       },
     },
     UserController.changePassword
+  );
+
+  // ============================================================================
+  // 🔄 FORGOT PASSWORD
+  // ============================================================================
+  fastify.post(
+    "/me/forgot-password",
+    {
+      preHandler: [
+        createRateLimitMiddleware({
+          max: 3,
+          window: 60 * 60 * 1000, // 1 heure
+          keyGenerator: (request) => `forgot-password:${request.ip}`,
+          message:
+            "Trop de demandes de réinitialisation. Réessayez dans 1 heure.",
+        }),
+        validateForgotPassword,
+      ],
+      schema: {
+        tags: ["Users"],
+        summary: "Request password reset",
+        description: "Send a password reset email to the user",
+        body: {
+          type: "object",
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              description: "Email address to send reset link to",
+            },
+          },
+          required: ["email"],
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    AuthController.forgotPassword
+  );
+
+  // ============================================================================
+  // 🔒 RESET PASSWORD
+  // ============================================================================
+  fastify.post(
+    "/me/reset-password",
+    {
+      preHandler: [
+        createRateLimitMiddleware({
+          max: 5,
+          window: 15 * 60 * 1000, // 15 minutes
+          keyGenerator: (request) => `reset-password:${request.ip}`,
+          message:
+            "Trop de tentatives de réinitialisation. Réessayez dans 15 minutes.",
+        }),
+        validateResetPassword,
+      ],
+      schema: {
+        tags: ["Users"],
+        summary: "Reset password using a token",
+        description: "Reset user password with a valid reset token",
+        body: {
+          type: "object",
+          properties: {
+            token: {
+              type: "string",
+              description: "Password reset token from email",
+            },
+            newPassword: {
+              type: "string",
+              minLength: 8,
+              description: "New password (minimum 8 characters)",
+            },
+          },
+          required: ["token", "newPassword"],
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    AuthController.resetPassword
   );
 }
 

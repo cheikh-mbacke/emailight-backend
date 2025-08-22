@@ -90,12 +90,7 @@ const userSchema = new mongoose.Schema(
       default: AUTH_PROVIDERS.EMAIL,
       required: true,
     },
-    googleId: {
-      type: String,
-      sparse: true, // Partial index for non-null values only
-      unique: true,
-      index: true, // Explicit index to avoid duplicate index warning
-    },
+
     profilePictureUrl: {
       type: String,
       validate: {
@@ -198,7 +193,7 @@ const userSchema = new mongoose.Schema(
         delete ret.password;
         delete ret.passwordResetToken;
         delete ret.emailVerificationToken;
-        delete ret.googleId; // Don't expose Google ID
+
         delete ret.__v;
         return ret;
       },
@@ -228,7 +223,7 @@ userSchema.index({ "security.lastEmailSentDate": 1 }); // Email quota reset
 
 // OAuth indexes
 userSchema.index({ authProvider: 1 });
-// Note: googleId index is automatically created by unique: true constraint
+
 userSchema.index({ authProvider: 1, isActive: 1 }); // OAuth user queries
 
 // Admin and analytics indexes
@@ -301,10 +296,6 @@ userSchema.pre("validate", function (next) {
     }
 
     // Ensure email verification makes sense
-    if (this.authProvider === AUTH_PROVIDERS.GOOGLE && !this.isEmailVerified) {
-      // Google users should be automatically verified
-      this.isEmailVerified = true;
-    }
 
     next();
   } catch (error) {
@@ -447,13 +438,6 @@ userSchema.virtual("securityStats").get(function () {
     securityScore,
   };
 });
-
-/**
- * Static method: Find user by Google ID
- */
-userSchema.statics.findByGoogleId = function (googleId) {
-  return this.findOne({ googleId, isActive: true });
-};
 
 /**
  * Static method: Find user by email for OAuth linking

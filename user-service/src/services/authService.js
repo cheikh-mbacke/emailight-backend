@@ -338,130 +338,13 @@ class AuthService {
   }
 
   /**
-   * 🔍 Authenticate with Google OAuth2
-   * ✅ CORRIGÉ: Validation déléguée au service Google
-   */
-  static async authenticateWithGoogle(googleUserData) {
-    // ✅ FIX: Validation déjà effectuée par googleAuthService
-    // Les données Google sont déjà validées et vérifiées
-    const { googleId, email, name, picture } = googleUserData;
-
-    try {
-      // Rechercher un utilisateur existant par email
-      let user = await User.findOne({ email: email.toLowerCase() });
-
-      if (user) {
-        // Utilisateur existant - vérifier si on doit le lier à Google
-        const wasLinked = !user.googleId; // ✅ FIX 2: Variable pour clarifier la logique
-
-        if (!user.googleId) {
-          // Lier le compte existant à Google
-          user.googleId = googleId;
-          user.authProvider = "google";
-
-          if (picture && !user.profilePictureUrl) {
-            user.profilePictureUrl = picture;
-          }
-
-          await user.save();
-
-          this.logger.auth(
-            "Compte existant lié à Google",
-            { email: user.email, googleId },
-            {
-              userId: user._id.toString(),
-              email: user.email,
-              action: "google_account_linked",
-            }
-          );
-        }
-
-        // Vérifications de sécurité
-        if (!user.isActive) {
-          throw new AuthError(
-            "Votre compte a été désactivé",
-            AUTH_ERRORS.ACCOUNT_DISABLED
-          );
-        }
-
-        if (SecurityService.isAccountLocked(user)) {
-          throw new AuthError(
-            "Compte temporairement verrouillé",
-            AUTH_ERRORS.ACCOUNT_LOCKED
-          );
-        }
-
-        this.logger.auth(
-          "Connexion Google réussie",
-          { email: user.email, googleId },
-          {
-            userId: user._id.toString(),
-            email: user.email,
-            action: "google_login_success",
-          }
-        );
-
-        return {
-          user: user.profile,
-          isNew: false,
-          linkedAccount: wasLinked, // ✅ FIX 2: Logique corrigée - true si on vient de lier
-        };
-      } else {
-        // Nouvel utilisateur - création de compte
-        user = new User({
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          googleId,
-          authProvider: "google",
-          profilePictureUrl: picture,
-          isEmailVerified: true, // Google emails are verified
-          // Pas de mot de passe pour les comptes Google
-        });
-
-        await user.save();
-
-        this.logger.auth(
-          "Nouveau compte créé via Google",
-          { email: user.email, googleId },
-          {
-            userId: user._id.toString(),
-            email: user.email,
-            action: "google_account_created",
-          }
-        );
-
-        return {
-          user: user.profile,
-          isNew: true,
-          linkedAccount: false, // Nouveau compte, pas de liaison
-        };
-      }
-    } catch (error) {
-      if (error.isOperational) {
-        throw error;
-      }
-
-      this.logger.error("Erreur lors de l'authentification Google", error, {
-        action: "google_auth_failed",
-        email: email?.toLowerCase(),
-        googleId,
-      });
-
-      throw new SystemError("Erreur lors de l'authentification Google", error, {
-        email: email?.toLowerCase(),
-        googleId,
-      });
-    }
-  }
-
-  /**
    * Change password
    * ✅ Amélioré avec defensive programming
    */
   static async changePassword(userId, passwordData) {
     // ✅ FIX: Validation déjà effectuée par le middleware Joi
     // userId est validé par le middleware d'authentification
-    // passwordData est validé par le schéma updateProfile
+    // passwordData est validé par le schéma changePassword
     const { currentPassword, newPassword } = passwordData;
 
     try {
