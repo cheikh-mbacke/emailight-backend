@@ -28,6 +28,7 @@ import AuthController from "./controllers/authController.js";
 import UserController from "./controllers/userController.js";
 import PreferencesController from "./controllers/preferencesController.js";
 import SmtpController from "./controllers/smtpController.js"; // 🆕 SMTP Controller
+import PasswordController from "./controllers/passwordController.js"; // 🔐 Password Controller
 import AuthService from "./services/authService.js";
 import UserService from "./services/userService.js";
 import PreferencesService from "./services/preferencesService.js";
@@ -70,6 +71,7 @@ export async function createApp(fastify, options = {}) {
     UserController.setLogger(logger);
     PreferencesController.setLogger(logger);
     SmtpController.setLogger(logger); // 🆕 SMTP Controller
+    PasswordController.setLogger(logger); // 🔐 Password Controller
     AuthService.setLogger(logger);
     UserService.setLogger(logger);
     PreferencesService.setLogger(logger);
@@ -205,6 +207,7 @@ export async function createApp(fastify, options = {}) {
         headerPairs: 2000, // Nombre max de paires header
       },
       attachFieldsToBody: false, // Ne pas attacher automatiquement
+      throwFileSizeLimit: true, // 🔥 Rejeter au lieu de tronquer
     });
 
     logger.success("Plugin multipart configuré", {
@@ -351,11 +354,11 @@ export async function createApp(fastify, options = {}) {
     fastify.decorateReply("success", function (data, message = "Succès") {
       // Si data est null, on utilise le format simple sans data
       if (data === null || data === undefined) {
-        return this.send({
+        const response = {
           status: "success",
           message,
-          timestamp: new Date().toISOString(),
-        });
+        };
+        return this.send(response);
       }
 
       // Sinon, format standard avec data
@@ -363,21 +366,22 @@ export async function createApp(fastify, options = {}) {
         status: "success",
         data,
         message,
-        timestamp: new Date().toISOString(),
       });
     });
 
     // Décorateur pour les réponses d'erreur standardisées
-    fastify.decorateReply("error", function (message, code = null) {
-      return this.send({
-        success: false,
-        error: message,
-        code,
-        message:
-          typeof message === "string" ? message : "Une erreur est survenue",
-        timestamp: new Date().toISOString(),
-      });
-    });
+    fastify.decorateReply(
+      "error",
+      function (message, errorCode = "500", errorName = "INTERNAL_ERROR") {
+        return this.send({
+          status: "failed",
+          errorCode: String(errorCode),
+          errorName: errorName,
+          errorMessage:
+            typeof message === "string" ? message : "Une erreur est survenue",
+        });
+      }
+    );
 
     // ============================================================================
     // 🔍 ROUTE DE SANTÉ MISE À JOUR

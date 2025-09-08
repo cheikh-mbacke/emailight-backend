@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { exec } = require("child_process");
+import { exec } from "child_process";
 
 // Function to check the status of Docker containers
 function checkContainerStatus() {

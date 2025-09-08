@@ -167,6 +167,10 @@ services:
       - ../user-service/scripts:/usr/src/app/scripts:ro
       # Configuration et package.json
       - ../user-service/package.json:/usr/src/app/package.json:ro
+      # Tests Jest
+      - ../user-service/tests:/usr/src/app/tests:ro
+      # Assets de test pour les tests d'upload
+      - ../user-service/tests/assets:/usr/src/app/tests/assets
       # Logs persistants
       - user_service_logs:/usr/src/app/logs
       - ../user-service/uploads:/usr/src/app/uploads

@@ -4,6 +4,7 @@
 
 import UserService from "../services/userService.js";
 import AuthService from "../services/authService.js";
+import I18nService from "../services/i18nService.js";
 
 /**
  * 👤 User management controller (refactorisé)
@@ -23,7 +24,15 @@ class UserController {
       const userId = request.user._id;
       const { password } = request.body;
 
-      const result = await UserService.deleteUserAccount(userId, password);
+      // Validation de sécurité - le mot de passe n'est requis que si l'utilisateur en a un
+      // La validation complète se fait dans le service
+
+      const language = I18nService.getRequestLanguage(request);
+      const result = await UserService.deleteUserAccount(
+        userId,
+        password,
+        language
+      );
 
       this.logger?.user(
         "Compte utilisateur supprimé",
@@ -37,16 +46,21 @@ class UserController {
         }
       );
 
-      return reply.success(result, "Compte supprimé avec succès");
+      const successMessage = I18nService.getMessage(
+        "success.account_deleted",
+        language
+      );
+      return reply.success(null, successMessage);
     } catch (error) {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "ACCOUNT_DELETION_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "ACCOUNT_DELETION_ERROR",
+          errorMessage: error.message,
         });
       }
-
       // 🚨 Erreurs système (5xx) : laisser remonter au gestionnaire centralisé
       throw error;
     }
@@ -76,8 +90,10 @@ class UserController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "PASSWORD_CHANGE_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "PASSWORD_CHANGE_ERROR",
+          errorMessage: error.message,
         });
       }
 

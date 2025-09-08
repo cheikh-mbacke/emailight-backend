@@ -17,6 +17,7 @@
   },
   "license": "MIT",
   "author": "Mbacke Cheikh",
+  "type": "module",
   "scripts": {
     "build": "npm run build:user",
     "build:all": "docker compose -f docker/docker-compose.yml build",
@@ -37,6 +38,7 @@
     "clean:user:uploads": "docker compose -f docker/docker-compose.yml exec user-service sh -c 'rm -rf /usr/src/app/uploads/avatars/* && rm -rf /usr/src/app/uploads/temp/*' 2>/dev/null || true",
     "clean:user:volumes": "docker volume rm emailight_user_service_logs 2>/dev/null || true",
     "clean:volumes": "docker compose -f docker/docker-compose.yml down -v",
+    "debug:auth": "docker compose -f docker/docker-compose.yml exec user-service npm run debug:auth",
     "dev": "npm run setup:check && docker compose -f docker/docker-compose.yml up -d",
     "postdev": "node scripts/post-dev-message.js",
     "dev:admin": "docker compose -f docker/docker-compose.yml up -d mongo-express redis-commander",
@@ -46,6 +48,7 @@
     "fix:permissions": "node scripts/fix-permissions.js",
     "fix:permissions:auto": "node scripts/fix-permissions.js --auto",
     "format": "docker compose -f docker/docker-compose.yml exec user-service npm run format",
+    "generate:test-report": "node scripts/generate-test-report.js",
     "lint": "docker compose -f docker/docker-compose.yml exec user-service npm run lint",
     "logs": "docker compose -f docker/docker-compose.yml logs -f",
     "logs:clean:user": "sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' $(docker ps -aqf 'name=user-service'))",
@@ -70,8 +73,10 @@
     "stop:infra": "docker compose -f docker/docker-compose.yml stop mongodb redis mongo-express redis-commander exceptionless",
     "stop:monitoring": "docker compose -f docker/docker-compose.yml stop exceptionless",
     "stop:user": "docker compose -f docker/docker-compose.yml stop user-service",
-    "test:user:auth": "docker compose -f docker/docker-compose.yml exec user-service npm run test:auth",
-    "test:user:auth:clean": "docker compose -f docker/docker-compose.yml exec user-service npm run test:auth:clean"
+    "test": "docker compose -f docker/docker-compose.yml exec user-service npm run test",
+    "test:coverage": "docker compose -f docker/docker-compose.yml exec user-service npm run test:coverage",
+    "test:user": "docker compose -f docker/docker-compose.yml exec user-service npm run test",
+    "test:user:coverage": "docker compose -f docker/docker-compose.yml exec user-service npm run test:coverage"
   },
   "engines": {
     "node": ">=18.0.0",

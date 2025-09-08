@@ -385,8 +385,10 @@ export const requireAdmin = async (request, reply) => {
     );
 
     return reply.code(403).send({
-      error: "Access denied",
-      message: "Administrator rights are required",
+      status: "failed",
+      errorCode: "403",
+      errorName: "ACCESS_DENIED",
+      errorMessage: "Administrator rights are required",
     });
   }
 };
@@ -413,9 +415,11 @@ export const requirePremium = async (request, reply) => {
     );
 
     return reply.code(402).send({
-      error: "Subscription required",
-      message: "This feature requires a premium or enterprise subscription",
-      requiredSubscription: "premium",
+      status: "failed",
+      errorCode: "402",
+      errorName: "SUBSCRIPTION_REQUIRED",
+      errorMessage:
+        "This feature requires a premium or enterprise subscription",
     });
   }
 };
@@ -426,7 +430,10 @@ export const requirePremium = async (request, reply) => {
 export const checkEmailLimits = async (request, reply) => {
   if (!request.user) {
     return reply.code(401).send({
-      error: "Authentication required",
+      status: "failed",
+      errorCode: "401",
+      errorName: "AUTHENTICATION_REQUIRED",
+      errorMessage: "Authentication required",
     });
   }
 
@@ -453,13 +460,12 @@ export const checkEmailLimits = async (request, reply) => {
     );
 
     return reply.code(429).send({
-      error: "Email limit reached",
-      message: `You have reached your daily limit of ${
+      status: "failed",
+      errorCode: "429",
+      errorName: "EMAIL_LIMIT_REACHED",
+      errorMessage: `You have reached your daily limit of ${
         limits[request.user.subscriptionStatus]
       } emails`,
-      dailyLimit: limits[request.user.subscriptionStatus],
-      emailsSentToday: request.user.security.emailsSentToday,
-      subscriptionStatus: request.user.subscriptionStatus,
     });
   }
 };

@@ -62,9 +62,10 @@ class SmtpController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SMTP_ACCOUNT_CREATION_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SMTP_ACCOUNT_CREATION_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -85,10 +86,12 @@ class SmtpController {
       // smtpConfig est déjà validé par le schéma smtpConfig
 
       // Tests de connexion
-      const smtpTest =
-        await SmtpConnectionService.testSmtpConnection(smtpConfig);
-      const imapTest =
-        await SmtpConnectionService.testImapConnection(smtpConfig);
+      const smtpTest = await SmtpConnectionService.testSmtpConnection(
+        smtpConfig
+      );
+      const imapTest = await SmtpConnectionService.testImapConnection(
+        smtpConfig
+      );
 
       const result = {
         smtp: smtpTest,
@@ -139,9 +142,10 @@ class SmtpController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SMTP_TEST_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SMTP_TEST_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -187,8 +191,10 @@ class SmtpController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GET_SMTP_PROVIDERS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "GET_SMTP_PROVIDERS_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -213,9 +219,10 @@ class SmtpController {
 
       if (!emailAccount) {
         return reply.code(404).send({
-          error: "Compte SMTP introuvable",
-          message: "Ce compte SMTP n'existe pas ou ne vous appartient pas",
-          code: "SMTP_ACCOUNT_NOT_FOUND",
+          status: "failed",
+          errorCode: "404",
+          errorName: "SMTP_ACCOUNT_NOT_FOUND",
+          errorMessage: "Ce compte SMTP n'existe pas ou ne vous appartient pas",
         });
       }
 
@@ -228,9 +235,10 @@ class SmtpController {
         currentCredentials = JSON.parse(credentialsJson);
       } catch (error) {
         return reply.code(500).send({
-          error: "Erreur de déchiffrement",
-          message: "Impossible de lire les credentials SMTP actuels",
-          code: "SMTP_DECRYPT_ERROR",
+          status: "failed",
+          errorCode: "500",
+          errorName: "SMTP_DECRYPT_ERROR",
+          errorMessage: "Impossible de lire les credentials SMTP actuels",
         });
       }
 
@@ -256,10 +264,12 @@ class SmtpController {
       // newConfig est déjà validé par le schéma smtpUpdate
 
       // Tester la nouvelle configuration
-      const smtpTest =
-        await SmtpConnectionService.testSmtpConnection(newConfig);
-      const imapTest =
-        await SmtpConnectionService.testImapConnection(newConfig);
+      const smtpTest = await SmtpConnectionService.testSmtpConnection(
+        newConfig
+      );
+      const imapTest = await SmtpConnectionService.testImapConnection(
+        newConfig
+      );
 
       const testResults = {
         smtp: smtpTest,
@@ -270,10 +280,10 @@ class SmtpController {
 
       if (!testResults.overallSuccess) {
         return reply.code(400).send({
-          error: "Tests de connexion échoués",
-          message: "La nouvelle configuration SMTP ne fonctionne pas",
-          testResults,
-          code: "SMTP_UPDATE_TEST_FAILED",
+          status: "failed",
+          errorCode: "400",
+          errorName: "SMTP_UPDATE_TEST_FAILED",
+          errorMessage: "La nouvelle configuration SMTP ne fonctionne pas",
         });
       }
 
@@ -327,9 +337,10 @@ class SmtpController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SMTP_UPDATE_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SMTP_UPDATE_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -352,9 +363,11 @@ class SmtpController {
 
       if (!emailAccount) {
         return reply.code(404).send({
-          error: "Compte email introuvable",
-          message: "Ce compte email n'existe pas ou ne vous appartient pas",
-          code: "EMAIL_ACCOUNT_NOT_FOUND",
+          status: "failed",
+          errorCode: "404",
+          errorName: "EMAIL_ACCOUNT_NOT_FOUND",
+          errorMessage:
+            "Ce compte email n'existe pas ou ne vous appartient pas",
         });
       }
 
@@ -364,15 +377,17 @@ class SmtpController {
         !emailAccount.settings?.connectionType === "smtp"
       ) {
         return reply.code(400).send({
-          error: "Compte non SMTP",
-          message: "Ce compte n'est pas configuré en SMTP",
-          code: "NOT_SMTP_ACCOUNT",
+          status: "failed",
+          errorCode: "400",
+          errorName: "NOT_SMTP_ACCOUNT",
+          errorMessage: "Ce compte n'est pas configuré en SMTP",
         });
       }
 
       // Tester la connexion via le service
-      const result =
-        await SmtpConnectionService.testExistingSmtpAccount(emailAccount);
+      const result = await SmtpConnectionService.testExistingSmtpAccount(
+        emailAccount
+      );
 
       this.logger?.user(
         "Test connexion SMTP existant",
@@ -394,9 +409,10 @@ class SmtpController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SMTP_TEST_EXISTING_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SMTP_TEST_EXISTING_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -491,9 +507,10 @@ class SmtpController {
 
       if (!email) {
         return reply.code(400).send({
-          error: "Email requis",
-          message: "L'adresse email est nécessaire pour la détection",
-          code: "EMAIL_REQUIRED_FOR_DETECTION",
+          status: "failed",
+          errorCode: "400",
+          errorName: "EMAIL_REQUIRED_FOR_DETECTION",
+          errorMessage: "L'adresse email est nécessaire pour la détection",
         });
       }
 
@@ -529,8 +546,10 @@ class SmtpController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "PROVIDER_DETECTION_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "PROVIDER_DETECTION_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;

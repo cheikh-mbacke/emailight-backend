@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 
 import I18nService from "./i18nService.js";
+import FileUploadService from "./fileUploadService.js";
 import { ErrorFactory, SystemError } from "../utils/customError.js";
 import { USER_ERRORS } from "../utils/errorCodes.js";
 
@@ -29,17 +30,20 @@ class UserAvatarService {
         );
       }
 
-      const userLanguage = I18nService.getUserLanguage(user);
+      const userLanguage = request
+        ? I18nService.getRequestLanguage(request)
+        : I18nService.getUserLanguage(user);
       const oldAvatarUrl = user.profilePictureUrl;
 
       // Build base URL from request
       const baseUrl = this.buildBaseUrl(request);
 
-      // Upload via AvatarService
-      const uploadResult = await AvatarService.uploadAvatar(
+      // Upload via FileUploadService
+      const uploadResult = await FileUploadService.uploadAvatar(
         userId,
         fileData,
-        baseUrl
+        baseUrl,
+        userLanguage
       );
 
       // Update avatar URL in database
@@ -49,7 +53,7 @@ class UserAvatarService {
       // Delete old avatar if it existed
       if (oldAvatarUrl) {
         try {
-          await AvatarService.deleteAvatar(oldAvatarUrl);
+          await FileUploadService.deleteAvatar(oldAvatarUrl);
         } catch (deleteError) {
           // Log but don't fail the upload
           this.logger?.warn(
@@ -79,8 +83,10 @@ class UserAvatarService {
       );
 
       return {
-        user: user.profile,
-        avatar: uploadResult,
+        fileName: uploadResult.fileName,
+        fileSize: uploadResult.fileSize,
+        avatarUrl: uploadResult.avatarUrl,
+        uploadedAt: uploadResult.uploadedAt,
         updated: true,
         updatedAt: new Date(),
       };
@@ -128,8 +134,8 @@ class UserAvatarService {
 
       const avatarUrl = user.profilePictureUrl;
 
-      // Delete via AvatarService
-      const deleteResult = await AvatarService.deleteAvatar(avatarUrl);
+      // Delete via FileUploadService
+      const deleteResult = await FileUploadService.deleteAvatar(avatarUrl);
 
       if (deleteResult.deleted) {
         // Remove URL from database

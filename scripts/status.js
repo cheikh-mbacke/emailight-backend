@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { exec } = require("child_process");
+import { exec } from "child_process";
 
 // Function to get container status with formatted output
 function getContainerStatus() {
@@ -49,20 +49,20 @@ function formatContainer(container) {
     status === "running"
       ? "✅"
       : status === "exited"
-        ? "❌"
-        : status === "starting"
-          ? "🔄"
-          : "⚠️";
+      ? "❌"
+      : status === "starting"
+      ? "🔄"
+      : "⚠️";
 
   // Health emoji
   const healthEmoji =
     health === "healthy"
       ? "💚"
       : health === "unhealthy"
-        ? "❤️"
-        : health === "starting"
-          ? "🔄"
-          : "";
+      ? "❤️"
+      : health === "starting"
+      ? "🔄"
+      : "";
 
   return {
     name: name.replace("emailight-", ""),
@@ -114,7 +114,9 @@ function displayCategory(title, containers, emoji) {
       ? ` ${container.healthEmoji}`
       : "";
     console.log(
-      `   ${container.statusEmoji} ${container.name.padEnd(20)} │ ${container.ports}${healthDisplay}`
+      `   ${container.statusEmoji} ${container.name.padEnd(20)} │ ${
+        container.ports
+      }${healthDisplay}`
     );
   });
 }

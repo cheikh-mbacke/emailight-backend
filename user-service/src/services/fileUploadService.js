@@ -30,8 +30,9 @@ class FileUploadService {
         "image/png",
         "image/webp",
         "image/gif",
+        "image/bmp",
       ],
-      allowedExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif"],
+      allowedExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"],
       uploadDir: "uploads/avatars",
       maxWidth: 512,
       maxHeight: 512,
@@ -41,10 +42,10 @@ class FileUploadService {
   /**
    * 📤 Upload and process avatar image
    */
-  static async uploadAvatar(userId, fileData, baseUrl = null) {
+  static async uploadAvatar(userId, fileData, baseUrl = null, language = "FR") {
     try {
       // Validation du fichier
-      this.validateAvatarFile(fileData);
+      await this.validateAvatarFile(fileData, language);
 
       // Génération du nom de fichier unique
       const fileName = this.generateUniqueFileName(
@@ -161,19 +162,27 @@ class FileUploadService {
   /**
    * ✅ Validate avatar file
    */
-  static validateAvatarFile(fileData) {
-    const errors = [];
-
+  static async validateAvatarFile(fileData, language = "FR") {
+    console.log(
+      `🔍 FileUploadService.validateAvatarFile: Langue reçue = ${language}`
+    );
     // Vérifier la présence du fichier
     if (!fileData || !fileData.data) {
-      throw new ValidationError("Aucun fichier fourni", "NO_FILE_PROVIDED");
+      throw new ValidationError(
+        "Aucun fichier fourni",
+        null,
+        "NO_FILE_PROVIDED"
+      );
     }
 
     // Vérifier la taille
     if (fileData.data.length > this.config.avatar.maxSize) {
-      errors.push(
-        `Le fichier est trop volumineux (max: ${Math.round(this.config.avatar.maxSize / 1024 / 1024)}MB)`
+      const { getTranslation } = await import("../constants/translations.js");
+      const errorMessage = getTranslation(
+        "validation.file_size.too_large",
+        language
       );
+      throw new ValidationError(errorMessage, null, "FILE_TOO_LARGE");
     }
 
     // Vérifier le type MIME
@@ -181,42 +190,45 @@ class FileUploadService {
       fileData.mimetype &&
       !this.config.avatar.allowedMimeTypes.includes(fileData.mimetype)
     ) {
-      errors.push(
-        `Type de fichier non autorisé. Types acceptés: ${this.config.avatar.allowedMimeTypes.join(", ")}`
-      );
+      const { getTranslation } = await import("../constants/translations.js");
+      const errorMessage = getTranslation(
+        "validation.file_type.invalid",
+        language
+      ).replace("{types}", this.config.avatar.allowedMimeTypes.join(", "));
+      throw new ValidationError(errorMessage, null, "INVALID_FILE_TYPE");
     }
 
     // Vérifier l'extension si disponible
     if (fileData.filename) {
       const extension = path.extname(fileData.filename).toLowerCase();
       if (!this.config.avatar.allowedExtensions.includes(extension)) {
-        errors.push(
-          `Extension non autorisée. Extensions acceptées: ${this.config.avatar.allowedExtensions.join(", ")}`
-        );
+        const { getTranslation } = await import("../constants/translations.js");
+        const errorMessage = getTranslation(
+          "validation.file_type.invalid",
+          language
+        ).replace("{types}", this.config.avatar.allowedMimeTypes.join(", "));
+        throw new ValidationError(errorMessage, null, "INVALID_FILE_TYPE");
       }
     }
 
     // Vérifier que ce n'est pas un fichier vide
     if (fileData.data.length === 0) {
-      errors.push("Le fichier est vide");
+      throw new ValidationError("Le fichier est vide", null, "EMPTY_FILE");
     }
 
     // Vérification basique du header pour détecter les vraies images
     if (fileData.data.length >= 4) {
       const header = fileData.data.slice(0, 4);
-      const isValidImage = this.isValidImageHeader(header);
+      const isValidImage = this.isValidImageHeader(header, fileData.mimetype);
 
       if (!isValidImage) {
-        errors.push("Le fichier ne semble pas être une image valide");
+        const { getTranslation } = await import("../constants/translations.js");
+        const errorMessage = getTranslation(
+          "validation.file_corrupted.invalid",
+          language
+        );
+        throw new ValidationError(errorMessage, null, "INVALID_FILE_FORMAT");
       }
-    }
-
-    if (errors.length > 0) {
-      throw new ValidationError(
-        "Fichier avatar invalide",
-        "INVALID_AVATAR_FILE",
-        { errors }
-      );
     }
 
     return true;
@@ -225,7 +237,7 @@ class FileUploadService {
   /**
    * 🔍 Check if file header indicates a valid image
    */
-  static isValidImageHeader(header) {
+  static isValidImageHeader(header, mimetype = null) {
     // JPEG: FF D8 FF
     if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
       return true;
@@ -251,8 +263,24 @@ class FileUploadService {
       return true;
     }
 
-    // WebP: First 4 bytes should be "RIFF" but we check WebP signature differently
-    // For simplicity, we'll accept if mimetype was already validated
+    // WebP: RIFF format - check for "RIFF" at start
+    // RIFF: 52 49 46 46 (ASCII: "RIFF")
+    if (
+      header[0] === 0x52 &&
+      header[1] === 0x49 &&
+      header[2] === 0x46 &&
+      header[3] === 0x46
+    ) {
+      // Si c'est un fichier RIFF et que le mimetype est WebP, on accepte
+      if (mimetype === "image/webp") {
+        return true;
+      }
+    }
+
+    // BMP: 42 4D (ASCII: "BM")
+    if (header[0] === 0x42 && header[1] === 0x4d) {
+      return true;
+    }
 
     return false;
   }

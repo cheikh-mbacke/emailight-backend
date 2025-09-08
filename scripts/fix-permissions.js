@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const { exec } = require("child_process");
-const path = require("path");
+import { exec } from "child_process";
+import path from "path";
 
 // Check if running in auto mode (silent)
 const isAutoMode = process.argv.includes("--auto");
@@ -121,7 +121,7 @@ async function main() {
 }
 
 // Export functions for use in other scripts
-module.exports = {
+export {
   fixExceptionlessPermissions,
   checkDockerRunning,
   volumeExists,
@@ -129,6 +129,6 @@ module.exports = {
 };
 
 // Run main if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(console.error);
 }

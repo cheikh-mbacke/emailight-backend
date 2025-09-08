@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
-const { exec } = require("child_process");
+import fs from "fs";
+import path from "path";
+import { exec } from "child_process";
 
 // Import permission fixing utilities
-const {
+import {
   fixExceptionlessPermissions,
   checkDockerRunning,
-} = require("./fix-permissions");
+} from "./fix-permissions.js";
 
 // Function to generate a secure random key
 function generateSecretKey(length = 64) {
@@ -31,8 +31,8 @@ function generateSecretKey(length = 64) {
 
 // Function to copy the .env.example file to .env if it doesn't already exist
 function copyEnvFile() {
-  const envExample = path.join(__dirname, "..", "docker", ".env.example");
-  const envFile = path.join(__dirname, "..", "docker", ".env");
+  const envExample = path.join(process.cwd(), "docker", ".env.example");
+  const envFile = path.join(process.cwd(), "docker", ".env");
 
   try {
     if (fs.existsSync(envFile)) {

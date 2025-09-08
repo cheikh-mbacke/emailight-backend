@@ -23,8 +23,8 @@ WORKDIR /usr/src/app
 # Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer les dépendances
-RUN npm ci --only=production && \
+# Installer les dépendances (production + dev pour les tests)
+RUN npm ci && \
     npm cache clean --force
 
 # Copier le code source (TOUT le contenu, pas juste src/)

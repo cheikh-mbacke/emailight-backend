@@ -51,17 +51,45 @@ const RATE_LIMIT_RULES = {
 
   // API utilisateur
   "GET /api/v1/users/me": {
-    max: 100,
+    max: 200,
     window: 60 * 1000, // 1 minute
     keyGenerator: (request) =>
       `user-profile:${request.user?._id || request.ip}`,
     message: "Trop de requêtes de profil. Réessayez dans 1 minute.",
   },
-  "PUT /api/v1/users/me": {
-    max: 10,
+  "PATCH /api/v1/users/me": {
+    max: 50,
     window: 60 * 1000, // 1 minute
     keyGenerator: (request) => `user-update:${request.user?._id || request.ip}`,
     message: "Trop de mises à jour. Réessayez dans 1 minute.",
+  },
+  "POST /api/v1/users/me/avatar": {
+    max: 20,
+    window: 60 * 1000, // 1 minute
+    keyGenerator: (request) =>
+      `avatar-upload:${request.user?._id || request.ip}`,
+    message: "Trop d'uploads d'avatar. Réessayez dans 1 minute.",
+  },
+  "DELETE /api/v1/users/me/avatar": {
+    max: 20,
+    window: 60 * 1000, // 1 minute
+    keyGenerator: (request) =>
+      `avatar-delete:${request.user?._id || request.ip}`,
+    message: "Trop de suppressions d'avatar. Réessayez dans 1 minute.",
+  },
+  "PATCH /api/v1/users/me/password": {
+    max: 10,
+    window: 60 * 1000, // 1 minute
+    keyGenerator: (request) =>
+      `password-change:${request.user?._id || request.ip}`,
+    message: "Trop de changements de mot de passe. Réessayez dans 1 minute.",
+  },
+  "DELETE /api/v1/users/me": {
+    max: 5,
+    window: 60 * 1000, // 1 minute
+    keyGenerator: (request) =>
+      `account-delete:${request.user?._id || request.ip}`,
+    message: "Trop de tentatives de suppression. Réessayez dans 1 minute.",
   },
 
   // Comptes email
@@ -103,7 +131,7 @@ const RATE_LIMIT_RULES = {
  * 🔒 Règles par défaut pour les endpoints non configurés
  */
 const DEFAULT_RATE_LIMIT = {
-  max: 100,
+  max: process.env.NODE_ENV === "development" ? 1000 : 100,
   window: 60 * 1000, // 1 minute
   keyGenerator: (request) => `default:${request.user?._id || request.ip}`,
   message: "Trop de requêtes. Réessayez dans 1 minute.",
@@ -116,6 +144,19 @@ function getRateLimitRule(request) {
   const method = request.method;
   const url = request.url;
   const endpoint = `${method} ${url}`;
+
+  // En mode test, désactiver le rate limiting pour les tests d'authentification
+  if (
+    process.env.NODE_ENV === "development" &&
+    request.headers["x-test-environment"] === "Docker-Container"
+  ) {
+    return {
+      max: 10000,
+      window: 60 * 1000,
+      keyGenerator: (request) => `test:${request.user?._id || request.ip}`,
+      message: "Rate limiting désactivé en mode test",
+    };
+  }
 
   // Chercher une règle exacte
   if (RATE_LIMIT_RULES[endpoint]) {

@@ -312,6 +312,21 @@ class QuotaService {
     const todayKey = this.getTodayKey(userTimezone);
     const limit = EMAIL_LIMITS[user.subscriptionStatus] || EMAIL_LIMITS.free;
 
+    // ✅ CORRIGÉ: Gestion sécurisée de user.security
+    if (!user.security) {
+      // Si security n'existe pas, initialiser avec des valeurs par défaut
+      return {
+        subscription: user.subscriptionStatus || "free",
+        dailyLimit: limit,
+        used: 0,
+        remaining: limit,
+        canSend: true,
+        timezone: userTimezone,
+        todayKey,
+        resetTime: this.getNextResetTime(userTimezone),
+      };
+    }
+
     // Si c'est un nouveau jour, le compteur est remis à 0
     const emailsSentToday =
       user.security.lastEmailSentKey === todayKey

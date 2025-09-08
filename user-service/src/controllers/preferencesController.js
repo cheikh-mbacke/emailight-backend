@@ -34,8 +34,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GET_PREFERENCES_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "GET_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -62,9 +64,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UPDATE_PREFERENCES_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UPDATE_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -87,8 +90,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "RESET_PREFERENCES_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "RESET_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -116,9 +121,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UPDATE_THEME_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UPDATE_THEME_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -146,9 +152,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UPDATE_LANGUAGE_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UPDATE_LANGUAGE_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -185,9 +192,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UPDATE_EMAIL_DEFAULTS_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UPDATE_EMAIL_DEFAULTS_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -223,9 +231,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UPDATE_NOTIFICATIONS_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UPDATE_NOTIFICATIONS_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -247,7 +256,9 @@ class PreferencesController {
       const user = request.user;
       reply.header(
         "Content-Disposition",
-        `attachment; filename="preferences-${user.email}-${new Date().toISOString().split("T")[0]}.json"`
+        `attachment; filename="preferences-${user.email}-${
+          new Date().toISOString().split("T")[0]
+        }.json"`
       );
       reply.type("application/json");
 
@@ -256,8 +267,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "EXPORT_PREFERENCES_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "EXPORT_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -284,9 +297,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "IMPORT_PREFERENCES_ERROR",
-          details: error.details || null,
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "IMPORT_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -326,8 +340,10 @@ class PreferencesController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "VALIDATE_PREFERENCES_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "VALIDATE_PREFERENCES_ERROR",
+          errorMessage: error.message,
         });
       }
 

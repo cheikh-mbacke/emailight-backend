@@ -60,7 +60,9 @@ const createValidationMiddleware = (schema, target = "body") => {
 
         // Prendre le premier message d'erreur spécifique (le plus important)
         const firstError = error.details[0];
-        const specificMessage = firstError.message;
+
+        // Utiliser le message personnalisé défini dans le schéma, sinon fallback sur le message Joi
+        const specificMessage = firstError.message || error.message;
 
         return reply.code(400).send({
           status: "failed",
@@ -396,66 +398,6 @@ export const validationSchemas = {
     });
   },
 
-  // 🔐 Change password
-  changePassword: (request) => {
-    const language = I18nService.getRequestLanguage(request);
-
-    return Joi.object({
-      currentPassword: Joi.string()
-        .required()
-        .messages({
-          "string.empty": I18nService.getValidationMessage(
-            "current_password",
-            "required",
-            language
-          ),
-          "any.required": I18nService.getValidationMessage(
-            "current_password",
-            "required",
-            language
-          ),
-        }),
-      newPassword: Joi.string()
-        .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
-        .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
-        .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
-        .required()
-        .messages({
-          "string.min": I18nService.getValidationMessage(
-            "new_password",
-            "min_length",
-            language,
-            {
-              min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
-            }
-          ),
-          "string.max": I18nService.getValidationMessage(
-            "new_password",
-            "max_length",
-            language,
-            {
-              max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
-            }
-          ),
-          "string.pattern.base": I18nService.getValidationMessage(
-            "new_password",
-            "pattern",
-            language
-          ),
-          "string.empty": I18nService.getValidationMessage(
-            "new_password",
-            "required",
-            language
-          ),
-          "any.required": I18nService.getValidationMessage(
-            "new_password",
-            "required",
-            language
-          ),
-        }),
-    });
-  },
-
   // ⚙️ Update preferences
   updatePreferences: (request) => {
     const language = I18nService.getRequestLanguage(request);
@@ -504,9 +446,8 @@ export const validationSchemas = {
     })
       .min(1)
       .messages({
-        "object.min": I18nService.getValidationMessage(
-          "at_least_one_field",
-          "at_least_one_field",
+        "object.min": I18nService.getMessage(
+          "validation.at_least_one_field",
           language
         ),
       });
@@ -585,6 +526,237 @@ export const validationSchemas = {
         }),
     });
   },
+
+  // ✏️ Update user profile (name and/or email)
+  updateProfile: (request) => {
+    const language = I18nService.getRequestLanguage(request);
+
+    return Joi.object({
+      name: Joi.string()
+        .trim()
+        .min(VALIDATION_RULES.NAME.MIN_LENGTH)
+        .max(VALIDATION_RULES.NAME.MAX_LENGTH)
+        .pattern(VALIDATION_RULES.NAME.PATTERN)
+        .optional()
+        .messages({
+          "string.min": I18nService.getValidationMessage(
+            "name",
+            "min_length",
+            language,
+            {
+              min: VALIDATION_RULES.NAME.MIN_LENGTH,
+            }
+          ),
+          "string.max": I18nService.getValidationMessage(
+            "name",
+            "max_length",
+            language,
+            {
+              max: VALIDATION_RULES.NAME.MAX_LENGTH,
+            }
+          ),
+          "string.pattern.base": I18nService.getValidationMessage(
+            "name",
+            "pattern",
+            language
+          ),
+          "string.empty": I18nService.getValidationMessage(
+            "name",
+            "empty",
+            language
+          ),
+        }),
+      email: Joi.string()
+        .email()
+        .lowercase()
+        .trim()
+        .max(VALIDATION_RULES.EMAIL.MAX_LENGTH)
+        .pattern(VALIDATION_RULES.EMAIL.PATTERN)
+        .optional()
+        .messages({
+          "string.email": I18nService.getValidationMessage(
+            "email",
+            "invalid",
+            language
+          ),
+          "string.max": I18nService.getValidationMessage(
+            "email",
+            "max_length",
+            language,
+            {
+              max: VALIDATION_RULES.EMAIL.MAX_LENGTH,
+            }
+          ),
+          "string.pattern.base": I18nService.getValidationMessage(
+            "email",
+            "invalid",
+            language
+          ),
+          "string.empty": I18nService.getValidationMessage(
+            "email",
+            "empty",
+            language
+          ),
+        }),
+    })
+      .min(1)
+      .messages({
+        "object.min": I18nService.getMessage(
+          "validation.at_least_one_field",
+          language
+        ),
+      });
+  },
+
+  // 🔐 Change password
+  changePassword: (request) => {
+    const language = I18nService.getRequestLanguage(request);
+
+    return Joi.object({
+      currentPassword: Joi.string()
+        .required()
+        .messages({
+          "string.empty": I18nService.getValidationMessage(
+            "current_password",
+            "required",
+            language
+          ),
+          "any.required": I18nService.getValidationMessage(
+            "current_password",
+            "required",
+            language
+          ),
+        }),
+      newPassword: Joi.string()
+        .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
+        .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
+        .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
+        .required()
+        .messages({
+          "string.min": I18nService.getValidationMessage(
+            "new_password",
+            "min_length",
+            language,
+            {
+              min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+            }
+          ),
+          "string.max": I18nService.getValidationMessage(
+            "new_password",
+            "max_length",
+            language,
+            {
+              max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
+            }
+          ),
+          "string.pattern.base": I18nService.getValidationMessage(
+            "new_password",
+            "pattern",
+            language
+          ),
+          "string.empty": I18nService.getValidationMessage(
+            "new_password",
+            "required",
+            language
+          ),
+          "any.required": I18nService.getValidationMessage(
+            "new_password",
+            "required",
+            language
+          ),
+        }),
+    });
+  },
+
+  // 📧 Request password reset
+  requestPasswordReset: (request) => {
+    const language = I18nService.getRequestLanguage(request);
+
+    return Joi.object({
+      email: Joi.string()
+        .email()
+        .lowercase()
+        .trim()
+        .max(VALIDATION_RULES.EMAIL.MAX_LENGTH)
+        .pattern(VALIDATION_RULES.EMAIL.PATTERN)
+        .required()
+        .messages({
+          "string.email": I18nService.getValidationMessage(
+            "email",
+            "invalid",
+            language
+          ),
+          "string.max": I18nService.getValidationMessage(
+            "email",
+            "max_length",
+            language,
+            {
+              max: VALIDATION_RULES.EMAIL.MAX_LENGTH,
+            }
+          ),
+          "string.pattern.base": I18nService.getValidationMessage(
+            "email",
+            "invalid",
+            language
+          ),
+          "string.empty": I18nService.getValidationMessage(
+            "email",
+            "required",
+            language
+          ),
+        }),
+    });
+  },
+
+  // 🔄 Reset password
+  resetPassword: (request) => {
+    const language = I18nService.getRequestLanguage(request);
+
+    return Joi.object({
+      token: Joi.string()
+        .required()
+        .messages({
+          "string.empty": I18nService.getValidationMessage(
+            "reset_token",
+            "required",
+            language
+          ),
+        }),
+      newPassword: Joi.string()
+        .min(VALIDATION_RULES.PASSWORD.MIN_LENGTH)
+        .max(VALIDATION_RULES.PASSWORD.MAX_LENGTH)
+        .pattern(VALIDATION_RULES.PASSWORD.PATTERN)
+        .required()
+        .messages({
+          "string.min": I18nService.getValidationMessage(
+            "new_password",
+            "min_length",
+            language,
+            {
+              min: VALIDATION_RULES.PASSWORD.MIN_LENGTH,
+            }
+          ),
+          "string.max": I18nService.getValidationMessage(
+            "new_password",
+            "max_length",
+            language,
+            {
+              max: VALIDATION_RULES.PASSWORD.MAX_LENGTH,
+            }
+          ),
+          "string.pattern.base": I18nService.getValidationMessage(
+            "new_password",
+            "pattern",
+            language
+          ),
+          "string.empty": I18nService.getValidationMessage(
+            "new_password",
+            "required",
+            language
+          ),
+        }),
+    });
+  },
 };
 
 /**
@@ -625,20 +797,6 @@ export const validateForgotPassword = (request, reply) => {
   )(request, reply);
 };
 
-export const validateResetPassword = (request, reply) => {
-  return createValidationMiddleware(
-    validationSchemas.resetPassword(request),
-    "body"
-  )(request, reply);
-};
-
-export const validateChangePassword = (request, reply) => {
-  return createValidationMiddleware(
-    validationSchemas.changePassword(request),
-    "body"
-  )(request, reply);
-};
-
 export const validateUpdatePreferences = (request, reply) => {
   return createValidationMiddleware(
     validationSchemas.updatePreferences(request),
@@ -657,5 +815,33 @@ export const validateUserId = (request, reply) => {
   return createValidationMiddleware(
     validationSchemas.userId(request),
     "params"
+  )(request, reply);
+};
+
+export const validateUpdateProfile = (request, reply) => {
+  return createValidationMiddleware(
+    validationSchemas.updateProfile(request),
+    "body"
+  )(request, reply);
+};
+
+export const validateChangePassword = (request, reply) => {
+  return createValidationMiddleware(
+    validationSchemas.changePassword(request),
+    "body"
+  )(request, reply);
+};
+
+export const validateRequestPasswordReset = (request, reply) => {
+  return createValidationMiddleware(
+    validationSchemas.requestPasswordReset(request),
+    "body"
+  )(request, reply);
+};
+
+export const validateResetPassword = (request, reply) => {
+  return createValidationMiddleware(
+    validationSchemas.resetPassword(request),
+    "body"
   )(request, reply);
 };

@@ -20,8 +20,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "ADMIN_STATS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "ADMIN_STATS_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -64,7 +66,9 @@ class AdminController {
       const options = {
         includeInactive: includeInactive === "true",
         includeSecurityInfo: includeSecurityInfo === "true",
-        baseUrl: `${request.protocol}://${request.hostname}${request.url.split("?")[0]}`,
+        baseUrl: `${request.protocol}://${request.hostname}${
+          request.url.split("?")[0]
+        }`,
       };
 
       const result = await SearchService.searchUsers(filters, options);
@@ -72,8 +76,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "ADMIN_SEARCH_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "ADMIN_SEARCH_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -90,8 +96,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SECURITY_STATS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SECURITY_STATS_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -115,8 +123,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "UNLOCK_ACCOUNT_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "UNLOCK_ACCOUNT_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -141,8 +151,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "LOCK_ACCOUNT_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "LOCK_ACCOUNT_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;
@@ -160,8 +172,10 @@ class AdminController {
     } catch (error) {
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "ACTIVITY_STATS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "ACTIVITY_STATS_ERROR",
+          errorMessage: error.message,
         });
       }
       throw error;

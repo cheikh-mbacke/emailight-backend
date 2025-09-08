@@ -1,10 +1,15 @@
 import ProfileController from "../controllers/profileController.js";
 import UserController from "../controllers/userController.js";
 import AuthController from "../controllers/authController.js";
+import PasswordController from "../controllers/passwordController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import {
   validateForgotPassword,
   validateResetPassword,
+  validateUpdateProfile,
+  validateChangePassword,
+  validateRequestPasswordReset,
+  validateResetPassword as validateResetPasswordToken,
 } from "../middleware/validation.js";
 import { createRateLimitMiddleware } from "../middleware/rateLimiting.js";
 
@@ -29,28 +34,51 @@ async function userRoutes(fastify, options) {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
               data: {
                 type: "object",
                 properties: {
-                  profile: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      name: { type: "string" },
-                      email: { type: "string" },
-                      subscriptionStatus: { type: "string" },
-                      isEmailVerified: { type: "boolean" },
-                    },
+                  id: {
+                    type: "string",
+                    description: "ID unique de l'utilisateur",
                   },
-                  preferences: { type: "object" },
-                  subscription: { type: "object" },
-                  security: { type: "object" },
-                  connectedAccounts: { type: "array" },
-                  stats: { type: "object" },
+                  name: { type: "string", description: "Nom de l'utilisateur" },
+                  email: {
+                    type: "string",
+                    description: "Email de l'utilisateur",
+                  },
+                  subscriptionStatus: {
+                    type: "string",
+                    description: "Statut de l'abonnement",
+                    example: "free",
+                  },
+                  isEmailVerified: {
+                    type: "boolean",
+                    description: "Email vérifié ou non",
+                  },
+                  isActive: {
+                    type: "boolean",
+                    description: "Compte actif ou non",
+                  },
+                  profilePictureUrl: {
+                    type: "string",
+                    nullable: true,
+                    description: "URL de l'avatar",
+                  },
                 },
+                required: [
+                  "id",
+                  "name",
+                  "email",
+                  "subscriptionStatus",
+                  "isEmailVerified",
+                  "isActive",
+                ],
               },
-              message: { type: "string" },
+              message: {
+                type: "string",
+                example: "Profil récupéré avec succès",
+              },
             },
           },
         },
@@ -60,42 +88,76 @@ async function userRoutes(fastify, options) {
   );
 
   // ============================================================================
-  // ✏️ QUICK PROFILE UPDATE (NAME ONLY)
+  // ✏️ QUICK PROFILE UPDATE (NAME AND/OR EMAIL)
   // ============================================================================
   fastify.patch(
     "/me",
     {
-      preHandler: authenticateToken,
+      preHandler: [authenticateToken, validateUpdateProfile],
+      attachValidation: false, // Désactiver la validation Fastify
       schema: {
         tags: ["Users"],
-        summary: "Quick profile update (name only)",
-        description: "Allows the user to quickly update their name",
+        summary: "Quick profile update (name and/or email)",
+        description:
+          "Allows the user to quickly update their name and/or email. Body: { name?: string (2-100 chars), email?: string (valid email, max 255 chars) }",
         security: [{ bearerAuth: [] }],
         body: {
           type: "object",
           properties: {
             name: {
               type: "string",
-              minLength: 2,
-              maxLength: 100,
-              description: "New user name",
+              description: "User's name (2-100 characters)",
+            },
+            email: {
+              type: "string",
+              description:
+                "User's email address (valid email, max 255 characters)",
             },
           },
-          required: ["name"],
-          additionalProperties: false,
+          // Schéma permissif pour Swagger uniquement
+          // Aucune validation - tout est géré par Joi
         },
+        // Exemples pour Swagger UI
+        examples: [
+          {
+            name: "Update name only",
+            value: {
+              name: "John Doe",
+            },
+          },
+          {
+            name: "Update email only",
+            value: {
+              email: "john.doe@example.com",
+            },
+          },
+          {
+            name: "Update both name and email",
+            value: {
+              name: "John Doe",
+              email: "john.doe@example.com",
+            },
+          },
+        ],
         response: {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
               data: {
                 type: "object",
                 properties: {
-                  user: { type: "object" },
-                  updated: { type: "boolean" },
-                  updatedAt: { type: "string", format: "date-time" },
+                  id: {
+                    type: "string",
+                    description: "ID unique de l'utilisateur",
+                  },
+                  name: { type: "string", description: "Nom de l'utilisateur" },
+                  email: {
+                    type: "string",
+                    description: "Email de l'utilisateur",
+                  },
                 },
+                required: ["id", "name", "email"],
               },
               message: { type: "string" },
             },
@@ -127,7 +189,8 @@ async function userRoutes(fastify, options) {
               format: "binary",
             },
           },
-          required: ["avatar"],
+          // 🔥 Rendre le champ optionnel pour tester missingFileField
+          // required: ["avatar"],
         },
         // 🔥 FORCER Swagger à comprendre que c'est multipart
         consumes: ["multipart/form-data"],
@@ -135,23 +198,34 @@ async function userRoutes(fastify, options) {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
               data: {
                 type: "object",
                 properties: {
-                  user: { type: "object" },
-                  avatar: {
-                    type: "object",
-                    properties: {
-                      url: { type: "string" },
-                      fileName: { type: "string" },
-                      fileSize: { type: "number" },
-                      uploadedAt: { type: "string", format: "date-time" },
-                    },
+                  fileName: {
+                    type: "string",
+                    description: "Nom du fichier uploadé",
                   },
+                  fileSize: {
+                    type: "number",
+                    description: "Taille du fichier en bytes",
+                  },
+                  avatarUrl: {
+                    type: "string",
+                    description: "URL complète de l'avatar",
+                  },
+                  uploadedAt: { type: "string", format: "date-time" },
                   updated: { type: "boolean" },
                   updatedAt: { type: "string", format: "date-time" },
                 },
+                required: [
+                  "fileName",
+                  "fileSize",
+                  "avatarUrl",
+                  "uploadedAt",
+                  "updated",
+                  "updatedAt",
+                ],
               },
               message: { type: "string" },
             },
@@ -190,16 +264,7 @@ async function userRoutes(fastify, options) {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  deleted: { type: "boolean" },
-                  deletedAvatar: { type: "string" },
-                  deletedAt: { type: "string", format: "date-time" },
-                  reason: { type: "string" },
-                },
-              },
+              status: { type: "string", example: "success" },
               message: { type: "string" },
             },
           },
@@ -210,102 +275,38 @@ async function userRoutes(fastify, options) {
   );
 
   // ============================================================================
-  // 📊 USER USAGE STATS
-  // ============================================================================
-  fastify.get(
-    "/me/stats",
-    {
-      preHandler: authenticateToken,
-      schema: {
-        tags: ["Users"],
-        summary: "Get user usage statistics",
-        description: "Returns detailed usage stats and usage limits",
-        security: [{ bearerAuth: [] }],
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  user: {
-                    type: "object",
-                    properties: {
-                      memberSince: { type: "string", format: "date-time" },
-                      lastActive: { type: "string", format: "date-time" },
-                      subscriptionStatus: { type: "string" },
-                      isEmailVerified: { type: "boolean" },
-                    },
-                  },
-                  usage: {
-                    type: "object",
-                    properties: {
-                      emailsSentToday: { type: "number" },
-                      dailyLimit: { type: "number" },
-                      remainingEmails: { type: "number" },
-                      canSendEmail: { type: "boolean" },
-                    },
-                  },
-                  emailAccounts: {
-                    type: "object",
-                    properties: {
-                      totalAccounts: { type: "number" },
-                      activeAccounts: { type: "number" },
-                      totalEmailsSent: { type: "number" },
-                      providers: { type: "object" },
-                    },
-                  },
-                  security: { type: "object" },
-                },
-              },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    ProfileController.getStats
-  );
-
-  // ============================================================================
   // 🗑️ DELETE USER ACCOUNT (GDPR)
   // ============================================================================
   fastify.delete(
     "/me",
     {
       preHandler: authenticateToken,
+      attachValidation: false,
       schema: {
         tags: ["Users"],
         summary: "Delete user account permanently",
         description:
           "Permanently delete the user account and all associated data (GDPR compliant)",
         security: [{ bearerAuth: [] }],
+        body: {
+          type: "object",
+          properties: {
+            password: {
+              type: "string",
+              description:
+                "User password for confirmation (required only for email-based accounts)",
+            },
+          },
+          // Password is optional - validation is done in the service based on user type
+        },
         response: {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
-              data: {
-                type: "object",
-                properties: {
-                  accountDeleted: { type: "boolean" },
-                  deletedAt: { type: "string", format: "date-time" },
-                  email: { type: "string" },
-                  deletedData: {
-                    type: "object",
-                    properties: {
-                      emailAccounts: { type: "number" },
-                      avatar: { type: "boolean" },
-                      preferences: { type: "boolean" },
-                      security: { type: "boolean" },
-                    },
-                  },
-                  gdprCompliant: { type: "boolean" },
-                },
-              },
+              status: { type: "string", example: "success" },
               message: { type: "string" },
             },
+            required: ["status", "message"],
           },
         },
       },
@@ -314,21 +315,21 @@ async function userRoutes(fastify, options) {
   );
 
   // ============================================================================
-  // 🔒 CHANGE PASSWORD (SECURE)
+  // 🔐 CHANGE PASSWORD (Authenticated)
   // ============================================================================
   fastify.patch(
     "/me/password",
     {
-      preHandler: authenticateToken,
+      preHandler: [authenticateToken, validateChangePassword],
+      attachValidation: false,
       schema: {
         tags: ["Users"],
-        summary: "Change password",
+        summary: "Change user password",
         description:
-          "Secure password change with current password verification",
+          "Change the current user's password. Requires current password for verification.",
         security: [{ bearerAuth: [] }],
         body: {
           type: "object",
-          required: ["currentPassword", "newPassword"],
           properties: {
             currentPassword: {
               type: "string",
@@ -336,23 +337,20 @@ async function userRoutes(fastify, options) {
             },
             newPassword: {
               type: "string",
-              minLength: 6,
-              maxLength: 128,
-              description: "New password (minimum 6 characters)",
+              description:
+                "New password (6-128 chars, must contain lowercase, uppercase, and number)",
             },
           },
-          additionalProperties: false,
         },
         response: {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
               data: {
                 type: "object",
                 properties: {
-                  passwordChanged: { type: "boolean" },
-                  changedAt: { type: "string", format: "date-time" },
+                  success: { type: "boolean" },
                 },
               },
               message: { type: "string" },
@@ -361,75 +359,66 @@ async function userRoutes(fastify, options) {
         },
       },
     },
-    UserController.changePassword
+    PasswordController.changePassword
   );
 
   // ============================================================================
-  // 🔄 FORGOT PASSWORD
+  // 📧 REQUEST PASSWORD RESET (Public)
   // ============================================================================
   fastify.post(
     "/me/forgot-password",
     {
-      preHandler: [
-        createRateLimitMiddleware({
-          max: 3,
-          window: 60 * 60 * 1000, // 1 heure
-          keyGenerator: (request) => `forgot-password:${request.ip}`,
-          message:
-            "Trop de demandes de réinitialisation. Réessayez dans 1 heure.",
-        }),
-        validateForgotPassword,
-      ],
+      preHandler: [validateRequestPasswordReset],
+      attachValidation: false,
       schema: {
         tags: ["Users"],
         summary: "Request password reset",
-        description: "Send a password reset email to the user",
+        description:
+          "Request a password reset email. Always returns success for security.",
         body: {
           type: "object",
           properties: {
             email: {
               type: "string",
               format: "email",
-              description: "Email address to send reset link to",
+              description: "User email address",
             },
           },
           required: ["email"],
-          additionalProperties: false,
         },
         response: {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
+              data: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean" },
+                },
+              },
               message: { type: "string" },
             },
           },
         },
       },
     },
-    AuthController.forgotPassword
+    PasswordController.requestPasswordReset
   );
 
   // ============================================================================
-  // 🔒 RESET PASSWORD
+  // 🔄 RESET PASSWORD WITH TOKEN (Public)
   // ============================================================================
   fastify.post(
     "/me/reset-password",
     {
-      preHandler: [
-        createRateLimitMiddleware({
-          max: 5,
-          window: 15 * 60 * 1000, // 15 minutes
-          keyGenerator: (request) => `reset-password:${request.ip}`,
-          message:
-            "Trop de tentatives de réinitialisation. Réessayez dans 15 minutes.",
-        }),
-        validateResetPassword,
-      ],
+      preHandler: [validateResetPasswordToken],
+      attachValidation: false,
       schema: {
         tags: ["Users"],
-        summary: "Reset password using a token",
-        description: "Reset user password with a valid reset token",
+        summary: "Reset password with token",
+        description:
+          "Reset user password using a valid reset token from email.",
         body: {
           type: "object",
           properties: {
@@ -439,25 +428,30 @@ async function userRoutes(fastify, options) {
             },
             newPassword: {
               type: "string",
-              minLength: 8,
-              description: "New password (minimum 8 characters)",
+              description:
+                "New password (6-128 chars, must contain lowercase, uppercase, and number)",
             },
           },
           required: ["token", "newPassword"],
-          additionalProperties: false,
         },
         response: {
           200: {
             type: "object",
             properties: {
-              success: { type: "boolean" },
+              status: { type: "string", example: "success" },
+              data: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean" },
+                },
+              },
               message: { type: "string" },
             },
           },
         },
       },
     },
-    AuthController.resetPassword
+    PasswordController.resetPassword
   );
 }
 

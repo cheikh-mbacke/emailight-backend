@@ -13,7 +13,7 @@ export const VALIDATION_RULES = {
   NAME: {
     MIN_LENGTH: 2,
     MAX_LENGTH: 100,
-    PATTERN: /^[a-zA-ZÀ-ÿ\s'-]+$/, // Lettres, espaces, tirets, apostrophes
+    PATTERN: /^[a-zA-ZÀ-ÿ0-9\s'.-]+$/, // Lettres, chiffres, espaces, apostrophes, points, tirets
     TRIM: true,
   },
 
@@ -57,10 +57,16 @@ export const VALIDATION_RULES = {
 
   // 🖼️ Profile picture
   PROFILE_PICTURE: {
-    URL_PATTERN: /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
-    LOCAL_PATTERN: /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp)$/i,
+    URL_PATTERN: /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i,
+    LOCAL_PATTERN: /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp|bmp)$/i,
     MAX_SIZE: 5 * 1024 * 1024, // 5MB
-    ALLOWED_TYPES: ["image/jpeg", "image/png", "image/gif", "image/webp"],
+    ALLOWED_TYPES: [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/bmp",
+    ],
   },
 
   // ⚙️ User preferences

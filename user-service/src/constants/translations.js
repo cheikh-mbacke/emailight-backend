@@ -59,6 +59,7 @@ export const TRANSLATIONS = {
       invalid: "Format invalide",
       min_length: "Doit contenir au moins {min} caractères",
       max_length: "Ne peut pas dépasser {max} caractères",
+      at_least_one_field: "Au moins un champ doit être fourni",
       pattern: "Format non autorisé",
 
       // Champs spécifiques
@@ -67,12 +68,15 @@ export const TRANSLATIONS = {
         min_length: "Le nom doit contenir au moins {min} caractères",
         max_length: "Le nom ne peut pas dépasser {max} caractères",
         pattern:
-          "Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes",
+          "Le nom ne peut contenir que des lettres, chiffres, espaces, apostrophes, points et tirets",
+        empty: "Le nom ne peut pas être vide",
       },
       email: {
         required: "L'email est requis",
         invalid: "Format d'email invalide",
         max_length: "L'email ne peut pas dépasser {max} caractères",
+        empty: "L'email ne peut pas être vide",
+        exists: "Un compte avec cette adresse email existe déjà",
       },
       password: {
         required: "Le mot de passe est requis",
@@ -82,6 +86,8 @@ export const TRANSLATIONS = {
           "Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre",
         auth_provider_required:
           "Le mot de passe est requis pour l'authentification par email",
+        invalid: "Le mot de passe fourni est invalide",
+        not_configured: "Cet utilisateur n'a pas de mot de passe configuré",
       },
       new_password: {
         required: "Le nouveau mot de passe est requis",
@@ -91,10 +97,16 @@ export const TRANSLATIONS = {
           "Le nouveau mot de passe ne peut pas dépasser {max} caractères",
         pattern:
           "Le nouveau mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre",
+        same_as_current:
+          "Le nouveau mot de passe doit être différent de l'actuel",
       },
       current_password: {
         required: "Le mot de passe actuel est requis",
         invalid: "Le mot de passe actuel est incorrect",
+      },
+      reset_token: {
+        required: "Le token de réinitialisation est requis",
+        invalid: "Token de réinitialisation invalide ou expiré",
       },
       refresh_token: {
         required: "Le token de rafraîchissement est requis",
@@ -102,6 +114,20 @@ export const TRANSLATIONS = {
       },
       profile_picture: {
         invalid: "Format d'URL de photo de profil invalide",
+      },
+      file_size: {
+        too_large: "La taille maximale autorisée est de 5MB",
+        truncated:
+          "Le fichier a été tronqué et dépasse la taille maximale autorisée",
+      },
+      file: {
+        required: "Veuillez sélectionner un fichier image pour votre avatar",
+      },
+      file_type: {
+        invalid: "Type de fichier non autorisé. Types acceptés: {types}",
+      },
+      file_corrupted: {
+        invalid: "Le fichier ne semble pas être une image valide",
       },
       display_name: {
         max_length: "Le nom d'affichage ne peut pas dépasser {max} caractères",
@@ -135,6 +161,7 @@ export const TRANSLATIONS = {
     user: {
       not_found: "Utilisateur introuvable",
       profile_error: "Erreur lors de la récupération du profil",
+      profile_retrieved: "Profil récupéré avec succès",
       name_empty: "Le nom ne peut pas être vide",
       update_error: "Erreur lors de la mise à jour",
       delete_error: "Erreur lors de la suppression",
@@ -160,12 +187,16 @@ export const TRANSLATIONS = {
     // ============================================================================
     success: {
       name_updated: "Nom utilisateur mis à jour",
-      avatar_updated: "Avatar mis à jour",
+      profile_updated: "Profil mis à jour avec succès",
+      avatar_updated: "Avatar mis à jour avec succès",
       avatar_deleted: "Avatar supprimé",
       account_deleted: "Compte utilisateur supprimé définitivement",
       email_account_disconnected: "Compte email déconnecté",
       accounts_cleaned: "Comptes email inactifs nettoyés",
       failed_accounts_cleaned: "Comptes en erreur nettoyés",
+      password_changed: "Mot de passe changé avec succès",
+      password_reset_sent: "Email de réinitialisation envoyé",
+      password_reset_completed: "Mot de passe réinitialisé avec succès",
     },
 
     // ============================================================================
@@ -173,6 +204,7 @@ export const TRANSLATIONS = {
     // ============================================================================
     logs: {
       name_updated: "Nom utilisateur mis à jour",
+      profile_updated: "Profil utilisateur mis à jour",
       avatar_updated: "Avatar mis à jour",
       avatar_deleted: "Avatar supprimé",
       account_deleted: "Compte utilisateur supprimé définitivement",
@@ -185,8 +217,14 @@ export const TRANSLATIONS = {
       account_locked: "Compte verrouillé",
       account_unlocked: "Compte déverrouillé",
       email_account_created: "Compte email créé",
+      passwordChanged: "Mot de passe changé avec succès",
+      passwordResetRequested: "Demande de réinitialisation de mot de passe",
+      passwordReset: "Mot de passe réinitialisé avec succès",
       quota_exceeded: "Quota dépassé",
       quota_consumed: "Quota consommé",
+      password_changed: "Mot de passe modifié",
+      password_reset_requested: "Demande de réinitialisation de mot de passe",
+      password_reset: "Mot de passe réinitialisé",
     },
 
     // ============================================================================
@@ -270,6 +308,7 @@ export const TRANSLATIONS = {
       invalid: "Invalid format",
       min_length: "Must contain at least {min} characters",
       max_length: "Cannot exceed {max} characters",
+      at_least_one_field: "At least one field must be provided",
       pattern: "Format not allowed",
 
       // Specific fields
@@ -278,12 +317,15 @@ export const TRANSLATIONS = {
         min_length: "Name must be at least {min} characters long",
         max_length: "Name cannot exceed {max} characters",
         pattern:
-          "Name can only contain letters, spaces, hyphens and apostrophes",
+          "Name can only contain letters, numbers, spaces, apostrophes, dots and hyphens",
+        empty: "Name cannot be empty",
       },
       email: {
         required: "Email is required",
         invalid: "Invalid email format",
         max_length: "Email cannot exceed {max} characters",
+        empty: "Email cannot be empty",
+        exists: "An account with this email address already exists",
       },
       password: {
         required: "Password is required",
@@ -292,6 +334,8 @@ export const TRANSLATIONS = {
         pattern:
           "Password must contain at least one lowercase letter, one uppercase letter and one number",
         auth_provider_required: "Password is required for email authentication",
+        invalid: "The provided password is invalid",
+        not_configured: "This user does not have a password configured",
       },
       new_password: {
         required: "New password is required",
@@ -299,10 +343,15 @@ export const TRANSLATIONS = {
         max_length: "New password cannot exceed {max} characters",
         pattern:
           "New password must contain at least one lowercase letter, one uppercase letter and one number",
+        same_as_current: "New password must be different from current password",
       },
       current_password: {
         required: "Current password is required",
         invalid: "Current password is incorrect",
+      },
+      reset_token: {
+        required: "Reset token is required",
+        invalid: "Invalid or expired reset token",
       },
       refresh_token: {
         required: "Refresh token is required",
@@ -310,6 +359,20 @@ export const TRANSLATIONS = {
       },
       profile_picture: {
         invalid: "Invalid profile picture URL format",
+      },
+      file_size: {
+        too_large: "Maximum allowed size is 5MB",
+        truncated:
+          "File has been truncated and exceeds the maximum allowed size",
+      },
+      file: {
+        required: "Please select an image file for your avatar",
+      },
+      file_type: {
+        invalid: "File type not allowed. Allowed types: {types}",
+      },
+      file_corrupted: {
+        invalid: "The file does not appear to be a valid image",
       },
       display_name: {
         max_length: "Display name cannot exceed {max} characters",
@@ -342,6 +405,7 @@ export const TRANSLATIONS = {
     user: {
       not_found: "User not found",
       profile_error: "Error retrieving profile",
+      profile_retrieved: "Profile retrieved successfully",
       name_empty: "Name cannot be empty",
       update_error: "Error during update",
       delete_error: "Error during deletion",
@@ -367,12 +431,16 @@ export const TRANSLATIONS = {
     // ============================================================================
     success: {
       name_updated: "Username updated",
-      avatar_updated: "Avatar updated",
+      profile_updated: "Profile updated successfully",
+      avatar_updated: "Avatar updated successfully",
       avatar_deleted: "Avatar deleted",
       account_deleted: "User account permanently deleted",
       email_account_disconnected: "Email account disconnected",
       accounts_cleaned: "Inactive email accounts cleaned",
       failed_accounts_cleaned: "Failed accounts cleaned",
+      password_changed: "Password changed successfully",
+      password_reset_sent: "Password reset email sent",
+      password_reset_completed: "Password reset successfully",
     },
 
     // ============================================================================
@@ -380,6 +448,7 @@ export const TRANSLATIONS = {
     // ============================================================================
     logs: {
       name_updated: "Username updated",
+      profile_updated: "User profile updated",
       avatar_updated: "Avatar updated",
       avatar_deleted: "Avatar deleted",
       account_deleted: "User account permanently deleted",
@@ -391,8 +460,14 @@ export const TRANSLATIONS = {
       account_locked: "Account locked",
       account_unlocked: "Account unlocked",
       email_account_created: "Email account created",
+      passwordChanged: "Password changed successfully",
+      passwordResetRequested: "Password reset requested",
+      passwordReset: "Password reset successfully",
       quota_exceeded: "Quota exceeded",
       quota_consumed: "Quota consumed",
+      password_changed: "Password changed",
+      password_reset_requested: "Password reset requested",
+      password_reset: "Password reset",
     },
 
     // ============================================================================

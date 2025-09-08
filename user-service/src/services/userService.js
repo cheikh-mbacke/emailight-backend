@@ -3,6 +3,7 @@
 // ============================================================================
 
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import EmailAccount from "../models/EmailAccount.js";
 import QuotaService from "./quotaService.js";
@@ -192,82 +193,215 @@ class UserService {
   /**
    * 💥 Suppression complète du compte utilisateur (GDPR)
    */
-  static async deleteUserAccount(userId) {
+  static async deleteUserAccount(userId, password, requestLanguage = null) {
     try {
       this.validateObjectId(userId);
 
-      // Utilisation d'une transaction pour la cohérence
-      const session = await mongoose.startSession();
+      // En développement, on n'utilise pas de transactions (MongoDB standalone)
+      // En production, utiliser des transactions pour la cohérence
+      const useTransactions = process.env.NODE_ENV === "production";
 
-      try {
-        return await session.withTransaction(async () => {
-          const user = await User.findById(userId).session(session);
-          if (!user) {
-            throw ErrorFactory.notFound(
-              "Utilisateur introuvable",
-              USER_ERRORS.USER_NOT_FOUND
+      if (useTransactions) {
+        const session = await mongoose.startSession();
+        try {
+          return await session.withTransaction(async () => {
+            return await this._deleteUserAccountData(
+              userId,
+              password,
+              session,
+              requestLanguage
             );
-          }
-
-          const userLanguage = I18nService.getUserLanguage(user);
-          const userEmail = user.email;
-          const userAvatarUrl = user.profilePictureUrl;
-
-          // 1. Delete all connected email accounts
-          const emailAccountsResult = await EmailAccount.deleteMany(
-            { userId },
-            { session }
-          );
-
-          // 2. Delete avatar if it exists
-          let avatarDeleted = false;
-          if (userAvatarUrl) {
-            try {
-              const deleteResult =
-                await AvatarService.deleteAvatar(userAvatarUrl);
-              avatarDeleted = deleteResult.deleted;
-            } catch (avatarError) {
-              this.logger?.warn(
-                I18nService.getMessage("logs.avatarDeleteFailed", userLanguage),
-                avatarError
-              );
-            }
-          }
-
-          // 3. Delete user
-          await User.findByIdAndDelete(userId, { session });
-
-          this.logger?.user(
-            I18nService.getMessage("logs.accountDeleted", userLanguage),
-            {
-              email: userEmail,
-              emailAccountsDeleted: emailAccountsResult.deletedCount,
-              avatarDeleted,
-              gdprCompliance: true,
-            },
-            {
-              userId: userId.toString(),
-              email: userEmail,
-              action: "account_permanently_deleted",
-            }
-          );
-
-          return {
-            accountDeleted: true,
-            deletedAt: new Date(),
-            email: userEmail,
-            deletedData: {
-              emailAccounts: emailAccountsResult.deletedCount,
-              avatar: avatarDeleted,
-              preferences: true,
-              security: true,
-            },
-            gdprCompliant: true,
-          };
-        });
-      } finally {
-        await session.endSession();
+          });
+        } finally {
+          await session.endSession();
+        }
+      } else {
+        // Mode développement sans transactions
+        return await this._deleteUserAccountData(
+          userId,
+          password,
+          null,
+          requestLanguage
+        );
       }
+    } catch (error) {
+      // Si c'est une erreur opérationnelle (4xx), la laisser remonter telle quelle
+      if (error.isOperational && error.statusCode < 500) {
+        throw error;
+      }
+
+      // Sinon, logger et encapsuler dans SystemError
+      this.logger?.error("Erreur lors de la suppression du compte", error, {
+        action: "delete_user_account_failed",
+        userId: userId?.toString(),
+      });
+      throw new SystemError("Erreur lors de la suppression du compte", error);
+    }
+  }
+
+  /**
+   * 🗑️ Suppression des données utilisateur (méthode privée)
+   */
+  static async _deleteUserAccountData(
+    userId,
+    password,
+    session,
+    requestLanguage = null
+  ) {
+    try {
+      const user = session
+        ? await User.findById(userId).select("+password").session(session)
+        : await User.findById(userId).select("+password");
+      if (!user) {
+        throw ErrorFactory.notFound(
+          "Utilisateur introuvable",
+          USER_ERRORS.USER_NOT_FOUND
+        );
+      }
+
+      // Vérifier le mot de passe pour confirmation
+      // Prioriser la langue de la requête, sinon utiliser les préférences utilisateur
+      const userLanguage = requestLanguage || I18nService.getUserLanguage(user);
+
+      // Si l'utilisateur a un mot de passe (authProvider === "email"), on le vérifie
+      if (user.password) {
+        if (
+          !password ||
+          typeof password !== "string" ||
+          password.trim() === ""
+        ) {
+          throw ErrorFactory.badRequest(
+            I18nService.getValidationMessage(
+              "password",
+              "required",
+              userLanguage
+            ),
+            USER_ERRORS.INVALID_CREDENTIALS
+          );
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          throw ErrorFactory.unauthorized(
+            I18nService.getValidationMessage(
+              "current_password",
+              "invalid",
+              userLanguage
+            ),
+            USER_ERRORS.INVALID_CREDENTIALS
+          );
+        }
+      } else {
+        // L'utilisateur n'a pas de mot de passe (OAuth), on accepte la suppression sans vérification
+        // Mais on peut ajouter une validation optionnelle si nécessaire
+        if (password && password.trim() !== "") {
+          throw ErrorFactory.badRequest(
+            I18nService.getValidationMessage(
+              "password",
+              "not_configured",
+              userLanguage
+            ),
+            USER_ERRORS.INVALID_CREDENTIALS
+          );
+        }
+      }
+
+      const userEmail = user.email;
+      const userAvatarUrl = user.profilePictureUrl;
+
+      // 1. Delete all connected email accounts
+      const emailAccountsResult = session
+        ? await EmailAccount.deleteMany({ userId }, { session })
+        : await EmailAccount.deleteMany({ userId });
+
+      // 2. Delete avatar if it exists
+      let avatarDeleted = false;
+      if (userAvatarUrl) {
+        try {
+          const deleteResult = await AvatarService.deleteAvatar(userAvatarUrl);
+          avatarDeleted = deleteResult.deleted;
+        } catch (avatarError) {
+          this.logger?.warn(
+            I18nService.getMessage("logs.avatarDeleteFailed", userLanguage),
+            avatarError
+          );
+        }
+      }
+
+      // 2.5. Delete avatar files from filesystem
+      let avatarFilesDeleted = 0;
+      try {
+        const fs = await import("fs/promises");
+        const path = await import("path");
+        const avatarsDir = path.join(process.cwd(), "uploads", "avatars");
+        const files = await fs.readdir(avatarsDir);
+
+        const userAvatarFiles = files.filter((file) =>
+          file.startsWith(`avatar_${userId.toString()}_`)
+        );
+
+        for (const file of userAvatarFiles) {
+          const filePath = path.join(avatarsDir, file);
+          await fs.unlink(filePath);
+          avatarFilesDeleted++;
+        }
+      } catch (error) {
+        this.logger?.warn("Erreur lors de la suppression des fichiers avatar", {
+          userId: userId.toString(),
+          error: error.message,
+        });
+      }
+
+      // 2.6. Clear blacklisted tokens
+      try {
+        const TokenBlacklistService = (
+          await import("./tokenBlacklistService.js")
+        ).default;
+        await TokenBlacklistService.clearUserTokens(userId.toString());
+      } catch (error) {
+        this.logger?.warn(
+          "Erreur lors de la suppression des tokens blacklistés",
+          {
+            userId: userId.toString(),
+            error: error.message,
+          }
+        );
+      }
+
+      // 3. Delete user
+      session
+        ? await User.findByIdAndDelete(userId, { session })
+        : await User.findByIdAndDelete(userId);
+
+      this.logger?.user(
+        I18nService.getMessage("logs.accountDeleted", userLanguage),
+        {
+          email: userEmail,
+          emailAccountsDeleted: emailAccountsResult.deletedCount,
+          avatarDeleted,
+          gdprCompliance: true,
+        },
+        {
+          userId: userId.toString(),
+          email: userEmail,
+          action: "account_permanently_deleted",
+        }
+      );
+
+      return {
+        accountDeleted: true,
+        deletedAt: new Date(),
+        email: userEmail,
+        deletedData: {
+          emailAccounts: emailAccountsResult.deletedCount,
+          avatar: avatarDeleted,
+          avatarFiles: avatarFilesDeleted,
+          preferences: true,
+          security: true,
+          blacklistedTokens: true,
+        },
+        gdprCompliant: true,
+      };
     } catch (error) {
       if (error.isOperational) {
         throw error;

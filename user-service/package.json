@@ -15,12 +15,13 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
+    "debug:auth": "node scripts/debug-auth-tests.js",
     "dev": "nodemon src/index.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "start": "node src/index.js",
-    "test:auth": "node scripts/auth-testing.js",
-    "test:auth:clean": "node scripts/cleanup-test-data.js && node scripts/auth-testing.js"
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@exceptionless/node": "^3.1.0",
@@ -35,6 +36,7 @@
     "@fastify/swagger-ui": "^5.2.3",
     "bcryptjs": "^3.0.2",
     "fastify": "^5.4.0",
+    "form-data": "^4.0.4",
     "google-auth-library": "^10.1.0",
     "imapflow": "^1.0.191",
     "ioredis": "^5.3.2",
@@ -44,7 +46,12 @@
     "nodemailer": "^7.0.5"
   },
   "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@jest/globals": "^29.7.0",
+    "babel-jest": "^29.7.0",
     "eslint": "^8.57.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.1.10"
   },
   "engines": {

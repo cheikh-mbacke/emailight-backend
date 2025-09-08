@@ -35,7 +35,9 @@ class EmailAccountsController {
       };
 
       // Construire l'URL de base pour les liens de pagination
-      const baseUrl = `${request.protocol}://${request.hostname}${request.url.split("?")[0]}`;
+      const baseUrl = `${request.protocol}://${request.hostname}${
+        request.url.split("?")[0]
+      }`;
 
       const result = await EmailAccountsService.getUserEmailAccounts(
         userId,
@@ -48,8 +50,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "EMAIL_ACCOUNTS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "EMAIL_ACCOUNTS_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -76,8 +80,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "DISCONNECT_EMAIL_ACCOUNT_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "DISCONNECT_EMAIL_ACCOUNT_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -104,8 +110,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "EMAIL_ACCOUNT_HEALTH_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "EMAIL_ACCOUNT_HEALTH_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -121,16 +129,19 @@ class EmailAccountsController {
     try {
       const userId = request.user._id;
 
-      const result =
-        await EmailAccountsService.cleanupInactiveEmailAccounts(userId);
+      const result = await EmailAccountsService.cleanupInactiveEmailAccounts(
+        userId
+      );
 
       return reply.success(result, "Nettoyage des comptes terminé");
     } catch (error) {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "EMAIL_ACCOUNTS_CLEANUP_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "EMAIL_ACCOUNTS_CLEANUP_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -165,8 +176,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GMAIL_AUTH_URL_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "GMAIL_AUTH_URL_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -186,9 +199,10 @@ class EmailAccountsController {
       // Valider le state si fourni
       if (state && state !== userId.toString()) {
         return reply.code(400).send({
-          error: "Paramètre state invalide",
-          message: "Le paramètre state ne correspond pas à l'utilisateur",
-          code: "INVALID_STATE_PARAMETER",
+          status: "failed",
+          errorCode: "400",
+          errorName: "INVALID_STATE_PARAMETER",
+          errorMessage: "Le paramètre state ne correspond pas à l'utilisateur",
         });
       }
 
@@ -224,8 +238,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "GMAIL_CONNECTION_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "GMAIL_CONNECTION_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -233,8 +249,6 @@ class EmailAccountsController {
       throw error;
     }
   }
-
-
 
   /**
    * 🔄 Refresh email account tokens
@@ -254,8 +268,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "TOKEN_REFRESH_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "TOKEN_REFRESH_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -263,8 +279,6 @@ class EmailAccountsController {
       throw error;
     }
   }
-
-
 
   /**
    * 📊 Get token refresh statistics
@@ -280,8 +294,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "REFRESH_STATS_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "REFRESH_STATS_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -297,16 +313,19 @@ class EmailAccountsController {
     try {
       const userId = request.user._id;
 
-      const result =
-        await EmailAccountsService.manualCleanupFailedAccounts(userId);
+      const result = await EmailAccountsService.manualCleanupFailedAccounts(
+        userId
+      );
 
       return reply.success(result, "Nettoyage manuel terminé");
     } catch (error) {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "MANUAL_CLEANUP_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "MANUAL_CLEANUP_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -322,16 +341,19 @@ class EmailAccountsController {
     try {
       const userId = request.user._id;
 
-      const result =
-        await TokenRefreshService.forceRefreshAllUserTokens(userId);
+      const result = await TokenRefreshService.forceRefreshAllUserTokens(
+        userId
+      );
 
       return reply.success(result, "Refresh forcé de tous les tokens terminé");
     } catch (error) {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "FORCE_REFRESH_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "FORCE_REFRESH_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -358,8 +380,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "DETAILED_INFO_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "DETAILED_INFO_ERROR",
+          errorMessage: error.message,
         });
       }
 
@@ -388,8 +412,10 @@ class EmailAccountsController {
       // 🎯 Erreurs métier (4xx) : gestion locale
       if (error.statusCode && error.statusCode < 500 && error.isOperational) {
         return reply.code(error.statusCode).send({
-          error: error.message,
-          code: error.code || "SETTINGS_UPDATE_ERROR",
+          status: "failed",
+          errorCode: String(error.statusCode),
+          errorName: error.code || "SETTINGS_UPDATE_ERROR",
+          errorMessage: error.message,
         });
       }
 
