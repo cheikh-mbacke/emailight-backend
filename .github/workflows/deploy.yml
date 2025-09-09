@@ -311,20 +311,20 @@ jobs:
             cd /opt/emailight-backend
             
             # Arrêter les services existants
-            docker-compose down || true
+            docker compose down || true
             
             # Nettoyer les anciennes images
             docker system prune -f
             
             # Démarrer les services avec la nouvelle image
-            docker-compose up -d
+            docker compose up -d
             
             # Attendre que les services soient prêts
             echo 'Attente du démarrage des services...'
             sleep 30
             
             # Vérifier le statut
-            docker-compose ps
+            docker compose ps
             
             # Test de santé
             curl -f http://localhost:3001/health || echo 'Service pas encore prêt'
@@ -336,12 +336,12 @@ jobs:
             cd /opt/emailight-backend
             
             # Vérifier que tous les conteneurs sont running
-            if docker-compose ps | grep -q 'Up'; then
+            if docker compose ps | grep -q 'Up'; then
               echo '✅ Déploiement réussi!'
-              docker-compose ps
+              docker compose ps
             else
               echo '❌ Erreur de déploiement'
-              docker-compose logs
+              docker compose logs
               exit 1
             fi
           "
