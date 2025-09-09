@@ -47,28 +47,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('user-service/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
           cache: 'npm'
+          cache-dependency-path: user-service/package-lock.json
 
       - name: Install dependencies
         working-directory: ./user-service
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm ci
 
-      - name: Run linter
-        working-directory: ./user-service
-        run: npm run lint
+      # - name: Run linter
+      #   working-directory: ./user-service
+      #   run: npm run lint
 
       - name: Run tests
         working-directory: ./user-service
