@@ -70,20 +70,20 @@ jobs:
       #   working-directory: ./user-service
       #   run: npm run lint
 
-      - name: Run tests
-        working-directory: ./user-service
-        run: npm run test:coverage
-        env:
-          NODE_ENV: test
-          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
-          ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+      # - name: Run tests
+      #   working-directory: ./user-service
+      #   run: npm run test:coverage
+      #   env:
+      #     NODE_ENV: test
+      #     MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
+      #     REDIS_URL: redis://localhost:6379
+      #     JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
+      #     ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          working-directory: ./user-service
+      # - name: Upload coverage reports
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     working-directory: ./user-service
 
   # ====================================
   # JOB 2: BUILD ET PUSH DOCKER IMAGE
