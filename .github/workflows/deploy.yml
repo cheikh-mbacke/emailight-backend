@@ -179,10 +179,19 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
-            # Extraire seulement le premier tag (la première ligne)
-            FIRST_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1)
-            sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#'\"\$FIRST_TAG\"'#g' docker-compose.production.yml
-            echo \"Image mise à jour: \$FIRST_TAG\"
+            # Extraire le tag correctement (première ligne sans les guillemets)
+            CLEAN_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1 | tr -d '\\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo \"Tag nettoyé: '\$CLEAN_TAG'\"
+            sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#'\"\$CLEAN_TAG\"'#g' docker-compose.production.yml
+            echo \"Image mise à jour: \$CLEAN_TAG\"
+          "
+
+      - name: Verify image tag update
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /opt/emailight-backend
+            echo 'Contenu du docker-compose après modification:'
+            grep 'image:' docker-compose.production.yml
           "
 
       - name: Create production environment file
@@ -282,11 +291,19 @@ jobs:
             # Arrêter les services existants
             docker compose -f docker-compose.production.yml down || true
             
-            # Nettoyer les anciennes images
-            docker system prune -f
+            # Supprimer spécifiquement l'ancienne image user-service
+            IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
+            CLEAN_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1 | tr -d '\\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            docker image rm \$CLEAN_TAG || true
+            
+            # Nettoyer le système Docker complètement
+            docker system prune -af
+            
+            # Pull de la nouvelle image avec --pull always pour forcer le téléchargement
+            docker compose -f docker-compose.production.yml pull
             
             # Démarrer les services avec la nouvelle image
-            docker compose -f docker-compose.production.yml up -d
+            docker compose -f docker-compose.production.yml up -d --force-recreate
             
             # Attendre que les services soient prêts
             echo 'Attente du démarrage des services...'
