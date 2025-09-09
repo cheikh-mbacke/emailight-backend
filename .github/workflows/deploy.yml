@@ -164,19 +164,27 @@ jobs:
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             mkdir -p /opt/emailight-backend
+            mkdir -p /opt/emailight-backend/uploads
             cd /opt/emailight-backend
           "
 
       - name: Copy deployment files to VPS
         run: |
-          scp -r ./docker/docker-compose.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
+          scp ./docker/docker-compose.production.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
           scp -r ./docker/mongodb/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
           scp -r ./docker/redis/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
+
+      - name: Update production compose with correct image
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /opt/emailight-backend
+            sed -i 's|ghcr.io/cheikh-mbacke/emailight-backend:latest|${{ needs.build.outputs.image-tag }}|g' docker-compose.production.yml
+          "
 
       - name: Create production environment file
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cat > /opt/emailight-backend/.env.production << 'EOF'
+            cat > /opt/emailight-backend/.env << 'EOF'
           # ======================
           # PRODUCTION ENVIRONMENT
           # ======================
@@ -197,16 +205,6 @@ jobs:
           
           # Services
           USER_SERVICE_PORT=3001
-          EXCEPTIONLESS_PORT=5000
-          
-          # Admin interfaces
-          MONGO_EXPRESS_PORT=8082
-          MONGO_EXPRESS_USER=admin
-          MONGO_EXPRESS_PASSWORD=${{ secrets.PROD_MONGO_EXPRESS_PASSWORD }}
-          
-          REDIS_COMMANDER_PORT=8081
-          REDIS_COMMANDER_USER=admin
-          REDIS_COMMANDER_PASSWORD=${{ secrets.PROD_REDIS_COMMANDER_PASSWORD }}
           
           # Security
           JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
@@ -233,7 +231,7 @@ jobs:
           ENABLE_LOGGING=true
           LOG_LEVEL=info
           VERBOSE_LOGS=false
-          USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.PROD_USER_SERVICE_EXCEPTIONLESS_API_KEY }}
+          USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.USER_SERVICE_EXCEPTIONLESS_API_KEY }}
           USER_SERVICE_EXCEPTIONLESS_SERVER_URL=http://exceptionless:8080
           
           # Application
@@ -266,39 +264,6 @@ jobs:
           EOF
           "
 
-      - name: Create production docker-compose override
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cat > /opt/emailight-backend/docker-compose.override.yml << 'EOF'
-          # Production overrides
-          services:
-            user-service:
-              image: ${{ needs.build.outputs.image-tag }}
-              restart: always
-              env_file:
-                - .env.production
-              volumes:
-                # Enlever les volumes de développement en production
-                - user_service_logs:/usr/src/app/logs
-                - /opt/emailight-backend/uploads:/usr/src/app/uploads
-              
-            mongodb:
-              restart: always
-              
-            redis:
-              restart: always
-              
-            exceptionless:
-              restart: always
-              
-            mongo-express:
-              restart: always
-              
-            redis-commander:
-              restart: always
-          EOF
-          "
-
       - name: Login to GitHub Container Registry on VPS
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
@@ -311,20 +276,20 @@ jobs:
             cd /opt/emailight-backend
             
             # Arrêter les services existants
-            docker compose down || true
+            docker compose -f docker-compose.production.yml down || true
             
             # Nettoyer les anciennes images
             docker system prune -f
             
             # Démarrer les services avec la nouvelle image
-            docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+            docker compose -f docker-compose.production.yml up -d
             
             # Attendre que les services soient prêts
             echo 'Attente du démarrage des services...'
             sleep 30
             
             # Vérifier le statut
-            docker compose ps
+            docker compose -f docker-compose.production.yml ps
             
             # Test de santé
             curl -f http://localhost:3001/health || echo 'Service pas encore prêt'
