@@ -317,7 +317,7 @@ jobs:
             docker system prune -f
             
             # Démarrer les services avec la nouvelle image
-            docker compose up -d
+            docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
             
             # Attendre que les services soient prêts
             echo 'Attente du démarrage des services...'
@@ -336,12 +336,12 @@ jobs:
             cd /opt/emailight-backend
             
             # Vérifier que tous les conteneurs sont running
-            if docker compose ps | grep -q 'Up'; then
+            if docker compose -f docker-compose.production.yml ps | grep -q 'Up'; then
               echo '✅ Déploiement réussi!'
-              docker compose ps
+              docker compose -f docker-compose.production.yml ps
             else
               echo '❌ Erreur de déploiement'
-              docker compose logs
+              docker compose -f docker-compose.production.yml logs
               exit 1
             fi
           "
