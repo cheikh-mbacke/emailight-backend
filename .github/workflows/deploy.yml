@@ -178,7 +178,7 @@ jobs:
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
-            sed -i 's|ghcr.io/cheikh-mbacke/emailight-backend:latest|${{ needs.build.outputs.image-tag }}|g' docker-compose.production.yml
+            sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#${{ needs.build.outputs.image-tag }}#g' docker-compose.production.yml
           "
 
       - name: Create production environment file
