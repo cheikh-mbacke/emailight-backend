@@ -18,7 +18,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Tests et validation
-    
+
     services:
       mongodb:
         image: mongo:7.0
@@ -28,7 +28,7 @@ jobs:
           MONGO_INITDB_DATABASE: emailight_test
         ports:
           - 27017:27017
-          
+
       redis:
         image: redis:7.2-alpine
         options: >-
@@ -46,8 +46,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: user-service/package-lock.json
 
       - name: Install dependencies
@@ -59,11 +59,11 @@ jobs:
           echo "Waiting for MongoDB..."
           while ! nc -z localhost 27017; do sleep 1; done
           echo "MongoDB is ready!"
-          
+
           echo "Waiting for Redis..."
           while ! nc -z localhost 6379; do sleep 1; done
           echo "Redis is ready!"
-          
+
           echo "All services are ready, starting tests..."
 
       # - name: Run linter
@@ -93,7 +93,7 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     name: Build et push Docker image
-    
+
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -145,7 +145,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     name: Déploiement en production
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -201,10 +201,10 @@ jobs:
           # ======================
           # PRODUCTION ENVIRONMENT
           # ======================
-          
+
           NODE_ENV=production
           HOST=0.0.0.0
-          
+
           # Infrastructure
           MONGO_ROOT_USERNAME=emailight_admin
           MONGO_ROOT_PASSWORD=${{ secrets.PROD_MONGO_ROOT_PASSWORD }}
@@ -212,68 +212,68 @@ jobs:
           MONGO_APP_USERNAME=emailight_app
           MONGO_APP_PASSWORD=${{ secrets.PROD_MONGO_APP_PASSWORD }}
           MONGO_PORT=27017
-          
+
           REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
           REDIS_PORT=6380
-          
+
           # Services
           USER_SERVICE_PORT=3001
-          
+
           # Security
           JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
           JWT_EXPIRES_IN=24h
           JWT_REFRESH_EXPIRES_IN=7d
           BCRYPT_ROUNDS=12
           ENCRYPTION_KEY=${{ secrets.PROD_ENCRYPTION_KEY }}
-          
+
           # Rate Limiting (production)
           RATE_LIMIT_MAX=100
           RATE_LIMIT_WINDOW=60000
-          
+
           # Google OAuth
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI=https://api.emailight.com/auth/google/callback
-          
+
           # Gmail OAuth
           GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REDIRECT_URI=https://api.emailight.com/auth/gmail/callback
-          
+
           # Monitoring
           ENABLE_LOGGING=true
           LOG_LEVEL=info
           VERBOSE_LOGS=false
           USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.USER_SERVICE_EXCEPTIONLESS_API_KEY }}
           USER_SERVICE_EXCEPTIONLESS_SERVER_URL=http://exceptionless:8080
-          
+
           # Application
           APP_NAME=Emailight
           APP_BASE_URL=https://api.emailight.com
           SUPPORT_EMAIL=support@emailight.com
-          
+
           # CORS (production)
           CORS_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
           ALLOWED_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
-          
+
           # Localisation
           LOCALE=fr-FR
           TIMEZONE=Europe/Paris
-          
+
           # SMTP System
           SMTP_HOST=${{ secrets.SMTP_HOST }}
           SMTP_PORT=${{ secrets.SMTP_PORT }}
           SMTP_USER=${{ secrets.SMTP_USER }}
           SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
           SMTP_ENCRYPTION=SSL
-          
+
           # Upload
           UPLOAD_MAX_SIZE=5242880
           UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp,image/gif
-          
-          # URLs complètes
-          MONGODB_URI=mongodb://emailight_app:${{ secrets.PROD_MONGO_APP_PASSWORD }}@mongodb:27017/emailight_prod
-          REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379
+
+          # URLs complètes (avec encodage des caractères spéciaux)
+          MONGODB_URI=mongodb://emailight_app:$(echo '${{ secrets.PROD_MONGO_APP_PASSWORD }}' | sed 's/@/%40/g; s/!/%21/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g; s/,/%2C/g; s/:/%3A/g; s/;/%3B/g; s/=/%3D/g; s/\?/%3F/g; s/\[/%5B/g; s/\]/%5D/g')@mongodb:27017/emailight_prod
+          REDIS_URL=redis://:$(echo '${{ secrets.PROD_REDIS_PASSWORD }}' | sed 's/@/%40/g; s/!/%21/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g; s/,/%2C/g; s/:/%3A/g; s/;/%3B/g; s/=/%3D/g; s/\?/%3F/g; s/\[/%5B/g; s/\]/%5D/g')@redis:6379
           EOF
           "
 
