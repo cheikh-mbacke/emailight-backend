@@ -54,6 +54,18 @@ jobs:
         working-directory: ./user-service
         run: npm ci
 
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for MongoDB..."
+          while ! nc -z localhost 27017; do sleep 1; done
+          echo "MongoDB is ready!"
+          
+          echo "Waiting for Redis..."
+          while ! nc -z localhost 6379; do sleep 1; done
+          echo "Redis is ready!"
+          
+          echo "All services are ready, starting tests..."
+
       # - name: Run linter
       #   working-directory: ./user-service
       #   run: npm run lint
