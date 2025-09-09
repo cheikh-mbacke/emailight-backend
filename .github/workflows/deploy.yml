@@ -197,6 +197,9 @@ jobs:
       - name: Create production environment file
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            # Encoder le mot de passe MongoDB pour l'URI
+            MONGO_APP_PASSWORD_ENCODED=\$(echo '${{ secrets.PROD_MONGO_APP_PASSWORD }}' | sed 's/@/%40/g')
+            
             cat > /opt/emailight-backend/.env << 'EOF'
           # ======================
           # PRODUCTION ENVIRONMENT
@@ -271,9 +274,9 @@ jobs:
           UPLOAD_MAX_SIZE=5242880
           UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp,image/gif
 
-          # URLs complètes (avec encodage des caractères spéciaux)
-          MONGODB_URI=mongodb://emailight_app:$(echo '${{ secrets.PROD_MONGO_APP_PASSWORD }}' | sed 's/@/%40/g; s/!/%21/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g; s/,/%2C/g; s/:/%3A/g; s/;/%3B/g; s/=/%3D/g; s/\?/%3F/g; s/\[/%5B/g; s/\]/%5D/g')@mongodb:27017/emailight_prod
-          REDIS_URL=redis://:$(echo '${{ secrets.PROD_REDIS_PASSWORD }}' | sed 's/@/%40/g; s/!/%21/g; s/#/%23/g; s/\$/%24/g; s/&/%26/g; s/+/%2B/g; s/,/%2C/g; s/:/%3A/g; s/;/%3B/g; s/=/%3D/g; s/\?/%3F/g; s/\[/%5B/g; s/\]/%5D/g')@redis:6379
+          # URLs complètes
+          MONGODB_URI=mongodb://emailight_app:\$MONGO_APP_PASSWORD_ENCODED@mongodb:27017/emailight_prod
+          REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379
           EOF
           "
 
