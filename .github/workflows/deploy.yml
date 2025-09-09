@@ -179,7 +179,10 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
-            sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#'\"$IMAGE_TAG\"'#g' docker-compose.production.yml
+            # Extraire seulement le premier tag (la première ligne)
+            FIRST_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1)
+            sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#'\"\$FIRST_TAG\"'#g' docker-compose.production.yml
+            echo \"Image mise à jour: \$FIRST_TAG\"
           "
 
       - name: Create production environment file
