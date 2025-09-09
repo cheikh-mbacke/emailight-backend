@@ -1,0 +1,344 @@
+# .github/workflows/deploy.yml
+name: CI/CD Pipeline - Emailight Backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ====================================
+  # JOB 1: TESTS ET VALIDATION
+  # ====================================
+  test:
+    runs-on: ubuntu-latest
+    name: Tests et validation
+    
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test_user
+          MONGO_INITDB_ROOT_PASSWORD: test_password
+          MONGO_INITDB_DATABASE: emailight_test
+        ports:
+          - 27017:27017
+          
+      redis:
+        image: redis:7.2-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: user-service/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./user-service
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./user-service
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./user-service
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
+          ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          working-directory: ./user-service
+
+  # ====================================
+  # JOB 2: BUILD ET PUSH DOCKER IMAGE
+  # ====================================
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    name: Build et push Docker image
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./user-service
+          file: ./user-service/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ====================================
+  # JOB 3: DÉPLOIEMENT EN PRODUCTION
+  # ====================================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.ref == 'refs/heads/main'
+    name: Déploiement en production
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment directory on VPS
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            mkdir -p /opt/emailight-backend
+            cd /opt/emailight-backend
+          "
+
+      - name: Copy deployment files to VPS
+        run: |
+          scp -r ./docker/docker-compose.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
+          scp -r ./docker/mongodb/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
+          scp -r ./docker/redis/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/emailight-backend/
+
+      - name: Create production environment file
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cat > /opt/emailight-backend/.env.production << 'EOF'
+          # ======================
+          # PRODUCTION ENVIRONMENT
+          # ======================
+          
+          NODE_ENV=production
+          HOST=0.0.0.0
+          
+          # Infrastructure
+          MONGO_ROOT_USERNAME=emailight_admin
+          MONGO_ROOT_PASSWORD=${{ secrets.PROD_MONGO_ROOT_PASSWORD }}
+          MONGO_DATABASE=emailight_prod
+          MONGO_APP_USERNAME=emailight_app
+          MONGO_APP_PASSWORD=${{ secrets.PROD_MONGO_APP_PASSWORD }}
+          MONGO_PORT=27017
+          
+          REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
+          REDIS_PORT=6379
+          
+          # Services
+          USER_SERVICE_PORT=3001
+          EXCEPTIONLESS_PORT=5000
+          
+          # Admin interfaces
+          MONGO_EXPRESS_PORT=8082
+          MONGO_EXPRESS_USER=admin
+          MONGO_EXPRESS_PASSWORD=${{ secrets.PROD_MONGO_EXPRESS_PASSWORD }}
+          
+          REDIS_COMMANDER_PORT=8081
+          REDIS_COMMANDER_USER=admin
+          REDIS_COMMANDER_PASSWORD=${{ secrets.PROD_REDIS_COMMANDER_PASSWORD }}
+          
+          # Security
+          JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
+          JWT_EXPIRES_IN=24h
+          JWT_REFRESH_EXPIRES_IN=7d
+          BCRYPT_ROUNDS=12
+          ENCRYPTION_KEY=${{ secrets.PROD_ENCRYPTION_KEY }}
+          
+          # Rate Limiting (production)
+          RATE_LIMIT_MAX=100
+          RATE_LIMIT_WINDOW=60000
+          
+          # Google OAuth
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI=https://api.emailight.com/auth/google/callback
+          
+          # Gmail OAuth
+          GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REDIRECT_URI=https://api.emailight.com/auth/gmail/callback
+          
+          # Monitoring
+          ENABLE_LOGGING=true
+          LOG_LEVEL=info
+          VERBOSE_LOGS=false
+          USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.PROD_USER_SERVICE_EXCEPTIONLESS_API_KEY }}
+          USER_SERVICE_EXCEPTIONLESS_SERVER_URL=http://exceptionless:8080
+          
+          # Application
+          APP_NAME=Emailight
+          APP_BASE_URL=https://api.emailight.com
+          SUPPORT_EMAIL=support@emailight.com
+          
+          # CORS (production)
+          CORS_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
+          ALLOWED_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
+          
+          # Localisation
+          LOCALE=fr-FR
+          TIMEZONE=Europe/Paris
+          
+          # SMTP System
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_ENCRYPTION=SSL
+          
+          # Upload
+          UPLOAD_MAX_SIZE=5242880
+          UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp,image/gif
+          
+          # URLs complètes
+          MONGODB_URI=mongodb://emailight_app:${{ secrets.PROD_MONGO_APP_PASSWORD }}@mongodb:27017/emailight_prod
+          REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379
+          EOF
+          "
+
+      - name: Create production docker-compose override
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cat > /opt/emailight-backend/docker-compose.override.yml << 'EOF'
+          # Production overrides
+          services:
+            user-service:
+              image: ${{ needs.build.outputs.image-tag }}
+              restart: always
+              env_file:
+                - .env.production
+              volumes:
+                # Enlever les volumes de développement en production
+                - user_service_logs:/usr/src/app/logs
+                - /opt/emailight-backend/uploads:/usr/src/app/uploads
+              
+            mongodb:
+              restart: always
+              
+            redis:
+              restart: always
+              
+            exceptionless:
+              restart: always
+              
+            mongo-express:
+              restart: always
+              
+            redis-commander:
+              restart: always
+          EOF
+          "
+
+      - name: Login to GitHub Container Registry on VPS
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo '${{ secrets.DOCKER_REGISTRY_TOKEN }}' | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          "
+
+      - name: Deploy application
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /opt/emailight-backend
+            
+            # Arrêter les services existants
+            docker-compose down || true
+            
+            # Nettoyer les anciennes images
+            docker system prune -f
+            
+            # Démarrer les services avec la nouvelle image
+            docker-compose up -d
+            
+            # Attendre que les services soient prêts
+            echo 'Attente du démarrage des services...'
+            sleep 30
+            
+            # Vérifier le statut
+            docker-compose ps
+            
+            # Test de santé
+            curl -f http://localhost:3001/health || echo 'Service pas encore prêt'
+          "
+
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /opt/emailight-backend
+            
+            # Vérifier que tous les conteneurs sont running
+            if docker-compose ps | grep -q 'Up'; then
+              echo '✅ Déploiement réussi!'
+              docker-compose ps
+            else
+              echo '❌ Erreur de déploiement'
+              docker-compose logs
+              exit 1
+            fi
+          "
+
+      - name: Post-deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🚀 Déploiement réussi sur https://api.emailight.com"
+          else
+            echo "❌ Échec du déploiement"
+          fi
