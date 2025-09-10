@@ -568,6 +568,91 @@ jobs:
           log_info "Contenu de test-helpers.js (lignes importantes) :"
           grep -n "baseUrl\|localhost\|axios\|supertest" tests/utils/test-helpers.js 2>/dev/null || echo "test-helpers.js non trouvé"
 
+          # Test d'inscription détaillé
+          log_section "TEST D'INSCRIPTION DÉTAILLÉ"
+          log_info "Test d'inscription d'un utilisateur de test..."
+          
+          # Créer un utilisateur de test
+          TEST_EMAIL="test-$(date +%s)@emailight.com"
+          REGISTER_PAYLOAD=$(cat <<EOF
+{
+  "name": "Test User",
+  "email": "$TEST_EMAIL",
+  "password": "TestPassword123!"
+}
+EOF
+)
+          
+          log_info "Payload d'inscription :"
+          echo "$REGISTER_PAYLOAD"
+          
+          log_info "Envoi de la requête d'inscription..."
+          REGISTER_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}\n" -X POST \
+            -H "Content-Type: application/json" \
+            -H "Accept-Language: fr-FR" \
+            -d "$REGISTER_PAYLOAD" \
+            http://localhost:3001/api/v1/auth/register 2>/dev/null || echo "ERROR")
+          
+          log_info "Réponse complète d'inscription :"
+          echo "$REGISTER_RESPONSE"
+          
+          # Analyser la réponse
+          HTTP_CODE=$(echo "$REGISTER_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          RESPONSE_BODY=$(echo "$REGISTER_RESPONSE" | sed '/HTTP_CODE:/d')
+          
+          log_info "Code HTTP : $HTTP_CODE"
+          log_info "Corps de la réponse :"
+          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
+          
+          # Vérifier la structure de la réponse
+          log_info "Analyse détaillée de la structure de réponse :"
+          
+          # Vérifier .body
+          if echo "$RESPONSE_BODY" | jq -e '.body' >/dev/null 2>&1; then
+            log_success ".body existe"
+            log_info "Contenu de .body :"
+            echo "$RESPONSE_BODY" | jq '.body' 2>/dev/null
+            
+            # Vérifier .body.data
+            if echo "$RESPONSE_BODY" | jq -e '.body.data' >/dev/null 2>&1; then
+              log_success ".body.data existe"
+              log_info "Contenu de .body.data :"
+              echo "$RESPONSE_BODY" | jq '.body.data' 2>/dev/null
+              
+              # Vérifier .body.data.accessToken
+              if echo "$RESPONSE_BODY" | jq -e '.body.data.accessToken' >/dev/null 2>&1; then
+                log_success "Structure de réponse correcte - accessToken trouvé dans .body.data"
+              else
+                log_error ".body.data.accessToken n'existe pas"
+                log_info "Clés disponibles dans .body.data :"
+                echo "$RESPONSE_BODY" | jq '.body.data | keys' 2>/dev/null
+              fi
+            else
+              log_error ".body.data n'existe pas"
+              log_info "Clés disponibles dans .body :"
+              echo "$RESPONSE_BODY" | jq '.body | keys' 2>/dev/null
+            fi
+          else
+            log_error ".body n'existe pas"
+            log_info "Structure de réponse alternative :"
+            
+            # Vérifier .data
+            if echo "$RESPONSE_BODY" | jq -e '.data' >/dev/null 2>&1; then
+              log_warning "Structure différente - .data existe directement"
+              log_info "Contenu de .data :"
+              echo "$RESPONSE_BODY" | jq '.data' 2>/dev/null
+              
+              if echo "$RESPONSE_BODY" | jq -e '.data.accessToken' >/dev/null 2>&1; then
+                log_warning "accessToken trouvé dans .data (pas dans .body.data)"
+              fi
+            else
+              log_error "Ni .body ni .data n'existent"
+            fi
+            
+            log_info "Clés disponibles à la racine :"
+            echo "$RESPONSE_BODY" | jq 'keys' 2>/dev/null || echo "Impossible de parser la réponse"
+          fi
+          
           # Analyser les erreurs détaillées
           log_section "ANALYSE DES ERREURS DÉTAILLÉES"
           log_info "Exécution des tests avec verbosité maximale..."
