@@ -348,8 +348,22 @@ jobs:
           ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> $GITHUB_ENV
 
-          # Les tests se chargent eux-mêmes du nettoyage
-          echo "ℹ️  Les tests gèrent leur propre nettoyage de données"
+          # Nettoyer la base de données de test avant de démarrer l'API
+          echo "🧹 Nettoyage de la base de données de test..."
+          mongosh mongodb://localhost:27017/emailight_test --eval "db.dropDatabase()" --quiet || echo "Base de données déjà vide"
+
+          # Vérifier que le nettoyage s'est bien effectué
+          echo "🔍 Vérification du nettoyage..."
+          COLLECTION_COUNT=$(mongosh mongodb://localhost:27017/emailight_test --eval "db.getCollectionNames().length" --quiet)
+          echo "Nombre de collections restantes : $COLLECTION_COUNT"
+
+          if [ "$COLLECTION_COUNT" -eq 0 ]; then
+            echo "✅ Base de données correctement vidée"
+          else
+            echo "⚠️  Base de données contient encore $COLLECTION_COUNT collection(s)"
+            echo "Collections restantes :"
+            mongosh mongodb://localhost:27017/emailight_test --eval "db.getCollectionNames()" --quiet
+          fi
 
           npm start &
           SERVICE_PID=$!
@@ -575,12 +589,22 @@ jobs:
           log_section "TEST D'INSCRIPTION DÉTAILLÉ"
           log_info "Test d'inscription d'un utilisateur de test..."
 
-          # Créer un utilisateur de test avec un email unique
-          TEST_EMAIL="test-$(date +%s)-$(shuf -i 1000-9999 -n 1)@emailight.com"
+          # Créer un utilisateur de test avec un email vraiment unique
+          TEST_EMAIL="test-$(date +%s)-$(shuf -i 1000-9999 -n 1)-$(openssl rand -hex 4)@emailight.com"
           REGISTER_PAYLOAD='{"name": "Test User", "email": "'$TEST_EMAIL'", "password": "TestPassword123!"}'
 
           log_info "Payload d'inscription :"
           echo "$REGISTER_PAYLOAD"
+
+          # Vérifier si l'email existe déjà dans la base
+          log_info "Vérification si l'email existe déjà dans la base..."
+          EXISTING_USER=$(mongosh mongodb://localhost:27017/emailight_test --eval "db.users.findOne({email: '$TEST_EMAIL'})" --quiet)
+          if [ "$EXISTING_USER" = "null" ]; then
+            log_success "Email $TEST_EMAIL n'existe pas dans la base"
+          else
+            log_error "Email $TEST_EMAIL existe déjà dans la base !"
+            log_info "Utilisateur existant : $EXISTING_USER"
+          fi
 
           log_info "Envoi de la requête d'inscription..."
           REGISTER_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}\n" -X POST \
