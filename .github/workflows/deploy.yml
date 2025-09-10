@@ -348,6 +348,9 @@ jobs:
           ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> $GITHUB_ENV
 
+          # Les tests se chargent eux-mêmes du nettoyage
+          echo "ℹ️  Les tests gèrent leur propre nettoyage de données"
+
           npm start &
           SERVICE_PID=$!
           echo "SERVICE_PID=$SERVICE_PID" >> $GITHUB_ENV
@@ -572,8 +575,8 @@ jobs:
           log_section "TEST D'INSCRIPTION DÉTAILLÉ"
           log_info "Test d'inscription d'un utilisateur de test..."
 
-          # Créer un utilisateur de test
-          TEST_EMAIL="test-$(date +%s)@emailight.com"
+          # Créer un utilisateur de test avec un email unique
+          TEST_EMAIL="test-$(date +%s)-$(shuf -i 1000-9999 -n 1)@emailight.com"
           REGISTER_PAYLOAD='{"name": "Test User", "email": "'$TEST_EMAIL'", "password": "TestPassword123!"}'
 
           log_info "Payload d'inscription :"
