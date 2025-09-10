@@ -137,13 +137,13 @@ jobs:
           platforms: linux/amd64
 
   # ====================================
-  # JOB 3: DÉPLOIEMENT EN PRODUCTION
+  # JOB 3: DEPLOIEMENT EN PRODUCTION
   # ====================================
   deploy:
     runs-on: ubuntu-latest
     needs: [test, build]
     if: github.ref == 'refs/heads/main'
-    name: Déploiement en production
+    name: Deploiement en production
     environment: production
     
     steps:
@@ -179,18 +179,18 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
-            # Extraire le tag correctement (première ligne sans les guillemets)
+            # Extraire le tag correctement (premiere ligne sans les guillemets)
             CLEAN_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1 | tr -d '\\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            echo \"Tag nettoyé: '\$CLEAN_TAG'\"
+            echo \"Tag nettoye: '\$CLEAN_TAG'\"
             sed -i 's#ghcr.io/cheikh-mbacke/emailight-backend:latest#'\"\$CLEAN_TAG\"'#g' docker-compose.production.yml
-            echo \"Image mise à jour: \$CLEAN_TAG\"
+            echo \"Image mise a jour: \$CLEAN_TAG\"
           "
 
       - name: Verify image tag update
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
-            echo 'Contenu du docker-compose après modification:'
+            echo 'Contenu du docker-compose apres modification:'
             grep 'image:' docker-compose.production.yml
           "
 
@@ -218,6 +218,7 @@ jobs:
           
           # Services
           USER_SERVICE_PORT=3001
+          EXCEPTIONLESS_PORT=8080
           
           # Security
           JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
@@ -240,12 +241,12 @@ jobs:
           GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REDIRECT_URI=https://api.emailight.com/auth/gmail/callback
           
-          # Monitoring
+          # Monitoring Exceptionless
           ENABLE_LOGGING=true
           LOG_LEVEL=info
           VERBOSE_LOGS=false
           USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.USER_SERVICE_EXCEPTIONLESS_API_KEY }}
-          USER_SERVICE_EXCEPTIONLESS_SERVER_URL=http://exceptionless:8080
+          USER_SERVICE_EXCEPTIONLESS_SERVER_URL=https://exceptionless.emailight.com
           
           # Application
           APP_NAME=Emailight
@@ -271,7 +272,7 @@ jobs:
           UPLOAD_MAX_SIZE=5242880
           UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp,image/gif
           
-          # URLs complètes
+          # URLs completes
           MONGODB_URI=mongodb://emailight_app:${{ secrets.PROD_MONGO_APP_PASSWORD }}@mongodb:27017/emailight_prod
           REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379
           EOF
@@ -283,50 +284,67 @@ jobs:
             echo '${{ secrets.DOCKER_REGISTRY_TOKEN }}' | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
           "
 
-      - name: Deploy application
+      - name: Deploy application with Exceptionless
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             
-            # Arrêter les services existants
+            # Arreter les services existants
             docker compose -f docker-compose.production.yml down || true
             
-            # Supprimer spécifiquement l'ancienne image user-service
+            # Supprimer specifiquement l'ancienne image user-service
             IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
             CLEAN_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1 | tr -d '\\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             docker image rm \$CLEAN_TAG || true
             
-            # Nettoyer le système Docker complètement
+            # Nettoyer le systeme Docker completement
             docker system prune -af
             
-            # Pull de la nouvelle image avec --pull always pour forcer le téléchargement
+            # Pull de la nouvelle image avec --pull always pour forcer le telechargement
             docker compose -f docker-compose.production.yml pull
             
-            # Démarrer les services avec la nouvelle image
+            # Demarrer les services avec la nouvelle image
             docker compose -f docker-compose.production.yml up -d --force-recreate
             
-            # Attendre que les services soient prêts
-            echo 'Attente du démarrage des services...'
-            sleep 30
+            # Attendre que les services soient prets
+            echo 'Attente du demarrage des services...'
+            sleep 45
             
-            # Vérifier le statut
+            # Verifier le statut
             docker compose -f docker-compose.production.yml ps
             
-            # Test de santé
-            curl -f http://localhost:3001/health || echo 'Service pas encore prêt'
+            # Test de sante
+            curl -f http://localhost:3001/health || echo 'Service pas encore pret'
+            
+            # Verifier qu'Exceptionless est accessible
+            curl -f http://localhost:8080 >/dev/null 2>&1 && echo 'Exceptionless accessible' || echo 'Exceptionless pas encore pret'
           "
 
-      - name: Verify deployment
+      - name: Verify deployment with Exceptionless
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             
-            # Vérifier que tous les conteneurs sont running
+            # Verifier que tous les conteneurs sont running
             if docker compose -f docker-compose.production.yml ps | grep -q 'Up'; then
-              echo '✅ Déploiement réussi!'
+              echo 'Deploiement reussi!'
               docker compose -f docker-compose.production.yml ps
+              
+              # Afficher les URLs d'acces
+              echo ''
+              echo 'Services disponibles:'
+              echo '   API Health: https://api.emailight.com/health'
+              echo '   Exceptionless: https://exceptionless.emailight.com'
+              echo ''
+              echo 'Configuration Exceptionless:'
+              echo '   1. Configurer Nginx pour exceptionless.emailight.com'
+              echo '   2. Mettre a jour le certificat SSL'
+              echo '   3. Ouvrir https://exceptionless.emailight.com'
+              echo '   4. Creer le projet et recuperer l API key'
+              echo '   5. Ajouter USER_SERVICE_EXCEPTIONLESS_API_KEY dans GitHub Secrets'
+              echo ''
             else
-              echo '❌ Erreur de déploiement'
+              echo 'Erreur de deploiement'
               docker compose -f docker-compose.production.yml logs
               exit 1
             fi
@@ -336,8 +354,8 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "🚀 Déploiement réussi sur https://api.emailight.com"
+            echo "Deploiement reussi sur https://api.emailight.com"
+            echo "Exceptionless disponible sur https://exceptionless.emailight.com (apres config Nginx)"
           else
-            echo "❌ Échec du déploiement"
+            echo "Echec du deploiement"
           fi
-          
