@@ -350,20 +350,26 @@ jobs:
 
           # Nettoyer la base de données de test avant de démarrer l'API
           echo "🧹 Nettoyage de la base de données de test..."
-          mongosh mongodb://localhost:27017/emailight_test --eval "db.dropDatabase()" --quiet || echo "Base de données déjà vide"
-
-          # Vérifier que le nettoyage s'est bien effectué
-          echo "🔍 Vérification du nettoyage..."
-          COLLECTION_COUNT=$(mongosh mongodb://localhost:27017/emailight_test --eval "db.getCollectionNames().length" --quiet)
-          echo "Nombre de collections restantes : $COLLECTION_COUNT"
-
-          if [ "$COLLECTION_COUNT" -eq 0 ]; then
-            echo "✅ Base de données correctement vidée"
-          else
-            echo "⚠️  Base de données contient encore $COLLECTION_COUNT collection(s)"
-            echo "Collections restantes :"
-            mongosh mongodb://localhost:27017/emailight_test --eval "db.getCollectionNames()" --quiet
-          fi
+          node -e "
+            const mongoose = require('mongoose');
+            mongoose.connect('mongodb://localhost:27017/emailight_test').then(async () => {
+              try {
+                await mongoose.connection.db.dropDatabase();
+                console.log('✅ Base de données vidée avec succès');
+                const collections = await mongoose.connection.db.listCollections().toArray();
+                console.log('Collections restantes :', collections.length);
+                if (collections.length > 0) {
+                  console.log('Collections :', collections.map(c => c.name));
+                }
+              } catch (error) {
+                console.log('⚠️  Erreur lors du nettoyage :', error.message);
+              } finally {
+                await mongoose.disconnect();
+              }
+            }).catch(err => {
+              console.log('❌ Impossible de se connecter à MongoDB :', err.message);
+            });
+          "
 
           npm start &
           SERVICE_PID=$!
@@ -598,13 +604,26 @@ jobs:
 
           # Vérifier si l'email existe déjà dans la base
           log_info "Vérification si l'email existe déjà dans la base..."
-          EXISTING_USER=$(mongosh mongodb://localhost:27017/emailight_test --eval "db.users.findOne({email: '$TEST_EMAIL'})" --quiet)
-          if [ "$EXISTING_USER" = "null" ]; then
-            log_success "Email $TEST_EMAIL n'existe pas dans la base"
-          else
-            log_error "Email $TEST_EMAIL existe déjà dans la base !"
-            log_info "Utilisateur existant : $EXISTING_USER"
-          fi
+          node -e "
+            const mongoose = require('mongoose');
+            mongoose.connect('mongodb://localhost:27017/emailight_test').then(async () => {
+              try {
+                const user = await mongoose.connection.db.collection('users').findOne({email: '$TEST_EMAIL'});
+                if (user) {
+                  console.log('❌ Email $TEST_EMAIL existe déjà dans la base !');
+                  console.log('Utilisateur existant :', JSON.stringify(user, null, 2));
+                } else {
+                  console.log('✅ Email $TEST_EMAIL n\\'existe pas dans la base');
+                }
+              } catch (error) {
+                console.log('⚠️  Erreur lors de la vérification :', error.message);
+              } finally {
+                await mongoose.disconnect();
+              }
+            }).catch(err => {
+              console.log('❌ Impossible de se connecter à MongoDB :', err.message);
+            });
+          "
 
           log_info "Envoi de la requête d'inscription..."
           REGISTER_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}\n" -X POST \
