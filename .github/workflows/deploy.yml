@@ -359,6 +359,21 @@ jobs:
 
       - name: Diagnostic des tests en cas d'échec
         if: failure()
+        working-directory: ./user-service
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
+          JWT_EXPIRES_IN: 1h
+          JWT_REFRESH_EXPIRES_IN: 7d
+          BCRYPT_ROUNDS: 4
+          ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+          RATE_LIMIT_MAX: 1000
+          RATE_LIMIT_WINDOW: 60000
+          DISABLE_TOKEN_REFRESH_SCHEDULER: true
+          ENABLE_LOGGING: false
+          LOG_LEVEL: error
         run: |
           echo "🔍 Diagnostic des tests en cas d'échec..."
 
@@ -411,7 +426,6 @@ jobs:
 
           # Vérifier les dépendances
           log_section "VÉRIFICATION DES DÉPENDANCES"
-          cd ./user-service
           if [ -d "node_modules" ]; then
             log_success "node_modules trouvé"
           else
@@ -419,7 +433,7 @@ jobs:
           fi
 
           # Vérifier les dépendances critiques
-          local critical_deps=("jest" "@jest/globals" "babel-jest" "@babel/core")
+          critical_deps=("jest" "@jest/globals" "babel-jest" "@babel/core")
           for dep in "${critical_deps[@]}"; do
             if npm list "$dep" >/dev/null 2>&1; then
               log_success "$dep installé"
