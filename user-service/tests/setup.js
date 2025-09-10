@@ -38,3 +38,17 @@ afterAll(async () => {
     await global.testServer.close();
   }
 });
+
+// Nettoyage global avant tous les tests
+beforeAll(async () => {
+  // Nettoyer la base de données de test au début
+  try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db.dropDatabase();
+      console.log("🧹 Base de données de test nettoyée");
+    }
+  } catch (error) {
+    console.log("ℹ️  Base de données déjà vide ou non connectée");
+  }
+});
