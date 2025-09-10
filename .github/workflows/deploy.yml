@@ -444,7 +444,7 @@ jobs:
 
           # Exécuter un test simple
           log_section "TEST SIMPLE"
-          cat > test-simple.js << 'TESTEOF'
+          cat > tests/test-simple.test.js << 'TESTEOF'
           describe('Test simple', () => {
             test('1 + 1 = 2', () => {
               expect(1 + 1).toBe(2);
@@ -456,12 +456,43 @@ jobs:
           TESTEOF
 
           log_info "Exécution du test simple..."
-          if npm test test-simple.js 2>&1; then
+          if npm test tests/test-simple.test.js 2>&1; then
             log_success "Test simple réussi - Jest fonctionne"
           else
             log_error "Test simple échoué - Problème avec Jest"
           fi
-          rm -f test-simple.js
+          rm -f tests/test-simple.test.js
+
+          # Test de connectivité réseau détaillé
+          log_section "TEST DE CONNECTIVITÉ RÉSEAU DÉTAILLÉ"
+          log_info "Test de connectivité vers localhost:3001..."
+          if curl -s --max-time 5 http://localhost:3001/health 2>/dev/null; then
+            log_success "API locale accessible sur localhost:3001"
+          else
+            log_error "API locale non accessible sur localhost:3001"
+            log_info "Vérification des ports en écoute :"
+            netstat -tlnp 2>/dev/null | grep -E ":(3001|27017|6379)" || echo "Aucun port trouvé"
+          fi
+
+          # Test de connectivité vers l'API de production
+          log_info "Test de connectivité vers api.emailight.com..."
+          if curl -s --max-time 10 https://api.emailight.com/health 2>/dev/null; then
+            log_success "API de production accessible"
+          else
+            log_error "API de production non accessible"
+          fi
+
+          # Vérifier la configuration des tests
+          log_section "VÉRIFICATION DE LA CONFIGURATION DES TESTS"
+          log_info "Configuration Jest :"
+          cat jest.config.js 2>/dev/null || echo "jest.config.js non trouvé"
+
+          log_info "Fichiers de test trouvés :"
+          find tests/ -name "*.test.js" -o -name "*.spec.js" 2>/dev/null | head -10
+
+          # Vérifier les helpers de test
+          log_info "Contenu de test-helpers.js (lignes importantes) :"
+          grep -n "baseUrl\|localhost\|axios\|supertest" tests/utils/test-helpers.js 2>/dev/null || echo "test-helpers.js non trouvé"
 
           # Analyser les erreurs détaillées
           log_section "ANALYSE DES ERREURS DÉTAILLÉES"
