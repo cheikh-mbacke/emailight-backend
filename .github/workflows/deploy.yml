@@ -66,24 +66,33 @@ jobs:
           
           echo "All services are ready, starting tests..."
 
-      # - name: Run linter
-      #   working-directory: ./user-service
-      #   run: npm run lint
+      - name: Run linter
+        working-directory: ./user-service
+        run: npm run lint
 
-      # - name: Run tests
-      #   working-directory: ./user-service
-      #   run: npm run test:coverage
-      #   env:
-      #     NODE_ENV: test
-      #     MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
-      #     REDIS_URL: redis://localhost:6379
-      #     JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
-      #     ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+      - name: Run tests with coverage
+        working-directory: ./user-service
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
+          JWT_EXPIRES_IN: 1h
+          JWT_REFRESH_EXPIRES_IN: 7d
+          BCRYPT_ROUNDS: 4
+          ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+          RATE_LIMIT_MAX: 1000
+          RATE_LIMIT_WINDOW: 60000
+          DISABLE_TOKEN_REFRESH_SCHEDULER: true
+          ENABLE_LOGGING: false
+          LOG_LEVEL: error
 
-      # - name: Upload coverage reports
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     working-directory: ./user-service
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          working-directory: ./user-service
+          fail_ci_if_error: false
 
   # ====================================
   # JOB 2: BUILD ET PUSH DOCKER IMAGE
@@ -284,43 +293,39 @@ jobs:
             echo '${{ secrets.DOCKER_REGISTRY_TOKEN }}' | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
           "
 
-      - name: Deploy application with Exceptionless
+      - name: Deploy application optimized
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
             
-            # Arreter les services existants
-            docker compose -f docker-compose.production.yml down || true
+            # Arreter seulement le user-service pour deployment plus rapide
+            docker compose -f docker-compose.production.yml stop user-service || true
             
             # Supprimer specifiquement l'ancienne image user-service
             IMAGE_TAG='${{ needs.build.outputs.image-tag }}'
             CLEAN_TAG=\$(echo \"\$IMAGE_TAG\" | head -n1 | tr -d '\\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             docker image rm \$CLEAN_TAG || true
             
-            # Nettoyer le systeme Docker completement
-            docker system prune -af
+            # Pull seulement la nouvelle image user-service
+            docker compose -f docker-compose.production.yml pull user-service
             
-            # Pull de la nouvelle image avec --pull always pour forcer le telechargement
-            docker compose -f docker-compose.production.yml pull
+            # Redemarrer le user-service avec la nouvelle image
+            docker compose -f docker-compose.production.yml up -d user-service --force-recreate
             
-            # Demarrer les services avec la nouvelle image
-            docker compose -f docker-compose.production.yml up -d --force-recreate
-            
-            # Attendre que les services soient prets
-            echo 'Attente du demarrage des services...'
-            sleep 45
+            # Attendre que le service soit pret
+            echo 'Attente du demarrage du user-service...'
+            sleep 30
             
             # Verifier le statut
             docker compose -f docker-compose.production.yml ps
             
             # Test de sante
-            curl -f http://localhost:3001/health || echo 'Service pas encore pret'
-            
-            # Verifier qu'Exceptionless est accessible
-            curl -f http://localhost:8080 >/dev/null 2>&1 && echo 'Exceptionless accessible' || echo 'Exceptionless pas encore pret'
+            curl -f http://localhost:3001/health || echo 'Service pas encore pret, attente supplementaire...'
+            sleep 15
+            curl -f http://localhost:3001/health || echo 'ERREUR: Service non operationnel'
           "
 
-      - name: Verify deployment with Exceptionless
+      - name: Verify deployment with health checks
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd /opt/emailight-backend
@@ -330,22 +335,33 @@ jobs:
               echo 'Deploiement reussi!'
               docker compose -f docker-compose.production.yml ps
               
+              # Tests de sante detailles
+              echo ''
+              echo 'Tests de sante:'
+              
+              # Test API Health
+              if curl -s -f http://localhost:3001/health >/dev/null; then
+                echo '✅ API Health: OK'
+              else
+                echo '❌ API Health: FAIL'
+              fi
+              
+              # Test Exceptionless
+              if curl -s -f http://localhost:8080 >/dev/null; then
+                echo '✅ Exceptionless: OK'
+              else
+                echo '❌ Exceptionless: FAIL'
+              fi
+              
               # Afficher les URLs d'acces
               echo ''
               echo 'Services disponibles:'
-              echo '   API Health: https://api.emailight.com/health'
+              echo '   API: https://api.emailight.com/health'
               echo '   Exceptionless: https://exceptionless.emailight.com'
-              echo ''
-              echo 'Configuration Exceptionless:'
-              echo '   1. Configurer Nginx pour exceptionless.emailight.com'
-              echo '   2. Mettre a jour le certificat SSL'
-              echo '   3. Ouvrir https://exceptionless.emailight.com'
-              echo '   4. Creer le projet et recuperer l API key'
-              echo '   5. Ajouter USER_SERVICE_EXCEPTIONLESS_API_KEY dans GitHub Secrets'
               echo ''
             else
               echo 'Erreur de deploiement'
-              docker compose -f docker-compose.production.yml logs
+              docker compose -f docker-compose.production.yml logs user-service --tail 50
               exit 1
             fi
           "
@@ -354,10 +370,9 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "Deploiement reussi sur https://api.emailight.com"
-            echo "Exceptionless disponible sur https://exceptionless.emailight.com (apres config Nginx)"
+            echo "🚀 Deploiement reussi sur https://api.emailight.com"
+            echo "📊 Tests passes avec succes"
+            echo "🔍 Monitoring: https://exceptionless.emailight.com"
           else
-            echo "Echec du deploiement"
+            echo "❌ Echec du deploiement ou des tests"
           fi
-          
-          
