@@ -352,7 +352,9 @@ jobs:
           echo "🧹 Nettoyage de la base de données de test..."
           node -e "
             const mongoose = require('mongoose');
-            mongoose.connect('mongodb://localhost:27017/emailight_test').then(async () => {
+            const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/emailight_test';
+            console.log('Connexion à MongoDB avec URI :', mongoUri.replace(/\/\/.*@/, '//***@'));
+            mongoose.connect(mongoUri).then(async () => {
               try {
                 await mongoose.connection.db.dropDatabase();
                 console.log('✅ Base de données vidée avec succès');
@@ -606,7 +608,9 @@ jobs:
           log_info "Vérification si l'email existe déjà dans la base..."
           node -e "
             const mongoose = require('mongoose');
-            mongoose.connect('mongodb://localhost:27017/emailight_test').then(async () => {
+            const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/emailight_test';
+            console.log('Connexion à MongoDB avec URI :', mongoUri.replace(/\/\/.*@/, '//***@'));
+            mongoose.connect(mongoUri).then(async () => {
               try {
                 const user = await mongoose.connection.db.collection('users').findOne({email: '$TEST_EMAIL'});
                 if (user) {
