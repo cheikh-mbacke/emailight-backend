@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     name: Build et push Docker image
-    
+
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -71,7 +71,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     name: Deploiement en production
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,10 +127,10 @@ jobs:
           # ======================
           # PRODUCTION ENVIRONMENT
           # ======================
-          
+
           NODE_ENV=production
           HOST=0.0.0.0
-          
+
           # Infrastructure
           MONGO_ROOT_USERNAME=emailight_admin
           MONGO_ROOT_PASSWORD=${{ secrets.PROD_MONGO_ROOT_PASSWORD }}
@@ -138,66 +138,66 @@ jobs:
           MONGO_APP_USERNAME=emailight_app
           MONGO_APP_PASSWORD=${{ secrets.PROD_MONGO_APP_PASSWORD }}
           MONGO_PORT=27017
-          
+
           REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
           REDIS_PORT=6380
-          
+
           # Services
           USER_SERVICE_PORT=3001
           EXCEPTIONLESS_PORT=8080
-          
+
           # Security
           JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
           JWT_EXPIRES_IN=24h
           JWT_REFRESH_EXPIRES_IN=7d
           BCRYPT_ROUNDS=12
           ENCRYPTION_KEY=${{ secrets.PROD_ENCRYPTION_KEY }}
-          
+
           # Rate Limiting (production)
           RATE_LIMIT_MAX=100
           RATE_LIMIT_WINDOW=60000
-          
+
           # Google OAuth
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI=https://api.emailight.com/auth/google/callback
-          
+
           # Gmail OAuth
           GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REDIRECT_URI=https://api.emailight.com/auth/gmail/callback
-          
+
           # Monitoring Exceptionless
           ENABLE_LOGGING=true
           LOG_LEVEL=info
           VERBOSE_LOGS=false
           USER_SERVICE_EXCEPTIONLESS_API_KEY=${{ secrets.USER_SERVICE_EXCEPTIONLESS_API_KEY }}
           USER_SERVICE_EXCEPTIONLESS_SERVER_URL=https://exceptionless.emailight.com
-          
+
           # Application
           APP_NAME=Emailight
           APP_BASE_URL=https://api.emailight.com
           SUPPORT_EMAIL=support@emailight.com
-          
+
           # CORS (production)
           CORS_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
           ALLOWED_ORIGINS=https://api.emailight.com,https://emailight.com,https://app.emailight.com
-          
+
           # Localisation
           LOCALE=fr-FR
           TIMEZONE=Europe/Paris
-          
+
           # SMTP System
           SMTP_HOST=${{ secrets.SMTP_HOST }}
           SMTP_PORT=${{ secrets.SMTP_PORT }}
           SMTP_USER=${{ secrets.SMTP_USER }}
           SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
           SMTP_ENCRYPTION=SSL
-          
+
           # Upload
           UPLOAD_MAX_SIZE=5242880
           UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp,image/gif
-          
+
           # URLs completes
           MONGODB_URI=mongodb://emailight_app:${{ secrets.PROD_MONGO_APP_PASSWORD }}@mongodb:27017/emailight_prod
           REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379
@@ -271,7 +271,7 @@ jobs:
     needs: deploy
     if: github.ref == 'refs/heads/main'
     name: Tests d'integration
-    
+
     services:
       mongodb:
         image: mongo:7.0
@@ -281,7 +281,7 @@ jobs:
           MONGO_INITDB_DATABASE: emailight_test
         ports:
           - 27017:27017
-          
+
       redis:
         image: redis:7.2-alpine
         options: >-
@@ -299,8 +299,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: user-service/package-lock.json
 
       - name: Install dependencies
@@ -312,7 +312,7 @@ jobs:
           echo "Waiting for local MongoDB..."
           while ! nc -z localhost 27017; do sleep 1; done
           echo "Local MongoDB is ready!"
-          
+
           echo "Waiting for local Redis..."
           while ! nc -z localhost 6379; do sleep 1; done
           echo "Local Redis is ready!"
@@ -322,7 +322,7 @@ jobs:
           echo "Waiting for production API..."
           max_attempts=30
           attempt=1
-          
+
           while [ $attempt -le $max_attempts ]; do
             if curl -s --max-time 10 https://api.emailight.com/health >/dev/null; then
               echo "Production API is ready!"
@@ -333,7 +333,7 @@ jobs:
             sleep 10
             attempt=$((attempt + 1))
           done
-          
+
           if [ $attempt -gt $max_attempts ]; then
             echo "Production API failed to become ready within timeout"
             exit 1
@@ -357,10 +357,114 @@ jobs:
           ENABLE_LOGGING: false
           LOG_LEVEL: error
 
+      - name: Diagnostic des tests en cas d'échec
+        if: failure()
+        run: |
+          echo "🔍 Diagnostic des tests en cas d'échec..."
+
+          # Copier le script de diagnostic sur le VPS
+          cat > diagnostic-ci-cd-failure.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          # Couleurs
+          RED='\033[0;31m'
+          GREEN='\033[0;32m'
+          YELLOW='\033[1;33m'
+          BLUE='\033[0;34m'
+          CYAN='\033[0;36m'
+          BOLD='\033[1m'
+          NC='\033[0m'
+
+          log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+          log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+          log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+          log_error() { echo -e "${RED}❌ $1${NC}"; }
+          log_section() { echo -e "\n${BOLD}${CYAN}🔥 $1${NC}"; }
+
+          log_section "DIAGNOSTIC CI/CD - ÉCHEC DES TESTS"
+          log_info "Démarrage du diagnostic - $(date)"
+
+          # Vérifier l'environnement de test
+          log_section "VÉRIFICATION DE L'ENVIRONNEMENT DE TEST"
+          log_info "Variables d'environnement de test :"
+          echo "NODE_ENV: $NODE_ENV"
+          echo "MONGODB_URI: ${MONGODB_URI:0:30}..."
+          echo "REDIS_URL: $REDIS_URL"
+          echo "JWT_SECRET: ${JWT_SECRET:0:10}..."
+
+          # Vérifier les services de test
+          log_section "VÉRIFICATION DES SERVICES DE TEST"
+          log_info "Test de connectivité MongoDB local :"
+          if nc -z localhost 27017 2>/dev/null; then
+            log_success "MongoDB local accessible sur le port 27017"
+          else
+            log_error "MongoDB local non accessible sur le port 27017"
+          fi
+
+          log_info "Test de connectivité Redis local :"
+          if nc -z localhost 6379 2>/dev/null; then
+            log_success "Redis local accessible sur le port 6379"
+          else
+            log_error "Redis local non accessible sur le port 6379"
+          fi
+
+          # Vérifier les dépendances
+          log_section "VÉRIFICATION DES DÉPENDANCES"
+          cd ./user-service
+          if [ -d "node_modules" ]; then
+            log_success "node_modules trouvé"
+          else
+            log_error "node_modules manquant"
+          fi
+
+          # Vérifier les dépendances critiques
+          local critical_deps=("jest" "@jest/globals" "babel-jest" "@babel/core")
+          for dep in "${critical_deps[@]}"; do
+            if npm list "$dep" >/dev/null 2>&1; then
+              log_success "$dep installé"
+            else
+              log_error "$dep manquant"
+            fi
+          done
+
+          # Exécuter un test simple
+          log_section "TEST SIMPLE"
+          cat > test-simple.js << 'TESTEOF'
+          describe('Test simple', () => {
+            test('1 + 1 = 2', () => {
+              expect(1 + 1).toBe(2);
+            });
+            test('Vérification NODE_ENV', () => {
+              expect(process.env.NODE_ENV).toBe('test');
+            });
+          });
+          TESTEOF
+
+          log_info "Exécution du test simple..."
+          if npm test test-simple.js 2>&1; then
+            log_success "Test simple réussi - Jest fonctionne"
+          else
+            log_error "Test simple échoué - Problème avec Jest"
+          fi
+          rm -f test-simple.js
+
+          # Analyser les erreurs détaillées
+          log_section "ANALYSE DES ERREURS DÉTAILLÉES"
+          log_info "Exécution des tests avec verbosité maximale..."
+          npm run test 2>&1 | head -50
+
+          log_section "DIAGNOSTIC TERMINÉ"
+          log_info "Consultez les logs ci-dessus pour identifier le problème"
+          EOF
+
+          chmod +x diagnostic-ci-cd-failure.sh
+          ./diagnostic-ci-cd-failure.sh
+
       - name: Run integration tests against production
         run: |
           echo "Running integration tests against https://api.emailight.com"
-          
+
           # Test 1: Health endpoint
           echo "Testing health endpoint..."
           response=$(curl -s -w "%{http_code}" https://api.emailight.com/health)
@@ -370,7 +474,7 @@ jobs:
             echo "❌ Health endpoint failed"
             exit 1
           fi
-          
+
           # Test 2: API structure validation
           echo "Testing API structure..."
           health_data=$(curl -s https://api.emailight.com/health)
@@ -380,7 +484,7 @@ jobs:
             echo "❌ API structure invalid"
             exit 1
           fi
-          
+
           # Test 3: Database connectivity
           echo "Testing database connectivity..."
           if echo "$health_data" | grep -q '"status":"connected"'; then
@@ -389,7 +493,7 @@ jobs:
             echo "❌ Database connectivity failed"
             exit 1
           fi
-          
+
           echo "All integration tests passed!"
 
       - name: Upload coverage reports

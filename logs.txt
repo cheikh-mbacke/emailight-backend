@@ -1,0 +1,1669 @@
+  npm run test:coverage
+  shell: /usr/bin/bash -e {0}
+  env:
+    REGISTRY: ghcr.io
+    IMAGE_NAME: cheikh-mbacke/emailight-backend
+    NODE_ENV: test
+    MONGODB_URI: ***localhost:27017/emailight_test
+    REDIS_URL: redis://localhost:6379
+    JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
+    JWT_EXPIRES_IN: 1h
+    JWT_REFRESH_EXPIRES_IN: 7d
+    BCRYPT_ROUNDS: 4
+    ENCRYPTION_KEY: test_encryption_key_32_chars_long_1234567890abcdef
+    RATE_LIMIT_MAX: 1000
+    RATE_LIMIT_WINDOW: 60000
+    DISABLE_TOKEN_REFRESH_SCHEDULER: true
+    ENABLE_LOGGING: false
+    LOG_LEVEL: error
+
+> emailight-user-service@1.0.0 test:coverage
+> jest --coverage
+
+FAIL tests/integration/user-avatar-complete.test.js
+  ● POST /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Upload avatar valide (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Upload avatar valide (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier manquant (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier manquant (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Type de fichier invalide (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Type de fichier invalide (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier trop volumineux (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier trop volumineux (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier corrompu (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Validation des fichiers › ❌ Fichier corrompu (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● POST /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression avatar existant (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression avatar existant (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression avatar inexistant (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression avatar inexistant (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me/avatar - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/e2e/user-routes.test.js
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ✅ Récupération du profil (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ✅ Récupération du profil (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 👤 GET /users/me › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ✅ Mise à jour du nom (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ✅ Mise à jour de l'email (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Nom trop court (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Email invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › ✏️ PATCH /users/me › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ✅ Changement de mot de passe (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Mot de passe actuel incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Nouveau mot de passe trop court (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🔒 PATCH /users/me/password › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ✅ Suppression de compte (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Mot de passe incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🎯 Tests E2E - Routes utilisateur › 🗑️ DELETE /users/me › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/user-password.test.js
+  ● PATCH /users/me/password - Tests de validation complets › ✅ Scénarios de succès › ✅ Changement de mot de passe valide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ✅ Scénarios de succès › ✅ Changement de mot de passe valide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe actuel manquant (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe actuel manquant (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe manquant (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe manquant (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe actuel incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe actuel incorrect (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe trop court (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe trop court (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans majuscule (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans majuscule (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans minuscule (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans minuscule (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans chiffre (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans chiffre (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans caractère spécial (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nouveau mot de passe sans caractère spécial (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me/password - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/auth.test.js
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ✅ Inscription valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ✅ Inscription valide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email déjà utilisé (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email déjà utilisé (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Mot de passe trop court (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Mot de passe trop court (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Nom trop court (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Nom trop court (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Nom manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Nom manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Email manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Mot de passe manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Mot de passe manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 📝 POST /auth/register › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ✅ Connexion valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ✅ Connexion valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ✅ Connexion valide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ✅ Connexion valide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email inexistant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email inexistant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email inexistant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email inexistant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe incorrect (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe incorrect (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Mot de passe manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Email invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔑 POST /auth/login › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ✅ Token valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ✅ Token valide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token vide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token vide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token invalide/malformé (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token invalide/malformé (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🔄 POST /auth/refresh-token › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ✅ Logout valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ✅ Logout valide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🔐 Tests d'intégration - Authentification › 🚪 POST /auth/logout › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/user-profile.test.js
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour nom valide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour nom valide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour email valide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour email valide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour nom et email valides (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Mise à jour nom et email valides (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom trop court (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom trop court (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom trop long (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom trop long (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom avec caractères invalides (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Nom avec caractères invalides (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Email invalide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Email invalide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Email déjà utilisé (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Email déjà utilisé (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Données invalides (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Données invalides (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● PATCH /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/user-get-profile.test.js
+  ● GET /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Récupération profil utilisateur (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Récupération profil utilisateur (EN)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● GET /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/avatar.test.js
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ✅ Upload avatar JPEG valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ✅ Upload avatar PNG valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ✅ Upload avatar WebP valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ✅ Upload avatar GIF valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ✅ Upload avatar BMP valide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Pas de fichier fourni (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 📤 POST /users/me/avatar › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ✅ Suppression d'avatar (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ✅ Suppression d'avatar (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● 🖼️ Tests d'intégration - Upload d'avatar › 🗑️ DELETE /users/me/avatar › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+FAIL tests/integration/user-delete.test.js
+  ● DELETE /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression compte avec mot de passe correct (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ✅ Scénarios de succès › ✅ Suppression compte avec mot de passe correct (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe manquant (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe manquant (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe incorrect (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Mot de passe incorrect (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Validation des données › ❌ Corps vide (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token manquant (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token invalide (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token expiré (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Token blacklisté (EN)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (FR)
+
+    AggregateError:
+
+
+
+  ● DELETE /users/me - Tests de validation complets › ❌ Scénarios d'erreur - Authentification › ❌ Utilisateur supprimé (EN)
+
+    AggregateError:
+
+
+
+PASS tests/unit/validators.test.js
+------------------------|---------|----------|---------|---------|-----------------------------------------------------
+File                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                   
+------------------------|---------|----------|---------|---------|-----------------------------------------------------
+All files               |   52.55 |     47.7 |   36.66 |   52.94 |                                                     
+ fixtures               |     100 |      100 |     100 |     100 |                                                     
+  test-data.js          |     100 |      100 |     100 |     100 |                                                     
+ utils                  |   49.21 |     47.7 |   36.66 |    49.6 |                                                     
+  test-helpers.js       |   44.23 |    26.66 |   29.16 |   45.09 | 52-67,82-83,113-128,143-144,162-169,177-197         
+  validation-helpers.js |       0 |        0 |       0 |       0 | 13-171                                              
+  validators.js         |   72.72 |    69.56 |     100 |   72.72 | 38,42,59,76,80,84,88,98,117,121,131,161,165,177,281 
+------------------------|---------|----------|---------|---------|-----------------------------------------------------
+
+Test Suites: 8 failed, 1 passed, 9 total
+Tests:       256 failed, 10 passed, 266 total
+Snapshots:   0 total
+Time:        2.189 s
+Ran all test suites.
+Error: Process completed with exit code 1.
