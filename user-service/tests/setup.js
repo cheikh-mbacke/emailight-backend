@@ -5,11 +5,13 @@
 
 // Configuration des variables d'environnement pour les tests
 process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = "test-jwt-secret-key-for-testing-only";
-process.env.MONGODB_URI = "mongodb://localhost:27017/emailight-test";
-process.env.REDIS_URL = "redis://localhost:6379/1";
-process.env.RATE_LIMIT_MAX = "10000";
-process.env.RATE_LIMIT_WINDOW = "60000";
+process.env.JWT_SECRET =
+  process.env.JWT_SECRET || "test-jwt-secret-key-for-testing-only";
+process.env.MONGODB_URI =
+  process.env.MONGODB_URI || "mongodb://localhost:27017/emailight-test";
+process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379/1";
+process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX || "10000";
+process.env.RATE_LIMIT_WINDOW = process.env.RATE_LIMIT_WINDOW || "60000";
 
 // Timeout global pour les tests
 jest.setTimeout(30000);
