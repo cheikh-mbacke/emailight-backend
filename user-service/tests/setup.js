@@ -10,14 +10,10 @@ process.env.JWT_SECRET =
 
 // Configuration MongoDB avec gestion des credentials pour CI/CD
 const getMongoUri = () => {
-  // En CI/CD, MongoDB nécessite une authentification
   if (process.env.CI) {
-    return (
-      process.env.MONGODB_URI ||
-      "mongodb://test_user:test_password@localhost:27017/emailight_test"
-    );
+    const timestamp = Date.now();
+    return `mongodb://localhost:27017/emailight_test_${timestamp}`;
   }
-  // En local, MongoDB sans authentification
   return process.env.MONGODB_URI || "mongodb://localhost:27017/emailight_test";
 };
 
