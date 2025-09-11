@@ -11,9 +11,7 @@ process.env.JWT_SECRET =
 // Configuration MongoDB avec gestion des credentials pour CI/CD
 const getMongoUri = () => {
   if (process.env.CI) {
-    const timestamp = Date.now();
-    // Reproduire la structure de production avec credentials
-    return `mongodb://test_admin:test_password@localhost:27017/emailight_test_${timestamp}`;
+    return `mongodb://localhost:27017/emailight_test_${Date.now()}`;
   }
   return process.env.MONGODB_URI || "mongodb://localhost:27017/emailight_test";
 };
