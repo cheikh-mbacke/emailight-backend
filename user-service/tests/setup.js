@@ -12,7 +12,8 @@ process.env.JWT_SECRET =
 const getMongoUri = () => {
   if (process.env.CI) {
     const timestamp = Date.now();
-    return `mongodb://localhost:27017/emailight_test_${timestamp}`;
+    // Reproduire la structure de production avec credentials
+    return `mongodb://test_admin:test_password@localhost:27017/emailight_test_${timestamp}`;
   }
   return process.env.MONGODB_URI || "mongodb://localhost:27017/emailight_test";
 };

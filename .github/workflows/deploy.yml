@@ -275,14 +275,15 @@ jobs:
     services:
       mongodb:
         image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test_admin
+          MONGO_INITDB_ROOT_PASSWORD: test_password
+          MONGO_INITDB_DATABASE: emailight_test
         ports:
           - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ping: 1})'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+        volumes:
+          - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+          - 
       redis:
         image: redis:7.2-alpine
         options: >-
@@ -349,7 +350,7 @@ jobs:
           # Générer un nom de base de données unique avec timestamp
           TIMESTAMP=$(date +%s)
           UNIQUE_DB_NAME="emailight_test_$TIMESTAMP"
-          MONGODB_TEST_URI="mongodb://test_user:test_password@localhost:27017/$UNIQUE_DB_NAME"
+          MONGODB_TEST_URI="mongodb://test_admin:test_password@localhost:27017/$UNIQUE_DB_NAME"
           echo "MONGODB_TEST_URI=$MONGODB_TEST_URI" >> $GITHUB_ENV
           echo "Using unique test database: $UNIQUE_DB_NAME"
 
