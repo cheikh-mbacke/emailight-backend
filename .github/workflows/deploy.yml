@@ -348,31 +348,16 @@ jobs:
           ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> $GITHUB_ENV
 
-          # Nettoyer la base de données de test avant de démarrer l'API
-          echo "🧹 Nettoyage de la base de données de test..."
-          node -e "
-            const mongoose = require('mongoose');
-            const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/emailight_test';
-            console.log('Connexion à MongoDB avec URI :', mongoUri.replace(/\/\/.*@/, '//***@'));
-            mongoose.connect(mongoUri).then(async () => {
-              try {
-                await mongoose.connection.db.dropDatabase();
-                console.log('✅ Base de données vidée avec succès');
-                const collections = await mongoose.connection.db.listCollections().toArray();
-                console.log('Collections restantes :', collections.length);
-                if (collections.length > 0) {
-                  console.log('Collections :', collections.map(c => c.name));
-                }
-              } catch (error) {
-                console.log('⚠️  Erreur lors du nettoyage :', error.message);
-              } finally {
-                await mongoose.disconnect();
-              }
-            }).catch(err => {
-              console.log('❌ Impossible de se connecter à MongoDB :', err.message);
-            });
-          "
+          # Utilisation d'une base de données unique avec timestamp
+          UNIQUE_DB_NAME="emailight_test_$(date +%s)"
+          echo "🎯 Utilisation d'une base de données unique : $UNIQUE_DB_NAME"
+          echo "MONGODB_URI=mongodb://localhost:27017/$UNIQUE_DB_NAME" >> $GITHUB_ENV
 
+          # Arrêter l'API existante si elle tourne
+          pkill -f "node.*user-service" 2>/dev/null || echo "Aucune API à arrêter"
+          sleep 2
+
+          # Démarrer l'API avec la nouvelle base de données
           npm start &
           SERVICE_PID=$!
           echo "SERVICE_PID=$SERVICE_PID" >> $GITHUB_ENV
@@ -397,7 +382,7 @@ jobs:
           fi
         env:
           NODE_ENV: test
-          MONGODB_URI: mongodb://localhost:27017/emailight_test
+          MONGODB_URI: ${{ env.MONGODB_URI }}
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
           JWT_EXPIRES_IN: 1h
@@ -416,7 +401,7 @@ jobs:
         run: npm run test:coverage
         env:
           NODE_ENV: test
-          MONGODB_URI: mongodb://localhost:27017/emailight_test
+          MONGODB_URI: ${{ env.MONGODB_URI }}
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
           JWT_EXPIRES_IN: 1h
