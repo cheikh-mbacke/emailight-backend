@@ -316,7 +316,27 @@ jobs:
           echo "Waiting for local Redis..."
           while ! nc -z localhost 6379; do sleep 1; done
           echo "Local Redis is ready!"
-
+      - name: Create MongoDB test user
+        run: |
+          echo "Creating MongoDB test user..."
+          # Attendre que MongoDB soit complètement initialisé
+          sleep 10
+          
+          # Créer l'utilisateur applicatif
+          docker run --rm --network host mongo:7.0 mongosh --host localhost:27017 --eval "
+            db = db.getSiblingDB('admin');
+            db.auth('test_admin', 'test_password');
+            
+            // Créer l'utilisateur applicatif pour les tests
+            db = db.getSiblingDB('emailight_test');
+            db.createUser({
+              user: 'test_admin',
+              pwd: 'test_password', 
+              roles: [{ role: 'readWrite', db: 'emailight_test' }]
+            });
+            
+            print('Utilisateur test créé');
+          "
       - name: Wait for production API to be ready
         run: |
           echo "Waiting for production API..."
