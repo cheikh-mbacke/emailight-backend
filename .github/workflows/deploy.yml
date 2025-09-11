@@ -263,7 +263,7 @@ jobs:
             fi
           "
 
-# ====================================
+  # ====================================
   # JOB 3: TESTS D'INTEGRATION
   # ====================================
   integration-tests:
@@ -281,9 +281,7 @@ jobs:
           MONGO_INITDB_DATABASE: emailight_test
         ports:
           - 27017:27017
-        volumes:
-          - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-          - 
+
       redis:
         image: redis:7.2-alpine
         options: >-
