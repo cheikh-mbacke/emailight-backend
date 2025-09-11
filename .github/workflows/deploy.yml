@@ -263,7 +263,7 @@ jobs:
             fi
           "
 
-  # ====================================
+# ====================================
   # JOB 3: TESTS D'INTEGRATION
   # ====================================
   integration-tests:
@@ -339,19 +339,23 @@ jobs:
             exit 1
           fi
 
+      - name: Generate test environment variables
+        run: |
+          # Générer une clé d'encryption valide
+          ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+          echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> $GITHUB_ENV
+          
+          # Générer un nom de base de données unique avec timestamp
+          TIMESTAMP=$(date +%s)
+          UNIQUE_DB_NAME="emailight_test_$TIMESTAMP"
+          MONGODB_TEST_URI="mongodb://test_user:test_password@localhost:27017/$UNIQUE_DB_NAME"
+          echo "MONGODB_TEST_URI=$MONGODB_TEST_URI" >> $GITHUB_ENV
+          echo "Using unique test database: $UNIQUE_DB_NAME"
+
       - name: Start user-service for tests
         working-directory: ./user-service
         run: |
           echo "🚀 Démarrage du user-service pour les tests..."
-
-          # Générer une clé d'encryption valide
-          ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-          echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> $GITHUB_ENV
-
-          # Utilisation d'une base de données unique avec timestamp
-          UNIQUE_DB_NAME="emailight_test_$(date +%s)"
-          echo "🎯 Utilisation d'une base de données unique : $UNIQUE_DB_NAME"
-          echo "MONGODB_URI=mongodb://localhost:27017/$UNIQUE_DB_NAME" >> $GITHUB_ENV
 
           # Arrêter l'API existante si elle tourne
           pkill -f "node.*user-service" 2>/dev/null || echo "Aucune API à arrêter"
@@ -382,7 +386,7 @@ jobs:
           fi
         env:
           NODE_ENV: test
-          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test_$(date +%s)
+          MONGODB_URI: ${{ env.MONGODB_TEST_URI }}
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
           JWT_EXPIRES_IN: 1h
@@ -395,13 +399,14 @@ jobs:
           ENABLE_LOGGING: false
           LOG_LEVEL: error
           USER_SERVICE_PORT: 3001
+          CI: true
 
       - name: Run unit tests with coverage
         working-directory: ./user-service
         run: npm run test:coverage
         env:
           NODE_ENV: test
-          MONGODB_URI: mongodb://test_user:test_password@localhost:27017/emailight_test
+          MONGODB_URI: ${{ env.MONGODB_TEST_URI }}
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
           JWT_EXPIRES_IN: 1h
@@ -413,6 +418,7 @@ jobs:
           DISABLE_TOKEN_REFRESH_SCHEDULER: true
           ENABLE_LOGGING: false
           LOG_LEVEL: error
+          CI: true
 
       - name: Stop user-service after tests
         if: always()
@@ -429,7 +435,7 @@ jobs:
         working-directory: ./user-service
         env:
           NODE_ENV: test
-          MONGODB_URI: mongodb://localhost:27017/emailight_test
+          MONGODB_URI: ${{ env.MONGODB_TEST_URI }}
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_for_ci_cd_pipeline
           JWT_EXPIRES_IN: 1h
@@ -441,257 +447,29 @@ jobs:
           DISABLE_TOKEN_REFRESH_SCHEDULER: true
           ENABLE_LOGGING: false
           LOG_LEVEL: error
+          CI: true
         run: |
           echo "🔍 Diagnostic des tests en cas d'échec..."
-
-          # Copier le script de diagnostic sur le VPS
-          cat > diagnostic-ci-cd-failure.sh << 'EOF'
-          #!/bin/bash
-          set -e
-
-          # Couleurs
-          RED='\033[0;31m'
-          GREEN='\033[0;32m'
-          YELLOW='\033[1;33m'
-          BLUE='\033[0;34m'
-          CYAN='\033[0;36m'
-          BOLD='\033[1m'
-          NC='\033[0m'
-
-          log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-          log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-          log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-          log_error() { echo -e "${RED}❌ $1${NC}"; }
-          log_section() { echo -e "\n${BOLD}${CYAN}🔥 $1${NC}"; }
-
-          log_section "DIAGNOSTIC CI/CD - ÉCHEC DES TESTS"
-          log_info "Démarrage du diagnostic - $(date)"
-
-          # Vérifier l'environnement de test
-          log_section "VÉRIFICATION DE L'ENVIRONNEMENT DE TEST"
-          log_info "Variables d'environnement de test :"
+          echo "Variables d'environnement utilisées:"
+          echo "MONGODB_URI: $MONGODB_URI"
           echo "NODE_ENV: $NODE_ENV"
-          echo "MONGODB_URI: ${MONGODB_URI:0:30}..."
-          echo "REDIS_URL: $REDIS_URL"
-          echo "JWT_SECRET: ${JWT_SECRET:0:10}..."
-
-          # Vérifier les services de test
-          log_section "VÉRIFICATION DES SERVICES DE TEST"
-          log_info "Test de connectivité MongoDB local :"
-          if nc -z localhost 27017 2>/dev/null; then
-            log_success "MongoDB local accessible sur le port 27017"
-          else
-            log_error "MongoDB local non accessible sur le port 27017"
-          fi
-
-          log_info "Test de connectivité Redis local :"
-          if nc -z localhost 6379 2>/dev/null; then
-            log_success "Redis local accessible sur le port 6379"
-          else
-            log_error "Redis local non accessible sur le port 6379"
-          fi
-
-          # Vérifier les dépendances
-          log_section "VÉRIFICATION DES DÉPENDANCES"
-          if [ -d "node_modules" ]; then
-            log_success "node_modules trouvé"
-          else
-            log_error "node_modules manquant"
-          fi
-
-          # Vérifier les dépendances critiques
-          critical_deps=("jest" "@jest/globals" "babel-jest" "@babel/core")
-          for dep in "${critical_deps[@]}"; do
-            if npm list "$dep" >/dev/null 2>&1; then
-              log_success "$dep installé"
-            else
-              log_error "$dep manquant"
-            fi
-          done
-
-          # Exécuter un test simple
-          log_section "TEST SIMPLE"
-          cat > tests/test-simple.test.js << 'TESTEOF'
-          describe('Test simple', () => {
-            test('1 + 1 = 2', () => {
-              expect(1 + 1).toBe(2);
-            });
-            test('Vérification NODE_ENV', () => {
-              expect(process.env.NODE_ENV).toBe('test');
-            });
-          });
-          TESTEOF
-
-          log_info "Exécution du test simple..."
-          if npm test tests/test-simple.test.js 2>&1; then
-            log_success "Test simple réussi - Jest fonctionne"
-          else
-            log_error "Test simple échoué - Problème avec Jest"
-          fi
-          rm -f tests/test-simple.test.js
-
-          # Test de connectivité réseau détaillé
-          log_section "TEST DE CONNECTIVITÉ RÉSEAU DÉTAILLÉ"
-          log_info "Test de connectivité vers localhost:3001..."
-          if curl -s --max-time 5 http://localhost:3001/health 2>/dev/null; then
-            log_success "API locale accessible sur localhost:3001"
-            log_info "Réponse du health check :"
-            curl -s http://localhost:3001/health | head -200
-          else
-            log_error "API locale non accessible sur localhost:3001"
-            log_info "Vérification des ports en écoute :"
-            netstat -tlnp 2>/dev/null | grep -E ":(3001|27017|6379)" || echo "Aucun port trouvé"
-            
-            log_info "Processus Node.js en cours :"
-            ps aux | grep node | grep -v grep || echo "Aucun processus Node.js trouvé"
-            
-            log_info "Tentative de démarrage du service..."
-            npm start &
-            START_PID=$!
-            sleep 5
-            if curl -s --max-time 5 http://localhost:3001/health 2>/dev/null; then
-              log_success "Service démarré avec succès"
-              kill $START_PID 2>/dev/null
-            else
-              log_error "Impossible de démarrer le service"
-              kill $START_PID 2>/dev/null
-            fi
-          fi
-
-          # Test de connectivité vers l'API de production
-          log_info "Test de connectivité vers api.emailight.com..."
-          if curl -s --max-time 10 https://api.emailight.com/health 2>/dev/null; then
-            log_success "API de production accessible"
-          else
-            log_error "API de production non accessible"
-          fi
-
-          # Vérifier la configuration des tests
-          log_section "VÉRIFICATION DE LA CONFIGURATION DES TESTS"
-          log_info "Configuration Jest :"
-          cat jest.config.js 2>/dev/null || echo "jest.config.js non trouvé"
-
-          log_info "Fichiers de test trouvés :"
-          find tests/ -name "*.test.js" -o -name "*.spec.js" 2>/dev/null | head -10
-
-          # Vérifier les helpers de test
-          log_info "Contenu de test-helpers.js (lignes importantes) :"
-          grep -n "baseUrl\|localhost\|axios\|supertest" tests/utils/test-helpers.js 2>/dev/null || echo "test-helpers.js non trouvé"
-
-          # Test d'inscription détaillé
-          log_section "TEST D'INSCRIPTION DÉTAILLÉ"
-          log_info "Test d'inscription d'un utilisateur de test..."
-
-          # Créer un utilisateur de test avec un email vraiment unique
-          TEST_EMAIL="test-$(date +%s)-$(shuf -i 1000-9999 -n 1)-$(openssl rand -hex 4)@emailight.com"
-          REGISTER_PAYLOAD='{"name": "Test User", "email": "'$TEST_EMAIL'", "password": "TestPassword123!"}'
-
-          log_info "Payload d'inscription :"
-          echo "$REGISTER_PAYLOAD"
-
-          # Vérifier si l'email existe déjà dans la base
-          log_info "Vérification si l'email existe déjà dans la base..."
+          echo "CI: $CI"
+          
+          # Test de connexion MongoDB avec credentials
+          echo "Test de connexion MongoDB avec credentials..."
           node -e "
             const mongoose = require('mongoose');
-            const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/emailight_test';
-            console.log('Connexion à MongoDB avec URI :', mongoUri.replace(/\/\/.*@/, '//***@'));
-            mongoose.connect(mongoUri).then(async () => {
-              try {
-                const user = await mongoose.connection.db.collection('users').findOne({email: '$TEST_EMAIL'});
-                if (user) {
-                  console.log('❌ Email $TEST_EMAIL existe déjà dans la base !');
-                  console.log('Utilisateur existant :', JSON.stringify(user, null, 2));
-                } else {
-                  console.log('✅ Email $TEST_EMAIL n\\'existe pas dans la base');
-                }
-              } catch (error) {
-                console.log('⚠️  Erreur lors de la vérification :', error.message);
-              } finally {
-                await mongoose.disconnect();
-              }
+            mongoose.connect('$MONGODB_URI').then(() => {
+              console.log('✅ Connexion MongoDB avec credentials réussie');
+              mongoose.disconnect();
             }).catch(err => {
-              console.log('❌ Impossible de se connecter à MongoDB :', err.message);
+              console.log('❌ Erreur connexion MongoDB:', err.message);
             });
           "
-
-          log_info "Envoi de la requête d'inscription..."
-          REGISTER_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}\n" -X POST \
-            -H "Content-Type: application/json" \
-            -H "Accept-Language: fr-FR" \
-            -d "$REGISTER_PAYLOAD" \
-            http://localhost:3001/api/v1/auth/register 2>/dev/null || echo "ERROR")
-
-          log_info "Réponse complète d'inscription :"
-          echo "$REGISTER_RESPONSE"
-
-          # Analyser la réponse
-          HTTP_CODE=$(echo "$REGISTER_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-          RESPONSE_BODY=$(echo "$REGISTER_RESPONSE" | sed '/HTTP_CODE:/d')
-
-          log_info "Code HTTP : $HTTP_CODE"
-          log_info "Corps de la réponse :"
-          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
-
-          # Vérifier la structure de la réponse
-          log_info "Analyse détaillée de la structure de réponse :"
-
-          # Vérifier .body
-          if echo "$RESPONSE_BODY" | jq -e '.body' >/dev/null 2>&1; then
-            log_success ".body existe"
-            log_info "Contenu de .body :"
-            echo "$RESPONSE_BODY" | jq '.body' 2>/dev/null
-            
-            # Vérifier .body.data
-            if echo "$RESPONSE_BODY" | jq -e '.body.data' >/dev/null 2>&1; then
-              log_success ".body.data existe"
-              log_info "Contenu de .body.data :"
-              echo "$RESPONSE_BODY" | jq '.body.data' 2>/dev/null
-              
-              # Vérifier .body.data.accessToken
-              if echo "$RESPONSE_BODY" | jq -e '.body.data.accessToken' >/dev/null 2>&1; then
-                log_success "Structure de réponse correcte - accessToken trouvé dans .body.data"
-              else
-                log_error ".body.data.accessToken n'existe pas"
-                log_info "Clés disponibles dans .body.data :"
-                echo "$RESPONSE_BODY" | jq '.body.data | keys' 2>/dev/null
-              fi
-            else
-              log_error ".body.data n'existe pas"
-              log_info "Clés disponibles dans .body :"
-              echo "$RESPONSE_BODY" | jq '.body | keys' 2>/dev/null
-            fi
-          else
-            log_error ".body n'existe pas"
-            log_info "Structure de réponse alternative :"
-            
-            # Vérifier .data
-            if echo "$RESPONSE_BODY" | jq -e '.data' >/dev/null 2>&1; then
-              log_warning "Structure différente - .data existe directement"
-              log_info "Contenu de .data :"
-              echo "$RESPONSE_BODY" | jq '.data' 2>/dev/null
-              
-              if echo "$RESPONSE_BODY" | jq -e '.data.accessToken' >/dev/null 2>&1; then
-                log_warning "accessToken trouvé dans .data (pas dans .body.data)"
-              fi
-            else
-              log_error "Ni .body ni .data n'existent"
-            fi
-            
-            log_info "Clés disponibles à la racine :"
-            echo "$RESPONSE_BODY" | jq 'keys' 2>/dev/null || echo "Impossible de parser la réponse"
-          fi
-
-          # Analyser les erreurs détaillées
-          log_section "ANALYSE DES ERREURS DÉTAILLÉES"
-          log_info "Exécution des tests avec verbosité maximale..."
-          npm run test 2>&1 | head -50
-
-          log_section "DIAGNOSTIC TERMINÉ"
-          log_info "Consultez les logs ci-dessus pour identifier le problème"
-          EOF
-
-          chmod +x diagnostic-ci-cd-failure.sh
-          ./diagnostic-ci-cd-failure.sh
+          
+          # Exécuter un test simple pour vérifier l'environnement
+          echo "Exécution d'un test simple..."
+          npm test -- --testNamePattern="Test simple" --verbose || echo "Tests échoués"
 
       - name: Run integration tests against production
         run: |
