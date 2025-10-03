@@ -55,6 +55,7 @@ class ProfileService {
         isEmailVerified: user.isEmailVerified || false,
         isActive: user.isActive || true,
         profilePictureUrl: user.profilePictureUrl || null,
+        passwordChangedAt: user.security?.passwordChangedAt || null,
       };
 
       // ✅ DEBUG: Log des données du profil
